@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>se.sics.ktoolbox</groupId>
-  <artifactId>NatTraversal</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <parent>
+    <artifactId>stun</artifactId>
+    <groupId>se.sics.ktoolbox.nat</groupId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+  <groupId>se.sics.ktoolbox.nat.stun</groupId>
+  <artifactId>client</artifactId>
   <packaging>pom</packaging>
-  <name>NAT Traversal</name>
+  <name>STUN Client</name>
   <modules>
-    <module>nat-network</module>
-    <module>stun</module>
+    <module>api</module>
+    <module>core</module>
   </modules>
 </project>
