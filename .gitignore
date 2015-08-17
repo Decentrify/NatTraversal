@@ -1,1 +1,5 @@
 /stun/server/core/target/
+/nat-network/api/target/
+/stun/client/api/target/
+/stun/client/core/target/
+/nat-network/core/target/

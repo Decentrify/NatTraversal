@@ -7,7 +7,7 @@
     <artifactId>server</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.ktoolbox.nat.stun</groupId>
+  <groupId>se.sics.ktoolbox.nat.stun.server</groupId>
   <artifactId>core</artifactId>
   <name>STUN Server Core</name>
   <url>http://maven.apache.org</url>
