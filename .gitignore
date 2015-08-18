@@ -3,3 +3,9 @@
 /stun/client/api/target/
 /stun/client/core/target/
 /nat-network/core/target/
+/simulation/target/
+/stun/common/target/
+/stun/upnp/target/
+/stun/upnp/core/target/
+/stun/upnp/api/target/
+/stun/upnp/example/target/

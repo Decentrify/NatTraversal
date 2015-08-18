@@ -3,11 +3,11 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>se.sics.ktoolbox.nat</groupId>
+    <groupId>se.sics.nat</groupId>
     <artifactId>nat-network</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.ktoolbox.nat.network</groupId>
+  <groupId>se.sics.nat.network</groupId>
   <artifactId>api</artifactId>
   <name>NAT Network API</name>
   <url>http://maven.apache.org</url>

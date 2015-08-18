@@ -3,10 +3,10 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <artifactId>stun</artifactId>
-    <groupId>se.sics.ktoolbox.nat</groupId>
+    <groupId>se.sics.nat</groupId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.ktoolbox.nat.stun</groupId>
+  <groupId>se.sics.nat.stun</groupId>
   <artifactId>server</artifactId>
   <packaging>pom</packaging>
   <name>STUN Server</name>

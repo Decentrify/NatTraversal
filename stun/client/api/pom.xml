@@ -3,11 +3,11 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>se.sics.ktoolbox.nat.stun</groupId>
+    <groupId>se.sics.nat.stun</groupId>
     <artifactId>client</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.ktoolbox.nat.stun.client</groupId>
+  <groupId>se.sics.nat.stun.client</groupId>
   <artifactId>api</artifactId>
   <name>STUN Client API</name>
   <url>http://maven.apache.org</url>
