@@ -24,12 +24,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.javatuples.Pair;
+import se.sics.ktoolbox.nat.network.Nat;
 import se.sics.ktoolbox.nat.stun.client.StunClientComp;
 import se.sics.ktoolbox.nat.stun.client.StunClientComp.StunClientConfig;
 import se.sics.ktoolbox.nat.stun.client.StunClientComp.StunClientInit;
 import se.sics.ktoolbox.nat.stun.server.StunServerComp;
 import se.sics.ktoolbox.nat.stun.server.StunServerComp.StunServerConfig;
 import se.sics.ktoolbox.nat.stun.server.StunServerComp.StunServerInit;
+import se.sics.nat.stun.core.StunClientHostComp;
+import se.sics.nat.stun.core.StunClientHostComp.StunClientHostInit;
 import se.sics.p2ptoolbox.simulator.cmd.impl.StartNodeCmd;
 import se.sics.p2ptoolbox.simulator.dsl.SimulationScenario;
 import se.sics.p2ptoolbox.simulator.dsl.adaptor.Operation1;
@@ -101,7 +104,7 @@ public class ScenarionGen {
 
         @Override
         public StartNodeCmd generate(final Integer clientId, final Integer serverId) {
-            return new StartNodeCmd<StunClientComp, DecoratedAddress>() {
+            return new StartNodeCmd<StunClientHostComp, DecoratedAddress>() {
                 private final DecoratedAddress stunClientAdr;
 
                 {
@@ -115,15 +118,15 @@ public class ScenarionGen {
 
                 @Override
                 public Class getNodeComponentDefinition() {
-                    return StunClientComp.class;
+                    return StunClientHostComp.class;
                 }
 
                 @Override
-                public StunClientInit getNodeComponentInit(DecoratedAddress aggregatorServer, Set<DecoratedAddress> bootstrapNodes) {
-                    StunClientConfig stunServerConfig = new StunClientConfig();
+                public StunClientHostInit getNodeComponentInit(DecoratedAddress aggregatorServer, Set<DecoratedAddress> bootstrapNodes) {
                     List<DecoratedAddress> stunServerAdrs = new ArrayList<DecoratedAddress>();
                     stunServerAdrs.add(new DecoratedAddress(new BasicAddress(localHost, 56788, serverId)));
-                    return new StunClientInit(stunClientAdr, stunServerAdrs);
+                    Nat natType = new Nat(Nat.Type.NAT, Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, Nat.FilteringPolicy.ENDPOINT_INDEPENDENT, 10000);
+                    return new StunClientHostInit(natType, new StunClientInit(stunClientAdr, stunServerAdrs));
                 }
 
                 @Override

@@ -22,6 +22,11 @@
           <artifactId>core</artifactId>
           <version>${project.version}</version>
       </dependency>
+      <dependency>
+          <groupId>se.sics.nat</groupId>
+          <artifactId>nat-emulator</artifactId>
+          <version>${project.version}</version>
+      </dependency>
       
       <dependency> 
           <groupId>se.sics.ktoolbox.simulator</groupId>

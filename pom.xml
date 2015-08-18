@@ -10,6 +10,7 @@
     <module>nat-network</module>
     <module>stun</module>
     <module>simulation</module>
+    <module>nat-emulator</module>
   </modules>
   
   <properties>
