@@ -40,18 +40,19 @@ public class Echo {
 
     public static enum Type {
 
-        SAME_PORT1, SAME_PORT2, DIFF_PORT, PARTNER
+        UDP_BLOCKED, SAME_PORT1, SAME_PORT2, DIFF_PORT, PARTNER
     }
     
     public static class Request {
         public final UUID id;
         public final Type type;
-        public final DecoratedAddress source;
+        public final DecoratedAddress replyTo;
         
-        public Request(UUID id, Type type, DecoratedAddress source) {
+        public Request(UUID id, Type type, DecoratedAddress replyTo) {
+            assert replyTo != null;
             this.id = id;
             this.type = type;
-            this.source = source;
+            this.replyTo = replyTo;
         }
         
         public Response answer() {
@@ -60,7 +61,7 @@ public class Echo {
         
         @Override
         public String toString() {
-            return "ECHO<" + type.toString() + "> from:" + source.getBase().toString();
+            return "ECHO<" + type.toString() + "> from:" + replyTo.getBase().toString();
         }
     }
     

@@ -15,5 +15,6 @@
         <module>server</module>
         <module>common</module>
     <module>upnp</module>
+    <module>example</module>
   </modules>
 </project>

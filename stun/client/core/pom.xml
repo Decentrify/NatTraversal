@@ -11,4 +11,12 @@
   <artifactId>core</artifactId>
   <name>STUN Client Core</name>
   <url>http://maven.apache.org</url>
+  
+  <dependencies>
+      <dependency>
+          <groupId>se.sics.nat.stun</groupId>
+          <artifactId>common</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+  </dependencies>
 </project>

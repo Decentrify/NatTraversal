@@ -30,9 +30,12 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
+import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.nat.stun.msg.Echo;
+import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
+import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
 
@@ -50,37 +53,39 @@ public class StunServerComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(StunServerComp.class);
     private String logPrefix = "";
 
-    private Positive<Network> networkAPort = requires(Network.class);
-    private Positive<Network> networkBPort = requires(Network.class);
+    private Positive<Network> networkPort = requires(Network.class);
     private Positive<Timer> timerPort = requires(Timer.class);
 
     private final StunServerConfig stunServerConfig;
     private final Pair<DecoratedAddress, DecoratedAddress> self;
     private final List<DecoratedAddress> partners;
+    private final EchoMngr echoMngr;
 
     public StunServerComp(StunServerInit init) {
         this.self = init.self;
         this.logPrefix = getPrefix(self);
-        LOG.info("{}initiating...");
+        LOG.info("{}initiating...", logPrefix);
 
+        this.echoMngr = new EchoMngr();
         this.partners = init.partners;
         this.stunServerConfig = init.stunServerConfig;
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
+        subscribe(echoMngr.handleEchoReq, networkPort);
     }
 
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
-            LOG.info("{}starting...");
+            LOG.info("{}starting...", logPrefix);
         }
     };
 
     Handler handleStop = new Handler<Stop>() {
         @Override
         public void handle(Stop event) {
-            LOG.info("{} stopping...");
+            LOG.info("{} stopping...", logPrefix);
         }
     };
 
@@ -93,9 +98,16 @@ public class StunServerComp extends ComponentDefinition {
                     @Override
                     public void handle(Echo.Request content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Request> container) {
                         DecoratedAddress recSelf = container.getDestination();
-                        LOG.debug("{}received:{} from:{} on:{}",
-                                new Object[]{logPrefix, content, container.getSource().getBase(), recSelf.getBase()});
-
+                        LOG.debug("{}received echo:{} from:{} on:{}",
+                                new Object[]{logPrefix, content.type, container.getSource().getBase(), recSelf.getBase()});
+                        switch (content.type) {
+                            case UDP_BLOCKED:
+                                Echo.Response responseContent = content.answer();
+                                DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self.getValue0(), container.getSource(), Transport.UDP), null, null);
+                                ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
+                                LOG.debug("{}sending echo:{}", logPrefix, responseContent.type);
+                                trigger(response, networkPort);
+                        }
                     }
                 };
 
@@ -104,7 +116,7 @@ public class StunServerComp extends ComponentDefinition {
     private String getPrefix(Pair<DecoratedAddress, DecoratedAddress> self) {
         String ret = self.getValue0().getIp().toString();
         ret += ":<" + self.getValue0().getBase().getPort() + "," + self.getValue1().getBase().getPort() + ">:";
-        ret += self.getValue0().getBase().getId();
+        ret += self.getValue0().getBase().getId() + " ";
         return ret;
     }
 
