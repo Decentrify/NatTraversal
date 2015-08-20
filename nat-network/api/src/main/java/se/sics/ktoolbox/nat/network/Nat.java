@@ -16,16 +16,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
 package se.sics.ktoolbox.nat.network;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class Nat {
+
     public static final int DEFAULT_RULE_EXPIRATION_TIME = 30 * 1000;
     public static final int UPPER_RULE_EXPIRATION_TIME = 90 * 1000;
-    
+
     public static final String[] NAT_COMBINATIONS = {
         "NAT_EI_PC_EI", "NAT_EI_PC_HD", "NAT_EI_PC_PD",
         "NAT_EI_PP_EI_AltPC", "NAT_EI_PP_HD", "NAT_EI_PP_PD",
@@ -34,8 +34,9 @@ public class Nat {
         "NAT_HD_RD_HD", "NAT_PD_PC_EI", "NAT_PD_PC_PD",
         "NAT_PD_RD_PD", "NAT_PD_PP_EI", "NAT_PD_PP_PD"
     };
-    
+
     public static enum Type {
+
         OPEN("OP"), NAT("NAT"), UPNP("UPNP"), UDP_BLOCKED("UB");
         String code;
 
@@ -54,8 +55,9 @@ public class Nat {
             return null;
         }
     }
-    
+
     public static enum MappingPolicy {
+
         // Ordering of policies is from least restrictive to most restrictive
         OPEN("OP"), ENDPOINT_INDEPENDENT("EI"),
         HOST_DEPENDENT("HD"), PORT_DEPENDENT("PD");
@@ -76,8 +78,9 @@ public class Nat {
             return null;
         }
     }
-    
+
     public static enum AllocationPolicy {
+
         // Ordering of policies is from least restrictive to most restrictive
         OPEN("OP"), PORT_PRESERVATION("PP"), PORT_CONTIGUITY("PC"), RANDOM("RD");
         String code;
@@ -97,7 +100,7 @@ public class Nat {
             return null;
         }
     };
-    
+
     public static enum FilteringPolicy {
         // Ordering of policies is from least restrictive to most restrictive
 
@@ -119,7 +122,7 @@ public class Nat {
             return null;
         }
     };
-    
+
     public static enum BindingTimeoutCategory {
 
         LOW(Nat.DEFAULT_RULE_EXPIRATION_TIME), HIGH(Nat.UPPER_RULE_EXPIRATION_TIME);
@@ -140,29 +143,47 @@ public class Nat {
             return bindingTimeout;
         }
     }
-    
-    private final Type type;
-    private final MappingPolicy mappingPolicy;
-    private final AllocationPolicy allocationPolicy;
-    private final FilteringPolicy filteringPolicy;
-    private final long bindingTimeout;
-    
-    public Nat(Type type, MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, FilteringPolicy filteringPolicy, long bindingTimeout) {
-        assert type != null;
+
+    public final Type type;
+    public final MappingPolicy mappingPolicy;
+    public final AllocationPolicy allocationPolicy;
+    public final FilteringPolicy filteringPolicy;
+    public final long bindingTimeout;
+
+    public static Nat open() {
+        return new Nat(Type.OPEN, null, null, null, 0);
+    }
+
+    public static Nat nated(MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, FilteringPolicy filteringPolicy, long bindingTimeout) {
         assert mappingPolicy != null;
         assert allocationPolicy != null;
         assert filteringPolicy != null;
         assert bindingTimeout > 0;
-        
+        return new Nat(Type.NAT, mappingPolicy, allocationPolicy, filteringPolicy, bindingTimeout);
+    }
+
+    private Nat(Type type, MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, FilteringPolicy filteringPolicy, long bindingTimeout) {
         this.type = type;
         this.mappingPolicy = mappingPolicy;
         this.allocationPolicy = allocationPolicy;
         this.filteringPolicy = filteringPolicy;
         this.bindingTimeout = bindingTimeout;
     }
-    
+
     @Override
     public String toString() {
-        return type.code + "-" + mappingPolicy.code + "-" + allocationPolicy.code + "-" + filteringPolicy.code;
+        switch (type) {
+            case OPEN:
+                return type.code;
+            case NAT:
+                return type.code + "-" + mappingPolicy.code + "-" + allocationPolicy.code + "-" + filteringPolicy.code;
+            case UDP_BLOCKED:
+                return type.code;
+            case UPNP:
+                return type.code;
+            default: 
+                return "unknown";
+        }
+
     }
 }

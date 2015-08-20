@@ -25,13 +25,11 @@ import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Fault;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
-import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.nat.network.Nat;
 import se.sics.ktoolbox.nat.stun.client.StunClientComp;
 import se.sics.ktoolbox.nat.stun.client.StunClientComp.StunClientInit;
 import se.sics.nat.emulator.NatEmulatorComp;
@@ -48,15 +46,16 @@ public class StunClientHostComp extends ComponentDefinition {
     private Positive<Network> network = requires(Network.class);
     private Positive<Timer> timer = requires(Timer.class);
 
-    private final Nat natType;
     private final StunClientInit stunClientInit;
+    private final NatEmulatorInit natEmulatorInit;
     
     private Component natEmulator;
     private Component stunClient;
 
     public StunClientHostComp(StunClientHostInit init) {
         LOG.info("{}initiating", logPrefix);
-        this.natType = init.natType;
+
+        this.natEmulatorInit = init.natEmulatorInit;
         this.stunClientInit = init.stunClientInit;
 
         subscribe(handleStart, control);
@@ -86,7 +85,7 @@ public class StunClientHostComp extends ComponentDefinition {
     //*************************************************************************
 
     private void connectNatEmulator() {
-        natEmulator = create(NatEmulatorComp.class, new NatEmulatorInit(natType));
+        natEmulator = create(NatEmulatorComp.class, natEmulatorInit);
         connect(natEmulator.getNegative(Timer.class), timer);
         connect(natEmulator.getNegative(Network.class), network);
         trigger(Start.event, natEmulator.control());
@@ -100,11 +99,11 @@ public class StunClientHostComp extends ComponentDefinition {
     }
     
     public static class StunClientHostInit extends Init<StunClientHostComp> {
-        public final Nat natType;
+        public final NatEmulatorInit natEmulatorInit;
         public final StunClientInit stunClientInit;
 
-        public StunClientHostInit(Nat natType, StunClientInit stunClientInit) {
-            this.natType = natType;
+        public StunClientHostInit(NatEmulatorInit natEmulatorInit, StunClientInit stunClientInit) {
+            this.natEmulatorInit = natEmulatorInit;
             this.stunClientInit = stunClientInit;
         }
     }

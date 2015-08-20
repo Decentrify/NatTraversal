@@ -99,7 +99,7 @@ public class StunClientComp extends ComponentDefinition {
 
     public StunClientComp(StunClientInit init) {
         LOG.info("{}initiating...", logPrefix);
-        this.self = init.startSelf;
+        this.self = init.self;
         this.echoMngr = new EchoMngr();
         this.stunServersMngr = new StunServerMngr(init.stunServers);
 
@@ -160,11 +160,11 @@ public class StunClientComp extends ComponentDefinition {
 
     public static class StunClientInit extends Init<StunClientComp> {
 
-        public final DecoratedAddress startSelf;
+        public final DecoratedAddress self;
         public final List<DecoratedAddress> stunServers;
 
         public StunClientInit(DecoratedAddress startSelf, List<DecoratedAddress> stunServers) {
-            this.startSelf = startSelf;
+            this.self = startSelf;
             this.stunServers = stunServers;
         }
     }
