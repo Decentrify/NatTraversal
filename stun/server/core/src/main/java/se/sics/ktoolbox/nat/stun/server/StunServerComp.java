@@ -105,7 +105,7 @@ public class StunServerComp extends ComponentDefinition {
                                 Echo.Response responseContent = content.answer(container.getSource());
                                 DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(container.getDestination(), container.getSource(), Transport.UDP), null, null);
                                 ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
-                                LOG.debug("{}sending echo:{} to:{} from:{}", 
+                                LOG.debug("{}sending echo:{} from:{} to:{}", 
                                         new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
                                 trigger(response, network);
                             }
@@ -114,7 +114,7 @@ public class StunServerComp extends ComponentDefinition {
                                 Echo.Response responseContent = content.answer();
                                 DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self.getValue1(), content.target, Transport.UDP), null, null);
                                 ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
-                                LOG.debug("{}sending echo:{} to:{} from:{}", 
+                                LOG.debug("{}sending echo:{} from:{} to:{}", 
                                         new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
                                 trigger(response, network);
                             }
@@ -125,13 +125,13 @@ public class StunServerComp extends ComponentDefinition {
                                     DecoratedHeader<DecoratedAddress> forwardHeader = new DecoratedHeader(new BasicHeader(self.getValue0(), partner, Transport.UDP), null, null);
                                     ContentMsg forward = new BasicContentMsg(forwardHeader, content);
                                     LOG.debug("{}sending forwarding echo:{} from:{} to:{}", 
-                                        new Object[]{logPrefix, content.type, content.target.getBase(), forwardHeader.getDestination().getBase()});
+                                        new Object[]{logPrefix, content.type, content.target.getBase(), forwardHeader.getDestination().getBase(), });
                                     trigger(forward, network);
                                 } else {
                                     Echo.Response responseContent = content.answer();
                                     DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self.getValue1(), content.target, Transport.UDP), null, null);
                                     ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
-                                    LOG.debug("{}sending echo:{} to:{} from:{}", 
+                                    LOG.debug("{}sending echo:{} from:{} to:{}", 
                                         new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
                                     trigger(response, network);
                                 }
