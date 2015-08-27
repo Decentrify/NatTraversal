@@ -18,6 +18,7 @@
  */
 package se.sics.ktoolbox.nat.stun.msg;
 
+import com.google.common.base.Optional;
 import java.util.UUID;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
@@ -36,42 +37,55 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
  *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Echo {
+public abstract class Echo {
 
     public static enum Type {
-
-        UDP_BLOCKED, SAME_PORT1, SAME_PORT2, DIFF_PORT, PARTNER
+        SIP_SP, SIP_DP, DIP_DP, DIP_SP
     }
-    
-    public static class Request {
-        public final UUID id;
-        public final Type type;
-        public final DecoratedAddress replyTo;
-        
-        public Request(UUID id, Type type, DecoratedAddress replyTo) {
-            assert replyTo != null;
-            this.id = id;
-            this.type = type;
-            this.replyTo = replyTo;
+
+    public final UUID id;
+    public final UUID sessionId;
+    public final Type type;
+
+    protected Echo(UUID id, UUID sessionId, Type type) {
+        this.id = id;
+        this.sessionId = sessionId;
+        this.type = type;
+    }
+
+    public static class Request extends Echo {
+        public final DecoratedAddress target;
+
+        public Request(UUID id, UUID sessionId, Type type, DecoratedAddress target) {
+            super(id, sessionId, type);
+            this.target = target;
+        }
+
+        public Response answer(DecoratedAddress src) {
+            return new Response(id, sessionId, type, Optional.of(src));
         }
         
         public Response answer() {
-            return new Response(id, type);
+            return new Response(id, sessionId, type, Optional.absent());
+        }
+
+        @Override
+        public String toString() {
+            return "ECHO_REQ<" + type.toString() + ">";
+        }
+    }
+    
+    public static class Response extends Echo {
+        public final Optional<DecoratedAddress> observed;
+
+        private Response(UUID id, UUID sessionId, Type type, Optional observed) {
+            super(id, sessionId, type);
+            this.observed = observed;
         }
         
         @Override
         public String toString() {
-            return "ECHO<" + type.toString() + "> from:" + replyTo.getBase().toString();
-        }
-    }
-    
-    public static class Response {
-        public final UUID id;
-        public final Type type;
-        
-        public Response(UUID id, Type type) {
-            this.id = id;
-            this.type = type;
+            return "ECHO_RESP<" + type.toString() + ">";
         }
     }
 }

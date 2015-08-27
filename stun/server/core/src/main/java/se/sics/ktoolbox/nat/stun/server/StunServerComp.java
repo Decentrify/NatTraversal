@@ -53,8 +53,8 @@ public class StunServerComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(StunServerComp.class);
     private String logPrefix = "";
 
-    private Positive<Network> networkPort = requires(Network.class);
-    private Positive<Timer> timerPort = requires(Timer.class);
+    private Positive<Network> network = requires(Network.class);
+    private Positive<Timer> timer = requires(Timer.class);
 
     private final StunServerConfig stunServerConfig;
     private final Pair<DecoratedAddress, DecoratedAddress> self;
@@ -72,7 +72,7 @@ public class StunServerComp extends ComponentDefinition {
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
-        subscribe(echoMngr.handleEchoReq, networkPort);
+        subscribe(echoMngr.handleEchoRequest, network);
     }
 
     Handler handleStart = new Handler<Start>() {
@@ -91,8 +91,8 @@ public class StunServerComp extends ComponentDefinition {
 
     //**************************************************************************
     private class EchoMngr {
-
-        ClassMatchedHandler handleEchoReq
+        
+        ClassMatchedHandler handleEchoRequest
                 = new ClassMatchedHandler<Echo.Request, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Request>>() {
 
                     @Override
@@ -101,16 +101,49 @@ public class StunServerComp extends ComponentDefinition {
                         LOG.debug("{}received echo:{} from:{} on:{}",
                                 new Object[]{logPrefix, content.type, container.getSource().getBase(), recSelf.getBase()});
                         switch (content.type) {
-                            case UDP_BLOCKED:
-                                Echo.Response responseContent = content.answer();
-                                DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self.getValue0(), container.getSource(), Transport.UDP), null, null);
+                            case SIP_SP: {
+                                Echo.Response responseContent = content.answer(container.getSource());
+                                DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(container.getDestination(), container.getSource(), Transport.UDP), null, null);
                                 ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
-                                LOG.debug("{}sending echo:{}", logPrefix, responseContent.type);
-                                trigger(response, networkPort);
+                                LOG.debug("{}sending echo:{} to:{} from:{}", 
+                                        new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
+                                trigger(response, network);
+                            }
+                            break;
+                            case SIP_DP: {
+                                Echo.Response responseContent = content.answer();
+                                DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self.getValue1(), content.target, Transport.UDP), null, null);
+                                ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
+                                LOG.debug("{}sending echo:{} to:{} from:{}", 
+                                        new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
+                                trigger(response, network);
+                            }
+                            break;
+                            case DIP_DP: {
+                                if (container.getSource().getIp().equals(content.target.getIp())) {
+                                    DecoratedAddress partner = getPartner();
+                                    DecoratedHeader<DecoratedAddress> forwardHeader = new DecoratedHeader(new BasicHeader(self.getValue0(), partner, Transport.UDP), null, null);
+                                    ContentMsg forward = new BasicContentMsg(forwardHeader, content);
+                                    LOG.debug("{}sending forwarding echo:{} from:{} to:{}", 
+                                        new Object[]{logPrefix, content.type, content.target.getBase(), forwardHeader.getDestination().getBase()});
+                                    trigger(forward, network);
+                                } else {
+                                    Echo.Response responseContent = content.answer();
+                                    DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self.getValue1(), content.target, Transport.UDP), null, null);
+                                    ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
+                                    LOG.debug("{}sending echo:{} to:{} from:{}", 
+                                        new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
+                                    trigger(response, network);
+                                }
+                            }
+                            break;
                         }
                     }
                 };
+    }
 
+    private DecoratedAddress getPartner() {
+        return partners.get(0);
     }
 
     private String getPrefix(Pair<DecoratedAddress, DecoratedAddress> self) {

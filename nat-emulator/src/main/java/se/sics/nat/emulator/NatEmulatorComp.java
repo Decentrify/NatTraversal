@@ -166,8 +166,9 @@ public class NatEmulatorComp extends ComponentDefinition {
         if (!publicPort.isPresent()) {
             //no state to clean if exception is thrown by allocatePort, safe to just propagate
             publicPort = Optional.of(allocationPolicy.allocatePort(src.getPort(), portMappings.getAllocatedPorts()));
-            portMappings.map(publicPort.get(), Pair.with(src.getBase().getIp(), src.getBase().getPort()), Pair.with(dst.getIp(), dst.getPort()));
+            LOG.info("{}mapping private:{} public:{}", new Object[]{logPrefix, src.getPort(), publicPort.get()});
         }
+        portMappings.map(publicPort.get(), Pair.with(src.getBase().getIp(), src.getBase().getPort()), Pair.with(dst.getIp(), dst.getPort()));
         addresses.put(Pair.with(src.getBase().getIp(), src.getBase().getPort()), src);
         return publicPort.get();
     }

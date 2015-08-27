@@ -22,8 +22,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
@@ -32,6 +34,9 @@ import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
+import se.sics.kompics.timer.CancelTimeout;
+import se.sics.kompics.timer.ScheduleTimeout;
+import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.nat.stun.client.util.Session;
 import se.sics.ktoolbox.nat.stun.msg.Echo;
@@ -90,14 +95,15 @@ public class StunClientComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(StunClientComp.class);
     private String logPrefix = "";
 
-    private Positive<Network> networkPort = requires(Network.class);
-    private Positive<Timer> timerPort = requires(Timer.class);
+    private final Positive<Network> network = requires(Network.class);
+    private final Positive<Timer> timer = requires(Timer.class);
 
-    private DecoratedAddress self;
+    private final Pair<DecoratedAddress, DecoratedAddress> self;
     private final EchoMngr echoMngr;
     private final StunServerMngr stunServersMngr;
 
     public StunClientComp(StunClientInit init) {
+        this.logPrefix = init.self.getValue0().getIp() + "<" + init.self.getValue0().getPort() + "," + init.self.getValue1().getPort() + "> ";
         LOG.info("{}initiating...", logPrefix);
         this.self = init.self;
         this.echoMngr = new EchoMngr();
@@ -105,71 +111,174 @@ public class StunClientComp extends ComponentDefinition {
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
+        subscribe(echoMngr.handleEchoResponse, network);
+        subscribe(echoMngr.handleEchoTimeout, timer);
     }
 
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
-            echoMngr.startEcho1();
+            echoMngr.startEchoSession();
         }
     };
 
     Handler handleStop = new Handler<Stop>() {
         @Override
         public void handle(Stop event) {
-            LOG.info("{} stopping...", logPrefix);
+            LOG.info("{}stopping...", logPrefix);
         }
     };
 
     private class EchoMngr {
 
         Map<UUID, Session> ongoingSessions;
+        Map<UUID, UUID> echoTimeouts;
 
         public EchoMngr() {
             this.ongoingSessions = new HashMap<UUID, Session>();
+            this.echoTimeouts = new HashMap<UUID, UUID>();
         }
 
-        void startEcho1() {
-            DecoratedAddress stunServer = stunServersMngr.getStunServer();
-            Session session = new Session(UUID.randomUUID(), stunServer);
-            LOG.debug("{}starting new echo session:{} stun server:{}",
-                    new Object[]{logPrefix, session.id, session.stunServer.getBase()});
+        void startEchoSession() {
+            Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> stunServers = stunServersMngr.getStunServers();
+            Session session = new Session(UUID.randomUUID(), self, stunServers);
+            LOG.info("{}starting new echo session:{}", logPrefix, session.id);
+            LOG.info("{}stun server1:{} {}", new Object[]{logPrefix, stunServers.getValue0().getValue0().getBase(), stunServers.getValue0().getValue1().getBase()});
+            LOG.info("{}stun server2:{} {}", new Object[]{logPrefix, stunServers.getValue1().getValue0().getBase(), stunServers.getValue1().getValue1().getBase()});
             ongoingSessions.put(session.id, session);
 
-            Echo.Request requestContent = new Echo.Request(session.id, Echo.Type.UDP_BLOCKED, self);
-            DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(self, session.stunServer, Transport.UDP), null, null);
-            ContentMsg request = new BasicContentMsg(requestHeader, requestContent);
-            LOG.debug("{}sending:{}", logPrefix, requestContent);
-            trigger(request, networkPort);
+            processSession(session);
+        }
+
+        Handler handleEchoTimeout = new Handler<EchoTimeout>() {
+            @Override
+            public void handle(EchoTimeout timeout) {
+                LOG.trace("{}echo:{} timeout to:{}",
+                        new Object[]{logPrefix, timeout.echo.getValue0(), timeout.echo.getValue1().getValue1().getBase()});
+                echoTimeouts.remove(timeout.echo.getValue0().id);
+
+                Session session = ongoingSessions.get(timeout.echo.getValue0().sessionId);
+                if (session == null) {
+                    LOG.warn("{}session logic error", logPrefix);
+                    return;
+                }
+                session.timeout();
+
+                if (!session.finished()) {
+                    processSession(session);
+                } else {
+                    processResult(session);
+                }
+            }
+        };
+
+        ClassMatchedHandler handleEchoResponse
+                = new ClassMatchedHandler<Echo.Response, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Response>>() {
+
+                    @Override
+                    public void handle(Echo.Response content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Response> container) {
+                        LOG.debug("{}received:{} from:{}", new Object[]{logPrefix, content, container.getHeader().getSource().getBase()});
+                        cancelEchoTimeout(content.id);
+                        Session session = ongoingSessions.get(content.sessionId);
+                        if (session == null) {
+                            LOG.error("{}session logic error", logPrefix);
+                            throw new RuntimeException("session logic error");
+                        }
+                        session.receivedResponse(content, container.getSource());
+                        if (!session.finished()) {
+                            processSession(session);
+                        } else {
+                            processResult(session);
+                        }
+                    }
+                };
+
+        private void processResult(Session session) {
+            //TODO Alex - deal with result
+            ongoingSessions.remove(session.id);
+            Session.Result sessionResult = session.getResult();
+            if (sessionResult.isFailed()) {
+                //TODO Alex - what to do on session fail
+                LOG.warn("{}stun session failed with:{}", logPrefix, sessionResult.failureDescription.get());
+            } else {
+                switch (sessionResult.natState.get()) {
+                    case UDP_BLOCKED:
+                    case OPEN:
+                    case FIREWALL:
+                        LOG.info("{}session result:{}", logPrefix, sessionResult.natState.get());
+                        break;
+                    case NAT:
+                        LOG.info("{}session result:NAT filter:{} mapping:{} allocation:{}", 
+                                new Object[]{logPrefix, sessionResult.filterPolicy.get(), sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get()});
+                        if(sessionResult.allocationPolicy.get().equals(Session.AllocationPolicy.PC)) {
+                            LOG.info("{}session result:NAT delta:{}", logPrefix, sessionResult.delta.get());
+                        }
+                        break;
+                    default:
+                        LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());
+                }
+            }
+        }
+
+        private void processSession(Session session) {
+            Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next = session.next();
+            DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(next.getValue1().getValue0(), next.getValue1().getValue1(), Transport.UDP), null, null);
+            ContentMsg request = new BasicContentMsg(requestHeader, next.getValue0());
+            LOG.debug("{}sending:{} from:{} to:{}", 
+                    new Object[]{logPrefix, next.getValue0().type, next.getValue1().getValue0().getBase(), next.getValue1().getValue1().getBase()});
+            trigger(request, network);
+
+            ScheduleTimeout st = new ScheduleTimeout(StunClientConfig.echoTimeout);
+            EchoTimeout timeout = new EchoTimeout(st, next);
+            st.setTimeoutEvent(timeout);
+            trigger(st, timer);
+            echoTimeouts.put(timeout.echo.getValue0().id, timeout.getTimeoutId());
+        }
+
+        private void cancelEchoTimeout(UUID echoId) {
+            UUID timeoutId = echoTimeouts.remove(echoId);
+            CancelTimeout ct = new CancelTimeout(timeoutId);
+            trigger(ct, timer);
         }
     }
 
     private class StunServerMngr {
 
-        List<DecoratedAddress> stunServers;
+        List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
 
-        public StunServerMngr(List<DecoratedAddress> stunServers) {
+        public StunServerMngr(List<Pair<DecoratedAddress, DecoratedAddress>> stunServers) {
             this.stunServers = stunServers;
         }
 
-        public DecoratedAddress getStunServer() {
-            return stunServers.get(0);
+        public Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> getStunServers() {
+            return Pair.with(stunServers.get(0), stunServers.get(1));
         }
     }
 
     public static class StunClientInit extends Init<StunClientComp> {
 
-        public final DecoratedAddress self;
-        public final List<DecoratedAddress> stunServers;
+        public final Pair<DecoratedAddress, DecoratedAddress> self;
+        public final List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
 
-        public StunClientInit(DecoratedAddress startSelf, List<DecoratedAddress> stunServers) {
+        public StunClientInit(Pair<DecoratedAddress, DecoratedAddress> startSelf, List<Pair<DecoratedAddress, DecoratedAddress>> stunServers) {
             this.self = startSelf;
             this.stunServers = stunServers;
         }
     }
-    
+
     public static class StunClientConfig {
-        
+
+        public static long echoTimeout = 2000;
+    }
+
+    public static class EchoTimeout extends Timeout {
+
+        public final Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> echo;
+
+        public EchoTimeout(ScheduleTimeout request, Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> echo) {
+            super(request);
+            this.echo = echo;
+        }
     }
 }

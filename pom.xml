@@ -14,16 +14,16 @@
   </modules>
   
   <properties>
-        <maven.compiler.source>1.6</maven.compiler.source>
-        <maven.compiler.target>1.6</maven.compiler.target>
+      <java.version>1.7</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.compiler.version>1.6</java.compiler.version>
-        <kompics.version>0.8.1-SNAPSHOT</kompics.version>
+        <kompics.version>0.8.2-SNAPSHOT</kompics.version>
         
-        <util.version>1.5-SNAPSHOT</util.version>
+        <util.version>1.7-SNAPSHOT</util.version>
         <simulator.version>1.5-SNAPSHOT</simulator.version>
         
-        <logger.version>1.5.6</logger.version>
+        <logger.version>1.7.5</logger.version>
         <tuples.version>1.2</tuples.version>
         <guava.version>18.0</guava.version>
   </properties>
