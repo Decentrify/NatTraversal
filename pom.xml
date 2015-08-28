@@ -12,8 +12,8 @@
         <module>hp</module>
         <module>parent-maker</module>
         <module>nat-network</module>
-        <module>simulation</module>
-    </modules>
+    <module>example</module>
+  </modules>
   
     <properties>
         <java.version>1.7</java.version>

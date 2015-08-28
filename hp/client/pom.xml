@@ -3,12 +3,20 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>se.sics</groupId>
-    <artifactId>nat</artifactId>
+    <groupId>se.sics.nat</groupId>
+    <artifactId>hp</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.nat</groupId>
-  <artifactId>simulation</artifactId>
-  <name>NAT Simulation</name>
+  <groupId>se.sics.nat.hp</groupId>
+  <artifactId>client</artifactId>
+  <name>HP Client</name>
   <url>http://maven.apache.org</url>
+  
+  <dependencies>
+      <dependency>
+          <groupId>se.sics.nat.hp</groupId>
+          <artifactId>common</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+  </dependencies>
 </project>

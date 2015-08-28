@@ -68,7 +68,7 @@ public class PMServerComp extends ComponentDefinition {
     private final Map<BasicAddress, DecoratedAddress> children;
     private final Set<BasicAddress> heartbeats; //TODO Alex - check timeouts and rtts
 
-    private UUID insternalStateCheckId;
+    private UUID internalStateCheckId;
     private UUID heartbeatId;
     private UUID heartbeatCheckId;
 
@@ -209,24 +209,24 @@ public class PMServerComp extends ComponentDefinition {
     }
 
     private void scheduleInternalStateCheck() {
-        if (insternalStateCheckId != null) {
+        if (internalStateCheckId != null) {
             LOG.warn("{}double starting internal state check timeout", logPrefix);
             return;
         }
         SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(config.internalStateCheck, config.internalStateCheck);
         PeriodicInternalStateCheck sc = new PeriodicInternalStateCheck(spt);
         spt.setTimeoutEvent(sc);
-        insternalStateCheckId = sc.getTimeoutId();
+        internalStateCheckId = sc.getTimeoutId();
         trigger(spt, timer);
     }
 
     private void cancelInternalStateCheck() {
-        if (insternalStateCheckId == null) {
+        if (internalStateCheckId == null) {
             LOG.warn("{}double stopping internal state check timeout", logPrefix);
             return;
         }
-        CancelPeriodicTimeout cpt = new CancelPeriodicTimeout(insternalStateCheckId);
-        insternalStateCheckId = null;
+        CancelPeriodicTimeout cpt = new CancelPeriodicTimeout(internalStateCheckId);
+        internalStateCheckId = null;
         trigger(cpt, timer);
 
     }
