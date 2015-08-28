@@ -172,9 +172,9 @@ public class PMClientComp extends ComponentDefinition {
             };
 
     ClassMatchedHandler handleHeartbeat
-            = new ClassMatchedHandler<PMMsg.UnRegister, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister>>() {
+            = new ClassMatchedHandler<PMMsg.Heartbeat, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.Heartbeat>>() {
                 @Override
-                public void handle(PMMsg.UnRegister content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister> container) {
+                public void handle(PMMsg.Heartbeat content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.Heartbeat> container) {
                     LOG.debug("{}heartbeat from:{}", logPrefix, container.getSource());
                     heartbeats.add(container.getSource());
                 }

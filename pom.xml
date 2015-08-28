@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>se.sics</groupId>
-  <artifactId>nat</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
-  <packaging>pom</packaging>
-  <name>NAT Traversal</name>
-  <modules>
-    <module>nat-network</module>
-    <module>stun</module>
-    <module>simulation</module>
-    <module>nat-emulator</module>
-    <module>hp</module>
-    <module>parent-maker</module>
-  </modules>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>se.sics</groupId>
+    <artifactId>nat</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>NAT Traversal</name>
+    <modules>
+        <module>nat-emulator</module>
+        <module>stun</module>
+        <module>hp</module>
+        <module>parent-maker</module>
+        <module>nat-network</module>
+        <module>simulation</module>
+    </modules>
   
-  <properties>
-      <java.version>1.7</java.version>
+    <properties>
+        <java.version>1.7</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -29,9 +29,9 @@
         <logger.version>1.7.5</logger.version>
         <tuples.version>1.2</tuples.version>
         <guava.version>18.0</guava.version>
-  </properties>
+    </properties>
   
-  <dependencies>
+    <dependencies>
         <dependency>
             <groupId>se.sics.kompics</groupId>
             <artifactId>kompics-core</artifactId>
@@ -75,5 +75,5 @@
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
         </dependency>
-  </dependencies>
+    </dependencies>
 </project>

@@ -16,26 +16,22 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.nat.pm.system;
 
-package se.sics.nat.pm.server.msg;
-
-import java.util.Collection;
-import java.util.Set;
-import se.sics.nat.pm.common.PMMsg;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.nat.pm.simulation.ScenarionGen;
+import se.sics.p2ptoolbox.simulator.dsl.SimulationScenario;
+import se.sics.p2ptoolbox.simulator.run.LauncherComp;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Update implements PMMsg {
-    public final Collection<DecoratedAddress> registeredChildren;
-    
-    public Update(Collection<DecoratedAddress> registeredChildren) {
-        this.registeredChildren = registeredChildren;
-    }
-    
-    @Override 
-    public String toString() {
-        return "UPDATE";
+public class Main {
+
+    public static void main(String[] args) {
+        long seed = 123;
+
+        SimulationScenario simpleBootScenario = ScenarionGen.simpleBoot();
+        simpleBootScenario.setSeed(seed);
+        simpleBootScenario.simulate(LauncherComp.class);
     }
 }

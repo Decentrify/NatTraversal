@@ -11,10 +11,11 @@
     <packaging>pom</packaging>
     <name>Parent Maker</name>
     <modules>
+        <module>common</module>
         <module>client-api</module>
         <module>client</module>
+        <module>server-api</module>
         <module>server</module>
-        <module>common</module>
-    <module>server-api</module>
-  </modules>
+        <module>example</module>
+    </modules>
 </project>

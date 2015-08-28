@@ -19,7 +19,9 @@
 package se.sics.nat.pm.server;
 
 import com.google.common.collect.Sets;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -63,8 +65,8 @@ public class PMServerComp extends ComponentDefinition {
     private final PMConfig config;
     private DecoratedAddress self;
     private boolean changed;
-    private final Set<DecoratedAddress> children;
-    private final Set<DecoratedAddress> heartbeats; //TODO Alex - check timeouts and rtts
+    private final Map<BasicAddress, DecoratedAddress> children;
+    private final Set<BasicAddress> heartbeats; //TODO Alex - check timeouts and rtts
 
     private UUID insternalStateCheckId;
     private UUID heartbeatId;
@@ -76,9 +78,9 @@ public class PMServerComp extends ComponentDefinition {
         LOG.info("{}initiating...", logPrefix);
 
         this.config = init.config;
-        this.changed = true;
-        this.children = new HashSet<DecoratedAddress>();
-        this.heartbeats = new HashSet<DecoratedAddress>();
+        this.changed = false;
+        this.children = new HashMap<BasicAddress, DecoratedAddress>();
+        this.heartbeats = new HashSet<BasicAddress>();
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
@@ -125,7 +127,7 @@ public class PMServerComp extends ComponentDefinition {
                     LOG.info("{}register request from:{}", logPrefix, container.getSource());
                     PMMsg.RegisterResp respContent;
                     if (children.size() < config.nrChildren) {
-                        children.add(container.getSource());
+                        children.put(container.getSource().getBase(), container.getSource());
                         changed = true;
                         respContent = new PMMsg.RegisterResp(PMMsg.RegisterStatus.ACCEPTED);
                     } else {
@@ -144,19 +146,22 @@ public class PMServerComp extends ComponentDefinition {
                 @Override
                 public void handle(PMMsg.UnRegister content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister> container) {
                     LOG.info("{}unregister from:{}", logPrefix, container.getSource());
-                    if (children.contains(container.getSource())) {
-                        children.remove(container.getSource());
+                    if (children.containsKey(container.getSource().getBase())) {
+                        children.remove(container.getSource().getBase());
                         changed = true;
                     }
                 }
             };
 
     ClassMatchedHandler handleHeartbeat
-            = new ClassMatchedHandler<PMMsg.UnRegister, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister>>() {
+            = new ClassMatchedHandler<PMMsg.Heartbeat, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.Heartbeat>>() {
                 @Override
-                public void handle(PMMsg.UnRegister content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister> container) {
+                public void handle(PMMsg.Heartbeat content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.Heartbeat> container) {
                     LOG.debug("{}heartbeat from:{}", logPrefix, container.getSource());
-                    heartbeats.add(container.getSource());
+                    heartbeats.add(container.getSource().getBase());
+                    if(children.containsKey(container.getSource().getBase())) {
+                        children.put(container.getSource().getBase(), container.getSource());
+                    }
                 }
             };
 
@@ -164,7 +169,7 @@ public class PMServerComp extends ComponentDefinition {
         @Override
         public void handle(PeriodicHeartbeat event) {
             LOG.debug("{}periodic heartbeat", logPrefix);
-            for (DecoratedAddress parent : children) {
+            for (DecoratedAddress parent : children.values()) {
                 LOG.debug("{}heartbeating to child:{}", logPrefix, parent.getBase());
                 DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(self, parent, Transport.UDP), null, null);
                 ContentMsg request = new BasicContentMsg(requestHeader, new PMMsg.Heartbeat());
@@ -177,14 +182,16 @@ public class PMServerComp extends ComponentDefinition {
         @Override
         public void handle(PeriodicHeartbeatCheck event) {
             LOG.debug("{}periodic heartbeat check", logPrefix);
-            Set<DecoratedAddress> suspected = Sets.difference(children, heartbeats);
+            Set<BasicAddress> suspected = Sets.difference(children.keySet(), heartbeats);
             if (!suspected.isEmpty()) {
                 LOG.info("{}removing suspected children:{}", logPrefix, suspected);
-                children.removeAll(suspected);
+                for (BasicAddress suspectChild : suspected) {
+                    children.remove(suspectChild);
+                }
                 changed = true;
             }
             if (changed) {
-                trigger(new Update(children), parentMaker);
+                trigger(new Update(children.values()), parentMaker);
                 changed = false;
             }
         }
