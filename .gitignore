@@ -11,3 +11,8 @@
 /stun/upnp/example/target/
 /stun/example/target/
 /nat-emulator/target/
+/parent-maker/client/target/
+/parent-maker/common/target/
+/parent-maker/client-api/target/
+/parent-maker/server/target/
+/parent-maker/server-api/target/
