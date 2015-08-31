@@ -11,4 +11,12 @@
   <artifactId>client-api</artifactId>
   <name>HP Client API</name>
   <url>http://maven.apache.org</url>
+  
+  <dependencies>
+      <dependency>
+          <groupId>se.sics.nat.pm</groupId>
+          <artifactId>client-api</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+  </dependencies>
 </project>

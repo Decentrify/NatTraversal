@@ -35,11 +35,12 @@ import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.nat.network.Nat;
 import se.sics.nat.emulator.util.AllocationPolicyImpl;
 import se.sics.nat.emulator.util.FilterPolicyImpl;
 import se.sics.nat.emulator.util.MappingPolicyImpl;
 import se.sics.nat.emulator.util.PortMappings;
+import se.sics.nat.network.Nat;
+import se.sics.nat.network.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
@@ -62,7 +63,7 @@ public class NatEmulatorComp extends ComponentDefinition {
     private final InetAddress selfIp;
     private final int selfId;
 
-    private final Nat natType;
+    private final NatedTrait natType;
     //only get initialized if natType is NAT************************************
     private MappingPolicyImpl mappingPolicy = null;
     private AllocationPolicyImpl allocationPolicy = null;
@@ -194,9 +195,9 @@ public class NatEmulatorComp extends ComponentDefinition {
         public final long seed;
         public final int selfId;
         public final InetAddress selfIp;
-        public final Nat natType;
+        public final NatedTrait natType;
 
-        public NatEmulatorInit(long seed, Nat natType, InetAddress selfIp, int selfId) {
+        public NatEmulatorInit(long seed, NatedTrait natType, InetAddress selfIp, int selfId) {
             this.seed = seed;
             this.selfId = selfId;
             this.selfIp = selfIp;

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.ktoolbox.nat.network;
+package se.sics.nat.network;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -142,48 +142,5 @@ public class Nat {
         public int getBindingTimeout() {
             return bindingTimeout;
         }
-    }
-
-    public final Type type;
-    public final MappingPolicy mappingPolicy;
-    public final AllocationPolicy allocationPolicy;
-    public final FilteringPolicy filteringPolicy;
-    public final long bindingTimeout;
-
-    public static Nat open() {
-        return new Nat(Type.OPEN, null, null, null, 0);
-    }
-
-    public static Nat nated(MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, FilteringPolicy filteringPolicy, long bindingTimeout) {
-        assert mappingPolicy != null;
-        assert allocationPolicy != null;
-        assert filteringPolicy != null;
-        assert bindingTimeout > 0;
-        return new Nat(Type.NAT, mappingPolicy, allocationPolicy, filteringPolicy, bindingTimeout);
-    }
-
-    private Nat(Type type, MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, FilteringPolicy filteringPolicy, long bindingTimeout) {
-        this.type = type;
-        this.mappingPolicy = mappingPolicy;
-        this.allocationPolicy = allocationPolicy;
-        this.filteringPolicy = filteringPolicy;
-        this.bindingTimeout = bindingTimeout;
-    }
-
-    @Override
-    public String toString() {
-        switch (type) {
-            case OPEN:
-                return type.code;
-            case NAT:
-                return type.code + "-" + mappingPolicy.code + "-" + allocationPolicy.code + "-" + filteringPolicy.code;
-            case UDP_BLOCKED:
-                return type.code;
-            case UPNP:
-                return type.code;
-            default: 
-                return "unknown";
-        }
-
     }
 }

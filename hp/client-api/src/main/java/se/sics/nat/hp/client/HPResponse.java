@@ -17,12 +17,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.hp.common;
+package se.sics.nat.hp.client;
 
 /**
+ *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class HPConfig {
-    public static long internalStateCheck = 30000;
-    public static long connectionHeartbeat = 10000;
+public enum HPResponse {
+    SUCCESS, FAILED, NO_RENDEZVOUS, NAT_COMBINATION_UNFEASIBLE, PARENTLESS_PEER, HP_TIMEOUT 
 }

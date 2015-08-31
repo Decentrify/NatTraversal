@@ -26,12 +26,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.javatuples.Pair;
-import se.sics.ktoolbox.nat.network.Nat;
+import se.sics.nat.network.Nat;
 import se.sics.ktoolbox.nat.stun.client.StunClientComp.StunClientInit;
 import se.sics.ktoolbox.nat.stun.server.StunServerComp;
 import se.sics.ktoolbox.nat.stun.server.StunServerComp.StunServerConfig;
 import se.sics.ktoolbox.nat.stun.server.StunServerComp.StunServerInit;
 import se.sics.nat.emulator.NatEmulatorComp;
+import se.sics.nat.network.NatedTrait;
 import se.sics.nat.stun.core.StunClientHostComp;
 import se.sics.nat.stun.core.StunClientHostComp.StunClientHostInit;
 import se.sics.p2ptoolbox.simulator.cmd.impl.StartNodeCmd;
@@ -73,7 +74,7 @@ public class ScenarionGen {
             InetAddress openNode1Ip = InetAddress.getByName("193.10.67.1");
             Pair<DecoratedAddress, DecoratedAddress> openNode1Adr = 
                     Pair.with(new DecoratedAddress(new BasicAddress(openNode1Ip, 43210, openNode1Id)), new DecoratedAddress(new BasicAddress(openNode1Ip, 43211, openNode1Id)));
-            NatEmulatorComp.NatEmulatorInit openNode1Nat = new NatEmulatorComp.NatEmulatorInit(openNode1Id, Nat.open(), openNode1Ip, openNode1Id);
+            NatEmulatorComp.NatEmulatorInit openNode1Nat = new NatEmulatorComp.NatEmulatorInit(openNode1Id, NatedTrait.open(), openNode1Ip, openNode1Id);
             List<Pair<DecoratedAddress, DecoratedAddress>> openNode1Servers = new ArrayList<Pair<DecoratedAddress, DecoratedAddress>>();
             openNode1Servers.add(server1Adr);
             openNode1Servers.add(server2Adr);
@@ -86,7 +87,8 @@ public class ScenarionGen {
             InetAddress natedNode1Ip = InetAddress.getByName("192.168.1.2");
             Pair<DecoratedAddress, DecoratedAddress> natedNode1Adr = 
                     Pair.with(new DecoratedAddress(new BasicAddress(natedNode1Ip, 43210, natedNode1Id)), new DecoratedAddress(new BasicAddress(natedNode1Ip, 43211, natedNode1Id)));
-            Nat nat1 = Nat.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, Nat.FilteringPolicy.ENDPOINT_INDEPENDENT, 10000);
+            NatedTrait nat1 = NatedTrait.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, 
+                    Nat.FilteringPolicy.ENDPOINT_INDEPENDENT, 10000, new ArrayList<DecoratedAddress>());
             NatEmulatorComp.NatEmulatorInit nat1Init = new NatEmulatorComp.NatEmulatorInit(natedNode1Id, nat1, nat1Ip, natedNode1Id);
             List<Pair<DecoratedAddress, DecoratedAddress>> natedNode1Servers = new ArrayList<Pair<DecoratedAddress, DecoratedAddress>>();
             natedNode1Servers.add(server1Adr);
@@ -100,7 +102,8 @@ public class ScenarionGen {
             InetAddress natedNode2Ip = InetAddress.getByName("192.168.1.3");
             Pair<DecoratedAddress, DecoratedAddress> natedNode2Adr = 
                     Pair.with(new DecoratedAddress(new BasicAddress(natedNode2Ip, 43210, natedNode2Id)), new DecoratedAddress(new BasicAddress(natedNode2Ip, 43211, natedNode2Id)));
-            Nat nat2 = Nat.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, Nat.FilteringPolicy.HOST_DEPENDENT, 10000);
+            NatedTrait nat2 = NatedTrait.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, 
+                    Nat.FilteringPolicy.HOST_DEPENDENT, 10000,new ArrayList<DecoratedAddress>());
             NatEmulatorComp.NatEmulatorInit nat2Init = new NatEmulatorComp.NatEmulatorInit(natedNode2Id, nat2, nat2Ip, natedNode2Id);
             List<Pair<DecoratedAddress, DecoratedAddress>> natedNode2Servers = new ArrayList<Pair<DecoratedAddress, DecoratedAddress>>();
             natedNode2Servers.add(server1Adr);
@@ -114,7 +117,8 @@ public class ScenarionGen {
             InetAddress natedNode3Ip = InetAddress.getByName("192.168.1.4");
             Pair<DecoratedAddress, DecoratedAddress> natedNode3Adr = 
                     Pair.with(new DecoratedAddress(new BasicAddress(natedNode3Ip, 43210, natedNode3Id)), new DecoratedAddress(new BasicAddress(natedNode3Ip, 43211, natedNode3Id)));
-            Nat nat3 = Nat.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, Nat.FilteringPolicy.PORT_DEPENDENT, 10000);
+            NatedTrait nat3 = NatedTrait.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, 
+                    Nat.FilteringPolicy.PORT_DEPENDENT, 10000, new ArrayList<DecoratedAddress>());
             NatEmulatorComp.NatEmulatorInit nat3Init = new NatEmulatorComp.NatEmulatorInit(natedNode3Id, nat3, nat3Ip, natedNode3Id);
             List<Pair<DecoratedAddress, DecoratedAddress>> natedNode3Servers = new ArrayList<Pair<DecoratedAddress, DecoratedAddress>>();
             natedNode3Servers.add(server1Adr);
@@ -128,7 +132,8 @@ public class ScenarionGen {
             InetAddress natedNode4Ip = InetAddress.getByName("192.168.1.5");
             Pair<DecoratedAddress, DecoratedAddress> natedNode4Adr = 
                     Pair.with(new DecoratedAddress(new BasicAddress(natedNode4Ip, 43210, natedNode4Id)), new DecoratedAddress(new BasicAddress(natedNode4Ip, 43211, natedNode4Id)));
-            Nat nat4 = Nat.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_CONTIGUITY, Nat.FilteringPolicy.PORT_DEPENDENT, 10000);
+            NatedTrait nat4 = NatedTrait.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_CONTIGUITY, 
+                    Nat.FilteringPolicy.PORT_DEPENDENT, 10000, new ArrayList<DecoratedAddress>());
             NatEmulatorComp.NatEmulatorInit nat4Init = new NatEmulatorComp.NatEmulatorInit(natedNode4Id, nat4, nat4Ip, natedNode4Id);
             List<Pair<DecoratedAddress, DecoratedAddress>> natedNode4Servers = new ArrayList<Pair<DecoratedAddress, DecoratedAddress>>();
             natedNode4Servers.add(server1Adr);
@@ -142,7 +147,8 @@ public class ScenarionGen {
             InetAddress natedNode5Ip = InetAddress.getByName("192.168.1.6");
             Pair<DecoratedAddress, DecoratedAddress> natedNode5Adr = 
                     Pair.with(new DecoratedAddress(new BasicAddress(natedNode5Ip, 43210, natedNode5Id)), new DecoratedAddress(new BasicAddress(natedNode5Ip, 43211, natedNode5Id)));
-            Nat nat5 = Nat.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.RANDOM, Nat.FilteringPolicy.PORT_DEPENDENT, 10000);
+            NatedTrait nat5 = NatedTrait.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.RANDOM, 
+                    Nat.FilteringPolicy.PORT_DEPENDENT, 10000, new ArrayList<DecoratedAddress>());
             NatEmulatorComp.NatEmulatorInit nat5Init = new NatEmulatorComp.NatEmulatorInit(natedNode5Id, nat5, nat5Ip, natedNode5Id);
             List<Pair<DecoratedAddress, DecoratedAddress>> natedNode5Servers = new ArrayList<Pair<DecoratedAddress, DecoratedAddress>>();
             natedNode5Servers.add(server1Adr);

@@ -20,12 +20,14 @@ package se.sics.nat.pm.simulation;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import se.sics.ktoolbox.nat.network.Nat;
+import se.sics.nat.network.Nat;
 import se.sics.nat.emulator.NatEmulatorComp;
+import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.PMClientComp.PMClientInit;
 import se.sics.nat.pm.common.PMConfig;
 import se.sics.nat.pm.core.PMClientHostComp;
@@ -71,7 +73,8 @@ public class ScenarionGen {
             InetAddress nat1Ip = InetAddress.getByName("193.10.67.1");
             InetAddress natedNode1Ip = InetAddress.getByName("192.168.1.1");
             BasicAddress natedNode1Adr = new BasicAddress(natedNode1Ip, 43210, natedNode1Id);
-            Nat nat1 = Nat.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, Nat.FilteringPolicy.ENDPOINT_INDEPENDENT, 10000);
+            NatedTrait nat1 = NatedTrait.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, 
+                    Nat.FilteringPolicy.ENDPOINT_INDEPENDENT, 10000, new ArrayList<DecoratedAddress>());
             NatEmulatorComp.NatEmulatorInit nat1Init = new NatEmulatorComp.NatEmulatorInit(natedNode1Id, nat1, nat1Ip, natedNode1Id);
             Set<DecoratedAddress> publicSample1 = new HashSet<DecoratedAddress>();
             publicSample1.add(new DecoratedAddress(server1Adr));

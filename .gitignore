@@ -17,3 +17,8 @@
 /parent-maker/server/target/
 /parent-maker/server-api/target/
 /parent-maker/example/target/
+/hp/client-api/target/
+/hp/server/target/
+/hp/client/target/
+/hp/common/target/
+/example/target/

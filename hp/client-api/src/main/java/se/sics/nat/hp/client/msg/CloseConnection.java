@@ -17,12 +17,18 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.hp.common;
+package se.sics.nat.hp.client.msg;
+
+import se.sics.nat.hp.client.HPMsg;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class HPConfig {
-    public static long internalStateCheck = 30000;
-    public static long connectionHeartbeat = 10000;
+public class CloseConnection implements HPMsg {
+    public final DecoratedAddress target;
+    
+    public CloseConnection(DecoratedAddress target) {
+        this.target = target;
+    }
 }

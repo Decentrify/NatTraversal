@@ -21,7 +21,7 @@ package se.sics.nat.emulator.util;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.Set;
-import se.sics.ktoolbox.nat.network.Nat;
+import se.sics.nat.network.Nat;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 
 /**
