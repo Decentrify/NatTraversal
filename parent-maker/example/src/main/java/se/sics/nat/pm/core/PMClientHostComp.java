@@ -35,6 +35,7 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 import se.sics.nat.emulator.NatEmulatorComp;
 import se.sics.nat.emulator.NatEmulatorComp.NatEmulatorInit;
+import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.PMClientComp;
 import se.sics.nat.pm.client.PMClientComp.PMClientInit;
 import se.sics.nat.pm.client.PMClientPort;
@@ -42,7 +43,6 @@ import se.sics.nat.pm.client.msg.Update;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.traits.Nated;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -115,7 +115,7 @@ public class PMClientHostComp extends ComponentDefinition {
     Handler handleUpdate = new Handler<Update>() {
         @Override
         public void handle(Update event) {
-            LOG.info("{}self update:{}", logPrefix, event.self.getTrait(Nated.class).getParents());
+            LOG.info("{}self update:{}", logPrefix, event.self.getTrait(NatedTrait.class).parents);
         }
     };
     

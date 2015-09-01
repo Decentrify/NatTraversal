@@ -18,20 +18,10 @@
  */
 package se.sics.nat.hp.client;
 
-import se.sics.kompics.PortType;
-import se.sics.nat.hp.client.msg.CloseConnection;
-import se.sics.nat.hp.client.msg.OpenConnection;
-import se.sics.nat.pm.client.msg.Update;
-
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class HPClientPort extends PortType {
-    {
-        negative(Update.class);
-        negative(OpenConnection.Request.class);
-        positive(OpenConnection.Response.class);
-        negative(CloseConnection.class);
-        positive(CloseConnection.class);
-    }
+public enum HPFailureStatus {
+
+    FAILED, NO_RENDEZVOUS, NAT_COMBINATION_UNFEASIBLE, TIMEOUT
 }

@@ -16,13 +16,31 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.nat.hp.client.util;
 
-package se.sics.nat.hp.client;
+import java.util.UUID;
+import se.sics.nat.hp.client.HPFailureStatus;
+import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public enum HPResponse {
-    SUCCESS, FAILED, NO_RENDEZVOUS, NAT_COMBINATION_UNFEASIBLE, PARENTLESS_PEER, HP_TIMEOUT 
+public class SHPTargetSession extends SHPSession {
+
+    public final BasicAddress target;
+
+    public SHPTargetSession(UUID id, BasicAddress target) {
+        super(id);
+        this.target = target;
+    }
+
+    /**
+     * @return true if session is finished, false otherwise
+     */
+    @Override
+    public boolean timeout(DecoratedAddress src) {
+        status = HPFailureStatus.TIMEOUT;
+        return true;
+    }
 }

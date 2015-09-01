@@ -21,8 +21,7 @@ package se.sics.nat.hp.client.msg;
 
 import java.util.UUID;
 import se.sics.kompics.Direct;
-import se.sics.nat.hp.client.HPMsg;
-import se.sics.nat.hp.client.HPResponse;
+import se.sics.nat.hp.client.HPFailureStatus;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
@@ -30,7 +29,7 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class OpenConnection {
-    public static class Request extends Direct.Request<Response> implements HPMsg {
+    public static class Request extends Direct.Request {
         public final UUID id;
         public final DecoratedAddress target;
         
@@ -40,18 +39,36 @@ public class OpenConnection {
             this.target = target;
         }
         
-        public Response success() {
-            return new Response(id, HPResponse.SUCCESS);
+        public Success success(DecoratedAddress self, DecoratedAddress target) {
+            return new Success(id, self, target);
+        }
+        
+        public Fail fail(HPFailureStatus status, DecoratedAddress target) {
+            return new Fail(id, status, target);
         }
     }
     
-    public static class Response implements Direct.Response, HPMsg {
+    public static class Success implements Direct.Response{
         public final UUID id;
-        public final HPResponse response;
+        public final DecoratedAddress self;
+        public final DecoratedAddress target;
         
-        public Response(UUID id, HPResponse response) {
+        public Success(UUID id, DecoratedAddress self, DecoratedAddress target) {
             this.id = id;
-            this.response = response;
+            this.self = self;
+            this.target = target;
+        }
+    }
+    
+    public static class Fail implements Direct.Response {
+        public final UUID id;
+        public final HPFailureStatus status;
+        public final DecoratedAddress target;
+        
+        public Fail(UUID id, HPFailureStatus status, DecoratedAddress target) {
+            this.id = id;
+            this.status = status;
+            this.target = target;
         }
     }
 }

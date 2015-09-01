@@ -16,13 +16,24 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
 package se.sics.nat.hp.common.msg;
 
-import se.sics.nat.hp.client.HPMsg;
+import java.util.UUID;
+import org.javatuples.Pair;
+import se.sics.kompics.KompicsEvent;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NetCloseConnection implements HPMsg {
+public abstract class SHPMsg implements KompicsEvent {
+
+    public final Pair<UUID, UUID> msgId;
+
+    protected SHPMsg(Pair<UUID, UUID> msgId) {
+        this.msgId = msgId;
+    }
+
+    public Pair<UUID, UUID> getId() {
+        return msgId;
+    }
 }

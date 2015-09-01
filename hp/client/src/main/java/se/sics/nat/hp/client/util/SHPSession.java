@@ -16,27 +16,42 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.nat.hp.client.util;
 
-package se.sics.nat.pm.server.msg;
-
+import se.sics.nat.hp.client.HPFailureStatus;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
-import se.sics.nat.pm.common.PMMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import java.util.UUID;
+import org.javatuples.Pair;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Update implements PMMsg {
-    public final Map<BasicAddress, DecoratedAddress> registeredChildren;
+public abstract class SHPSession {
+
+    public final UUID id;
+    public HPFailureStatus status;
+    private final Map<Pair<UUID, UUID>, UUID> pendingMsgs; //<<sessionId, msgId>, timeoutId>
     
-    public Update(Map<BasicAddress, DecoratedAddress> registeredChildren) {
-        this.registeredChildren = registeredChildren;
+    protected SHPSession(UUID id) {
+        this.id = id;
+        this.pendingMsgs = new HashMap<Pair<UUID, UUID>, UUID>();
     }
     
-    @Override 
-    public String toString() {
-        return "UPDATE";
+    public abstract boolean timeout(DecoratedAddress src);
+    
+     public void pendingMsg(Pair<UUID, UUID> msgId, UUID timeoutId) {
+        pendingMsgs.put(msgId, timeoutId);
+    }
+
+    public UUID handledMsg(Pair<UUID, UUID> msgId) {
+        return pendingMsgs.remove(msgId);
+    }
+
+    public Map<Pair<UUID, UUID>, UUID> clearMsgs() {
+        Map<Pair<UUID, UUID>, UUID> result = new HashMap<Pair<UUID, UUID>, UUID>(pendingMsgs);
+        pendingMsgs.clear();
+        return result;
     }
 }

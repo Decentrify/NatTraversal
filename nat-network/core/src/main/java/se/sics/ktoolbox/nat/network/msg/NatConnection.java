@@ -16,27 +16,55 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.ktoolbox.nat.network.msg;
 
-package se.sics.nat.pm.server.msg;
-
-import java.util.Map;
-import java.util.Set;
-import se.sics.nat.pm.common.PMMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import java.util.UUID;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Update implements PMMsg {
-    public final Map<BasicAddress, DecoratedAddress> registeredChildren;
-    
-    public Update(Map<BasicAddress, DecoratedAddress> registeredChildren) {
-        this.registeredChildren = registeredChildren;
+public class NatConnection {
+
+    public static class OpenRequest implements NatMsg {
+
+        public UUID id;
+
+        public OpenRequest(UUID id) {
+            this.id = id;
+        }
+
+        public OpenResponse answer(DecoratedAddress observed) {
+            return new OpenResponse(id, observed);
+        }
     }
-    
-    @Override 
-    public String toString() {
-        return "UPDATE";
+
+    public static class OpenResponse implements NatMsg {
+
+        public UUID id;
+        public DecoratedAddress observed;
+
+        private OpenResponse(UUID id, DecoratedAddress observer) {
+            this.id = id;
+            this.observed = observer;
+        }
+    }
+
+    public static class Heartbeat implements NatMsg {
+
+        public UUID id;
+
+        public Heartbeat(UUID id) {
+            this.id = id;
+        }
+    }
+
+    public static class Close implements NatMsg {
+
+        public UUID id;
+
+        public Close(UUID id) {
+            this.id = id;
+        }
     }
 }

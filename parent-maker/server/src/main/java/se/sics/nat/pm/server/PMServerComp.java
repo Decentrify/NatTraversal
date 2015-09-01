@@ -191,7 +191,7 @@ public class PMServerComp extends ComponentDefinition {
                 changed = true;
             }
             if (changed) {
-                trigger(new Update(children.values()), parentMaker);
+                trigger(new Update(new HashMap(children)), parentMaker);
                 changed = false;
             }
         }

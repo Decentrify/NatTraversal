@@ -14,6 +14,11 @@
   
   <dependencies>
       <dependency>
+          <groupId>se.sics.nat.network</groupId>
+          <artifactId>api</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+      <dependency>
           <groupId>se.sics.nat.pm</groupId>
           <artifactId>common</artifactId>
           <version>${project.version}</version>

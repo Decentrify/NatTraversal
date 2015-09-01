@@ -19,6 +19,7 @@
 package se.sics.nat.pm.client;
 
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -39,6 +40,7 @@ import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
+import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.msg.Update;
 import se.sics.nat.pm.common.PMConfig;
 import se.sics.nat.pm.common.PMMsg;
@@ -204,7 +206,9 @@ public class PMClientComp extends ComponentDefinition {
                 changed = true;
             }
             if(changed && parents.size() == config.nrParents) {
-                self = new DecoratedAddress(self.getBase(), parents);
+                NatedTrait nat = self.getTrait(NatedTrait.class).changeParents(new ArrayList<>(parents));
+                self = new DecoratedAddress(self.getBase());
+                self.addTrait(nat);
                 LOG.info("{}update self:{}", logPrefix, self);
                 trigger(new Update(self), parentMaker);
                 changed = false;

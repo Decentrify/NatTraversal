@@ -17,12 +17,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.hp.common.msg;
-
-import se.sics.nat.hp.client.HPMsg;
+package se.sics.nat.network;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Heartbeat implements HPMsg {
+public class NatTraverserConfig {
+    public static long internalStateCheck = 30000;
+    public static long connectionHeartbeat = 10000;
+    public static long msgRTT = 1000;
 }

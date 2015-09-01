@@ -17,18 +17,18 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.hp.client.msg;
+package se.sics.ktoolbox.nat.network.util;
 
-import se.sics.nat.hp.client.HPMsg;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class CloseConnection implements HPMsg {
-    public final DecoratedAddress target;
-    
-    public CloseConnection(DecoratedAddress target) {
-        this.target = target;
+public class Feasibility {
+    public static enum State {
+        INITIATE, TARGET_INITIATE, UNFEASIBLE
+    }
+    public static State simpleHolePunching(DecoratedAddress self, DecoratedAddress target) {
+        return State.UNFEASIBLE;
     }
 }

@@ -18,9 +18,12 @@
  */
 package se.sics.nat.server;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
@@ -28,12 +31,21 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
+import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.nat.hp.common.HPConfig;
+import se.sics.nat.hp.common.msg.SimpleHolePunching;
+import se.sics.nat.network.NatTraverserConfig;
+import se.sics.nat.pm.server.PMServerPort;
+import se.sics.nat.pm.server.msg.Update;
+import se.sics.p2ptoolbox.util.network.ContentMsg;
+import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
+import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -45,23 +57,29 @@ public class HPServerComp extends ComponentDefinition {
 
     private final Positive<Network> network = requires(Network.class);
     private final Positive<Timer> timer = requires(Timer.class);
-    
-    private final HPConfig config;
+    private final Positive<PMServerPort> parentMaker = requires(PMServerPort.class);
+
+    private final NatTraverserConfig config;
     private final DecoratedAddress self;
-    
+    private Map<BasicAddress, DecoratedAddress> children;
+
     private UUID internalStateCheckId;
-    
+
     public HPServerComp(HPServerInit init) {
         this.config = init.config;
         this.self = init.self;
         this.logPrefix = self.getBase() + " ";
         LOG.info("{}initiating...", logPrefix);
-        
+        this.children = new HashMap<BasicAddress, DecoratedAddress>();
+
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(handleInternalStateCheck, timer);
+        subscribe(handleChildrenUpdate, parentMaker);
+        subscribe(handleSHPRelay, network);
     }
-    
+
+    //*********************************CONTROL**********************************
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
@@ -83,17 +101,45 @@ public class HPServerComp extends ComponentDefinition {
         public void handle(PeriodicInternalStateCheck event) {
         }
     };
-    
+
+    Handler handleChildrenUpdate = new Handler<Update>() {
+        @Override
+        public void handle(Update update) {
+            LOG.info("{}updated children:{}", logPrefix, update.registeredChildren);
+            children = update.registeredChildren;
+        }
+    };
+    //***********************************RELAY**********************************
+
+    ClassMatchedHandler handleSHPRelay
+            = new ClassMatchedHandler<SimpleHolePunching.Relay, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, SimpleHolePunching.Relay>>() {
+                @Override
+                public void handle(SimpleHolePunching.Relay content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, SimpleHolePunching.Relay> container) {
+                    LOG.debug("{}received shp relay from:{} to:{}",
+                            new Object[]{logPrefix, container.getSource().getBase(), content.relayTo.getBase()});
+                    DecoratedAddress child = children.get(content.relayTo.getBase());
+                    if (child == null) {
+                        LOG.info("{}ignoring shp relay, target:{} no longer my child", logPrefix, content.relayTo.getBase());
+                        return;
+                    }
+                    SimpleHolePunching.Initiate initiateContent = content.answer(container.getSource());
+                    DecoratedHeader<DecoratedAddress> initiateHeader = new DecoratedHeader(new BasicHeader(self, child, Transport.UDP), null, null);
+                    ContentMsg initiateMsg = new BasicContentMsg(initiateHeader, initiateContent);
+                    trigger(initiateMsg, network);
+                }
+            };
+
     public static class HPServerInit extends Init<HPServerComp> {
-        public final HPConfig config;
+
+        public final NatTraverserConfig config;
         public final DecoratedAddress self;
-        
-        public HPServerInit(HPConfig config, DecoratedAddress self) {
+
+        public HPServerInit(NatTraverserConfig config, DecoratedAddress self) {
             this.config = config;
             this.self = self;
         }
     }
-    
+
     private void scheduleInternalStateCheck() {
         if (internalStateCheckId != null) {
             LOG.warn("{}double starting internal state check timeout", logPrefix);

@@ -11,4 +11,17 @@
   <artifactId>core</artifactId>
   <name>NAT Network Core</name>
   <url>http://maven.apache.org</url>
+  
+  <dependencies>
+      <dependency>
+          <groupId>se.sics.nat.network</groupId>
+          <artifactId>api</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>se.sics.nat.hp</groupId>
+          <artifactId>client-api</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+  </dependencies>
 </project>

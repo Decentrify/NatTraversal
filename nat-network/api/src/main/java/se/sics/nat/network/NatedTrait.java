@@ -61,6 +61,10 @@ public class NatedTrait implements Trait {
         this.bindingTimeout = bindingTimeout;
         this.parents = parents;
     }
+    
+    public NatedTrait changeParents(List<DecoratedAddress> parents) {
+        return new NatedTrait(type, mappingPolicy, allocationPolicy, filteringPolicy, bindingTimeout, parents);
+    }
 
     @Override
     public String toString() {

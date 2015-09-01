@@ -16,20 +16,46 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
 package se.sics.nat.hp.client.util;
 
+import se.sics.nat.hp.client.HPFailureStatus;
+import java.util.UUID;
+import se.sics.nat.hp.client.msg.OpenConnection;
+import se.sics.nat.network.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.traits.Nated;
 
 /**
+ *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Feasibility {
+public class SHPInitiatorSession extends SHPSession {
+
+    public final OpenConnection.Request req;
+    public State state;
+
     public static enum State {
-        INITIATE, TARGET_INITIATE, UNFEASIBLE
+
+        OPEN_CONNECTION, HOLE_PUNCHING;
     }
-    public static State simpleHolePunching(DecoratedAddress self, DecoratedAddress target) {
-        return State.UNFEASIBLE;
+
+    public SHPInitiatorSession(UUID id, OpenConnection.Request req) {
+        super(id);
+        this.req = req;
+        this.state = State.OPEN_CONNECTION;
+    }
+
+    /**
+     * @return true if session is finished, false otherwise
+     */
+    @Override
+    public boolean timeout(DecoratedAddress src) {
+        switch (state) {
+            case OPEN_CONNECTION:
+            case HOLE_PUNCHING:
+                status = HPFailureStatus.TIMEOUT;
+                return true;
+            default:
+                throw new RuntimeException("initiator session - unhandled timeout in state:" + state);
+        }
     }
 }

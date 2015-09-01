@@ -16,12 +16,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.nat.hp.client;
 
-package se.sics.nat.hp.client.util;
+import se.sics.kompics.PortType;
+import se.sics.nat.hp.client.msg.OpenConnection;
+import se.sics.nat.pm.client.msg.Update;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class HPSession {
-    
+public class SHPClientPort extends PortType {
+    {
+        negative(Update.class);
+        negative(OpenConnection.Request.class);
+        positive(OpenConnection.Success.class);
+        positive(OpenConnection.Fail.class);
+    }
 }
