@@ -14,18 +14,13 @@
   
   <dependencies>
       <dependency>
-          <groupId>se.sics.nat.network</groupId>
-          <artifactId>api</artifactId>
+          <groupId>se.sics.nat.pm</groupId>
+          <artifactId>server-api</artifactId>
           <version>${project.version}</version>
       </dependency>
       <dependency>
           <groupId>se.sics.nat.hp</groupId>
           <artifactId>common</artifactId>
-          <version>${project.version}</version>
-      </dependency>
-      <dependency>
-          <groupId>se.sics.nat.pm</groupId>
-          <artifactId>server-api</artifactId>
           <version>${project.version}</version>
       </dependency>
   </dependencies>

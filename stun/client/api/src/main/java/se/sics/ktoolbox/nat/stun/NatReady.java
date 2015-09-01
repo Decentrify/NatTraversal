@@ -17,15 +17,23 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.pm.common;
+package se.sics.ktoolbox.nat.stun;
+
+import com.google.common.base.Optional;
+import java.net.InetAddress;
+import se.sics.kompics.KompicsEvent;
+import se.sics.nat.network.NatedTrait;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class PMConfig {
-    public static long internalStateCheck = 30000;
-    public static long heartbeat = 5000;
-    public static long msgTimeout = 1000;
-    public static int nrParents = 3;
-    public static int nrChildren = 100;
+public class NatReady implements KompicsEvent {
+    public NatedTrait nat;
+    public Optional<InetAddress> publicIp;
+    
+    public NatReady(NatedTrait nat, Optional<InetAddress> publicIp) {
+        this.nat = nat;
+        this.publicIp = publicIp;
+    }
 }

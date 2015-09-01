@@ -20,13 +20,12 @@
 package se.sics.nat.pm.client.msg;
 
 import se.sics.kompics.KompicsEvent;
-import se.sics.nat.pm.common.PMMsg;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Update implements PMMsg {
+public class Update implements KompicsEvent {
     public final DecoratedAddress self;
     
     public Update(DecoratedAddress self) {

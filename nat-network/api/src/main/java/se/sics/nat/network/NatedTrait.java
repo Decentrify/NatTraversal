@@ -35,35 +35,45 @@ public class NatedTrait implements Trait {
     public final Type type;
     public final MappingPolicy mappingPolicy;
     public final AllocationPolicy allocationPolicy;
+    public final int delta;
     public final FilteringPolicy filteringPolicy;
     public final long bindingTimeout;
     public final List<DecoratedAddress> parents;
 
     public static NatedTrait open() {
-        return new NatedTrait(Type.OPEN, null, null, null, 0, new ArrayList<DecoratedAddress>());
+        return new NatedTrait(Type.OPEN, null, null, 0, null, 0, new ArrayList<DecoratedAddress>());
+    }
+    
+    public static NatedTrait firewall() {
+        return new NatedTrait(Type.FIREWALL, null, null, 0, null, 0, new ArrayList<DecoratedAddress>());
+    }
+    
+    public static NatedTrait udpBlocked() {
+        return new NatedTrait(Type.UDP_BLOCKED, null, null, 0, null, 0, new ArrayList<DecoratedAddress>());
     }
 
-    public static NatedTrait nated(MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, 
+    public static NatedTrait nated(MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, int delta,
             FilteringPolicy filteringPolicy, long bindingTimeout, ArrayList<DecoratedAddress> parents) {
         assert mappingPolicy != null;
         assert allocationPolicy != null;
         assert filteringPolicy != null;
         assert bindingTimeout > 0;
-        return new NatedTrait(Type.NAT, mappingPolicy, allocationPolicy, filteringPolicy, bindingTimeout, parents);
+        return new NatedTrait(Type.NAT, mappingPolicy, allocationPolicy, delta, filteringPolicy, bindingTimeout, parents);
     }
 
-    private NatedTrait(Type type, MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, 
+    private NatedTrait(Type type, MappingPolicy mappingPolicy, AllocationPolicy allocationPolicy, int delta,
             FilteringPolicy filteringPolicy, long bindingTimeout, List<DecoratedAddress> parents) {
         this.type = type;
         this.mappingPolicy = mappingPolicy;
         this.allocationPolicy = allocationPolicy;
+        this.delta = delta;
         this.filteringPolicy = filteringPolicy;
         this.bindingTimeout = bindingTimeout;
         this.parents = parents;
     }
     
     public NatedTrait changeParents(List<DecoratedAddress> parents) {
-        return new NatedTrait(type, mappingPolicy, allocationPolicy, filteringPolicy, bindingTimeout, parents);
+        return new NatedTrait(type, mappingPolicy, allocationPolicy, delta, filteringPolicy, bindingTimeout, parents);
     }
 
     @Override
@@ -76,6 +86,8 @@ public class NatedTrait implements Trait {
             case UDP_BLOCKED:
                 return type.code;
             case UPNP:
+                return type.code;
+            case FIREWALL:
                 return type.code;
             default:
                 return "unknown";

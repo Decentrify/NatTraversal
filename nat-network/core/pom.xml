@@ -19,6 +19,11 @@
           <version>${project.version}</version>
       </dependency>
       <dependency>
+          <groupId>se.sics.nat</groupId>
+          <artifactId>common</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+      <dependency>
           <groupId>se.sics.nat.hp</groupId>
           <artifactId>client-api</artifactId>
           <version>${project.version}</version>

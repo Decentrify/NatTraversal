@@ -18,6 +18,7 @@
  */
 package se.sics.ktoolbox.nat.network.msg;
 
+import se.sics.nat.common.NatMsg;
 import java.util.UUID;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 

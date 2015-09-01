@@ -40,7 +40,7 @@ import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.nat.pm.common.PMConfig;
+import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.pm.common.PMMsg;
 import se.sics.nat.pm.server.msg.Update;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
@@ -62,7 +62,7 @@ public class PMServerComp extends ComponentDefinition {
     private Positive<Network> network = requires(Network.class);
     private Positive<Timer> timer = requires(Timer.class);
 
-    private final PMConfig config;
+    private final NatTraverserConfig config;
     private DecoratedAddress self;
     private boolean changed;
     private final Map<BasicAddress, DecoratedAddress> children;
@@ -199,10 +199,10 @@ public class PMServerComp extends ComponentDefinition {
 
     public static class PMServerInit extends Init<PMServerComp> {
 
-        public final PMConfig config;
+        public final NatTraverserConfig config;
         public final BasicAddress self;
 
-        public PMServerInit(PMConfig config, BasicAddress self) {
+        public PMServerInit(NatTraverserConfig config, BasicAddress self) {
             this.config = config;
             this.self = self;
         }

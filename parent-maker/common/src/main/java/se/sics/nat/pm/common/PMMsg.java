@@ -19,11 +19,12 @@
 package se.sics.nat.pm.common;
 
 import se.sics.kompics.KompicsEvent;
+import se.sics.nat.common.NatMsg;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public interface PMMsg extends KompicsEvent {
+public interface PMMsg extends KompicsEvent, NatMsg {
 
     public static class RegisterReq implements PMMsg {
     }

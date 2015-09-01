@@ -11,4 +11,12 @@
   <artifactId>api</artifactId>
   <name>STUN Client API</name>
   <url>http://maven.apache.org</url>
+  
+  <dependencies>
+      <dependency>
+          <groupId>se.sics.nat.network</groupId>
+          <artifactId>api</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+  </dependencies>
 </project>

@@ -20,12 +20,12 @@
       </dependency>
       <dependency>
           <groupId>se.sics.nat.pm</groupId>
-          <artifactId>common</artifactId>
+          <artifactId>client-api</artifactId>
           <version>${project.version}</version>
       </dependency>
       <dependency>
           <groupId>se.sics.nat.pm</groupId>
-          <artifactId>client-api</artifactId>
+          <artifactId>common</artifactId>
           <version>${project.version}</version>
       </dependency>
       

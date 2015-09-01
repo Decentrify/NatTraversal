@@ -16,26 +16,24 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
-package se.sics.nat.pm.server.msg;
-
-import java.util.Map;
-import se.sics.kompics.KompicsEvent;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+package se.sics.nat.common;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Update implements KompicsEvent {
-    public final Map<BasicAddress, DecoratedAddress> registeredChildren;
+public class NatTraverserConfig {
+
+    public static long internalStateCheck = 30000;
+    public static long connectionHeartbeat = 10000;
+    public static long msgRTT = 1000;
+
+    /**
+     * connection specific - should be half the binding timeout at most, since i
+     * do roughly two heartbeats per heartbeat check
+     */
+    public static long heartbeat = 5000;
     
-    public Update(Map<BasicAddress, DecoratedAddress> registeredChildren) {
-        this.registeredChildren = registeredChildren;
-    }
-    
-    @Override 
-    public String toString() {
-        return "UPDATE";
-    }
+    //pm specific
+    public static int nrParents = 3;
+    public static int nrChildren = 100;
 }

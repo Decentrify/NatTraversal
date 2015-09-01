@@ -11,9 +11,9 @@
     <packaging>pom</packaging>
     <name>Hole Punching</name>
     <modules>
+        <module>common</module>
         <module>client-api</module>
         <module>client</module>
         <module>server</module>
-    <module>common</module>
-  </modules>
+    </modules>
 </project>

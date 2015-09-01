@@ -7,13 +7,14 @@
     <packaging>pom</packaging>
     <name>NAT Traversal</name>
     <modules>
+        <module>common</module>
         <module>nat-emulator</module>
         <module>stun</module>
-        <module>hp</module>
         <module>parent-maker</module>
+        <module>hp</module>
         <module>nat-network</module>
-    <module>example</module>
-  </modules>
+        <module>example</module>
+    </modules>
   
     <properties>
         <java.version>1.7</java.version>

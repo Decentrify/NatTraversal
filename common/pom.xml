@@ -3,20 +3,12 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>se.sics.nat</groupId>
-    <artifactId>hp</artifactId>
+    <groupId>se.sics</groupId>
+    <artifactId>nat</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.nat.hp</groupId>
+  <groupId>se.sics.nat</groupId>
   <artifactId>common</artifactId>
-  <name>HP Common</name>
+  <name>NAT Common</name>
   <url>http://maven.apache.org</url>
-  
-  <dependencies>
-      <dependency>
-          <groupId>se.sics.nat</groupId>
-          <artifactId>common</artifactId>
-          <version>${project.version}</version>
-      </dependency>
-  </dependencies>
 </project>

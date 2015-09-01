@@ -11,12 +11,4 @@
   <artifactId>client-api</artifactId>
   <name>PM Client API</name>
   <url>http://maven.apache.org</url>
-  
-  <dependencies>
-      <dependency>
-          <groupId>se.sics.nat.pm</groupId>
-          <artifactId>common</artifactId>
-          <version>${project.version}</version>
-      </dependency>
-  </dependencies>
 </project>

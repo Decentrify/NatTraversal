@@ -47,10 +47,10 @@ import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.nat.network.msg.NatMsg;
+import se.sics.nat.common.NatMsg;
 import se.sics.nat.hp.client.SHPClientPort;
 import se.sics.nat.hp.client.msg.OpenConnection;
-import se.sics.nat.network.NatTraverserConfig;
+import se.sics.nat.common.NatTraverserConfig;
 import se.sics.ktoolbox.nat.network.msg.NatConnection.Close;
 import se.sics.ktoolbox.nat.network.msg.NatConnection.Heartbeat;
 import se.sics.ktoolbox.nat.network.msg.NatConnection.OpenRequest;
@@ -182,8 +182,9 @@ public class NatTraverserComp extends ComponentDefinition {
                 try {
                     contentMsg = (BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>) msg;
                 } catch (ClassCastException ex) {
-                    LOG.error("{}not handling msgs that are not BasicContentMsg", logPrefix);
-                    throw new RuntimeException("not handling msgs that are not BasicContentMsg", ex);
+                    LOG.info("{}forwarding msg:{}, not touching non BasicContent traffic", logPrefix, msg);
+                    trigger(msg, network);
+                    return;
                 }
                 if (!contentMsg.getProtocol().equals(Transport.UDP)) {
                     LOG.info("{}forwarding msg:{}, not touching non UDP traffic", logPrefix, msg);
@@ -235,7 +236,20 @@ public class NatTraverserComp extends ComponentDefinition {
         Handler handleNetwork = new Handler<Msg>() {
             @Override
             public void handle(Msg msg) {
-                if (msg instanceof NatMsg) {
+                BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> contentMsg = null;
+                try {
+                    contentMsg = (BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>) msg;
+                } catch (ClassCastException ex) {
+                    LOG.info("{}forwarding msg:{}, not touching non BasicContent traffic", logPrefix, msg);
+                    trigger(msg, network);
+                    return;
+                }
+                if (!contentMsg.getProtocol().equals(Transport.UDP)) {
+                    LOG.info("{}forwarding msg:{}, not touching non UDP traffic", logPrefix, msg);
+                    trigger(msg, network);
+                    return;
+                }
+                if (contentMsg.getContent() instanceof NatMsg) {
                     //skip - nat internal msgs
                     return;
                 }

@@ -40,9 +40,9 @@ import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
+import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.msg.Update;
-import se.sics.nat.pm.common.PMConfig;
 import se.sics.nat.pm.common.PMMsg;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
@@ -66,7 +66,7 @@ public class PMClientComp extends ComponentDefinition {
     private Positive<Timer> timer = requires(Timer.class);
     private Positive<CroupierPort> croupier = requires(CroupierPort.class);
 
-    private final PMConfig config;
+    private final NatTraverserConfig config;
     private DecoratedAddress self;
     private boolean changed;
     private final Set<DecoratedAddress> parents;
@@ -218,10 +218,10 @@ public class PMClientComp extends ComponentDefinition {
 
     public static class PMClientInit extends Init<PMClientComp> {
 
-        public final PMConfig config;
+        public final NatTraverserConfig config;
         public final BasicAddress self;
 
-        public PMClientInit(PMConfig config, BasicAddress self) {
+        public PMClientInit(NatTraverserConfig config, BasicAddress self) {
             this.config = config;
             this.self = self;
         }

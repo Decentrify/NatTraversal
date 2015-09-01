@@ -17,12 +17,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.ktoolbox.nat.network.msg;
-
-import se.sics.kompics.KompicsEvent;
+package se.sics.ktoolbox.nat.stun.msg;
 
 /**
+ *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public interface NatMsg extends KompicsEvent {
+public interface StunMsg {
 }

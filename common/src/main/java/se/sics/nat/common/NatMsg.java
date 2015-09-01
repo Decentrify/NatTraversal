@@ -17,25 +17,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.pm.server.msg;
-
-import java.util.Map;
-import se.sics.kompics.KompicsEvent;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+package se.sics.nat.common;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Update implements KompicsEvent {
-    public final Map<BasicAddress, DecoratedAddress> registeredChildren;
-    
-    public Update(Map<BasicAddress, DecoratedAddress> registeredChildren) {
-        this.registeredChildren = registeredChildren;
-    }
-    
-    @Override 
-    public String toString() {
-        return "UPDATE";
-    }
+public interface NatMsg {
 }

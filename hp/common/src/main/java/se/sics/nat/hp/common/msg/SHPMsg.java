@@ -20,12 +20,12 @@ package se.sics.nat.hp.common.msg;
 
 import java.util.UUID;
 import org.javatuples.Pair;
-import se.sics.kompics.KompicsEvent;
+import se.sics.nat.common.NatMsg;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public abstract class SHPMsg implements KompicsEvent {
+public abstract class SHPMsg implements NatMsg {
 
     public final Pair<UUID, UUID> msgId;
 

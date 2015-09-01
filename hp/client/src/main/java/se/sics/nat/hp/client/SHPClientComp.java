@@ -44,7 +44,7 @@ import se.sics.nat.hp.client.msg.OpenConnection;
 import se.sics.nat.hp.client.util.SHPInitiatorSession;
 import se.sics.nat.hp.client.util.SHPSession;
 import se.sics.nat.hp.client.util.SHPTargetSession;
-import se.sics.nat.network.NatTraverserConfig;
+import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.hp.common.msg.SimpleHolePunching.Initiate;
 import se.sics.nat.hp.common.msg.SimpleHolePunching.Ping;
 import se.sics.nat.hp.common.msg.SimpleHolePunching.Pong;

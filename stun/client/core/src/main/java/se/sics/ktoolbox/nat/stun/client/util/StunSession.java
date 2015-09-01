@@ -19,18 +19,20 @@
 package se.sics.ktoolbox.nat.stun.client.util;
 
 import com.google.common.base.Optional;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import org.javatuples.Pair;
 import se.sics.ktoolbox.nat.stun.msg.Echo;
+import se.sics.nat.network.Nat;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Session {
+public class StunSession {
 
     private final MsgHandler[][] handlers = new MsgHandler[2][];
     private final Pair<DecoratedAddress, DecoratedAddress>[] maTargets = new Pair[8];
@@ -43,7 +45,7 @@ public class Session {
     private final DecoratedAddress[] echoResps;
     private final Result sessionResult;
 
-    public Session(UUID id, Pair<DecoratedAddress, DecoratedAddress> self, Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> stunServers) {
+    public StunSession(UUID id, Pair<DecoratedAddress, DecoratedAddress> self, Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> stunServers) {
         this.id = id;
         this.self = self;
         this.stunServers = stunServers;
@@ -103,15 +105,15 @@ public class Session {
         if (echoResps[0].equals(echoResps[1])
                 && echoResps[0].equals(echoResps[2])
                 && echoResps[0].equals(echoResps[3])) {
-            sessionResult.setMappingPolicy(MappingPolicy.EI);
+            sessionResult.setMappingPolicy(Nat.MappingPolicy.ENDPOINT_INDEPENDENT);
         } // if try 1 and try 2 are same and try 3 and try 4 are same then
         // the mapping is Host Dependent
         // TODO this isn't working. HD mapping policy is very rare. Ignore for now.
         else if (echoResps[0].equals(echoResps[1]) && echoResps[2].equals(echoResps[3])) {
-            sessionResult.setMappingPolicy(MappingPolicy.HD);
+            sessionResult.setMappingPolicy(Nat.MappingPolicy.HOST_DEPENDENT);
         } // try 1 to try 4 are all different then mapping policy is
         else {
-            sessionResult.setMappingPolicy(MappingPolicy.PD);
+            sessionResult.setMappingPolicy(Nat.MappingPolicy.PORT_DEPENDENT);
         }
     }
 
@@ -124,21 +126,21 @@ public class Session {
         // if the mapping policy is EI
         if (self.getValue0().getPort() == echoResps[0].getPort()
                 || self.getValue1().getPort() == echoResps[4].getPort()) {
-            sessionResult.setAllocationPolicy(AllocationPolicy.PP);
+            sessionResult.setAllocationPolicy(Nat.AllocationPolicy.PORT_PRESERVATION);
         } else {
             List<Pair<DecoratedAddress, DecoratedAddress>> list = new ArrayList<Pair<DecoratedAddress, DecoratedAddress>>();
             switch (sessionResult.mappingPolicy.get()) {
-                case EI: {
+                case ENDPOINT_INDEPENDENT: {
                     list.add(Pair.with(echoResps[0], echoResps[4]));
                 }
                 break;
-                case HD: {
+                case HOST_DEPENDENT: {
                     list.add(Pair.with(echoResps[0], echoResps[3]));
                     list.add(Pair.with(echoResps[3], echoResps[5]));
                     list.add(Pair.with(echoResps[5], echoResps[7]));
                 }
                 break;
-                case PD: {
+                case PORT_DEPENDENT: {
                     list.add(Pair.with(echoResps[0], echoResps[1]));
                     list.add(Pair.with(echoResps[1], echoResps[2]));
                     list.add(Pair.with(echoResps[2], echoResps[3]));
@@ -153,9 +155,9 @@ public class Session {
             }
             int ret = checkContiguity(list);
             if (ret == -1) {
-                sessionResult.setAllocationPolicy(AllocationPolicy.R);
+                sessionResult.setAllocationPolicy(Nat.AllocationPolicy.RANDOM);
             } else {
-                sessionResult.setAllocationPolicy(AllocationPolicy.PC);
+                sessionResult.setAllocationPolicy(Nat.AllocationPolicy.PORT_CONTIGUITY);
                 sessionResult.setDelta(ret);
             }
         }
@@ -206,6 +208,7 @@ public class Session {
 
         @Override
         public void receive(Echo.Response resp, DecoratedAddress src) {
+            sessionResult.setPublicIp(resp.observed.get().getIp());
             echoResps[0] = resp.observed.get(); //we use test1 msg as MA0
             state.setPhase(1);
         }
@@ -235,7 +238,7 @@ public class Session {
                 sessionResult.success();
             } else {
                 sessionResult.setNatState(NatState.NAT);
-                sessionResult.setFilterPolicy(FilterPolicy.EI);
+                sessionResult.setFilterPolicy(Nat.FilteringPolicy.ENDPOINT_INDEPENDENT);
                 state = Phase.MA;
             }
         }
@@ -263,14 +266,14 @@ public class Session {
         @Override
         public void receive(Echo.Response resp, DecoratedAddress src) {
             sessionResult.setNatState(NatState.NAT);
-            sessionResult.setFilterPolicy(FilterPolicy.HD);
+            sessionResult.setFilterPolicy(Nat.FilteringPolicy.HOST_DEPENDENT);
             state = Phase.MA;
         }
 
         @Override
         public void timeout() {
             sessionResult.setNatState(NatState.NAT);
-            sessionResult.setFilterPolicy(FilterPolicy.PD);
+            sessionResult.setFilterPolicy(Nat.FilteringPolicy.PORT_DEPENDENT);
             state = Phase.MA;
         }
 
@@ -325,28 +328,14 @@ public class Session {
         UDP_BLOCKED, FIREWALL, OPEN, NAT
     }
 
-    public static enum FilterPolicy {
-
-        EI, HD, PD
-    }
-
-    public static enum MappingPolicy {
-
-        EI, HD, PD
-    }
-
-    public static enum AllocationPolicy {
-
-        PP, PC, R
-    }
-
     public static class Result {
 
         public Optional<NatState> natState;
-        public Optional<FilterPolicy> filterPolicy;
-        public Optional<MappingPolicy> mappingPolicy;
-        public Optional<AllocationPolicy> allocationPolicy;
+        public Optional<Nat.FilteringPolicy> filterPolicy;
+        public Optional<Nat.MappingPolicy> mappingPolicy;
+        public Optional<Nat.AllocationPolicy> allocationPolicy;
         public Optional<Integer> delta;
+        public Optional<InetAddress> publicIp;
         public Optional<String> failureDescription;
 
         private Result() {
@@ -355,25 +344,30 @@ public class Session {
             this.mappingPolicy = Optional.absent();
             this.allocationPolicy = Optional.absent();
             this.delta = Optional.absent();
+            this.publicIp = Optional.absent();
             this.failureDescription = Optional.of("incomplete");
         }
-
+        
         private void setNatState(NatState setState) {
             assert !natState.isPresent() && setState != null;
             this.natState = Optional.of(setState);
         }
+        
+         private void setPublicIp(InetAddress publicIp) {
+             this.publicIp = Optional.of(publicIp);
+         }
 
-        private void setFilterPolicy(FilterPolicy setPolicy) {
+        private void setFilterPolicy(Nat.FilteringPolicy setPolicy) {
             assert !filterPolicy.isPresent() && setPolicy != null;
             this.filterPolicy = Optional.of(setPolicy);
         }
 
-        private void setMappingPolicy(MappingPolicy setPolicy) {
+        private void setMappingPolicy(Nat.MappingPolicy setPolicy) {
             assert !mappingPolicy.isPresent() && setPolicy != null;
             this.mappingPolicy = Optional.of(setPolicy);
         }
 
-        private void setAllocationPolicy(AllocationPolicy setPolicy) {
+        private void setAllocationPolicy(Nat.AllocationPolicy setPolicy) {
             assert !allocationPolicy.isPresent() && setPolicy != null;
             this.allocationPolicy = Optional.of(setPolicy);
         }
@@ -394,8 +388,8 @@ public class Session {
         }
 
         private boolean checkNat() {
-            if (filterPolicy.isPresent() && mappingPolicy.isPresent() && allocationPolicy.isPresent()) {
-                if (allocationPolicy.get().equals(AllocationPolicy.PC)) {
+            if (filterPolicy.isPresent() && mappingPolicy.isPresent() && allocationPolicy.isPresent() && publicIp.isPresent()) {
+                if (allocationPolicy.get().equals(Nat.AllocationPolicy.PORT_CONTIGUITY)) {
                     return delta.isPresent();
                 }
                 return true;

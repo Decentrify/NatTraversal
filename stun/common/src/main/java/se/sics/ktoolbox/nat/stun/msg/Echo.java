@@ -37,7 +37,7 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
  *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public abstract class Echo {
+public abstract class Echo implements StunMsg {
 
     public static enum Type {
         SIP_SP, SIP_DP, DIP_DP, DIP_SP

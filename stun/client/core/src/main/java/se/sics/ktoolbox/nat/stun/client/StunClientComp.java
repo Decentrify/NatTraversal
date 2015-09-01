@@ -18,6 +18,8 @@
  */
 package se.sics.ktoolbox.nat.stun.client;
 
+import com.google.common.base.Optional;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,7 @@ import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
+import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
@@ -38,8 +41,12 @@ import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.nat.stun.client.util.Session;
+import se.sics.ktoolbox.nat.stun.NatReady;
+import se.sics.ktoolbox.nat.stun.StunClientPort;
+import se.sics.ktoolbox.nat.stun.client.util.StunSession;
 import se.sics.ktoolbox.nat.stun.msg.Echo;
+import se.sics.nat.network.Nat;
+import se.sics.nat.network.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
@@ -95,6 +102,7 @@ public class StunClientComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(StunClientComp.class);
     private String logPrefix = "";
 
+    private final Negative<StunClientPort> stunPort = provides(StunClientPort.class);
     private final Positive<Network> network = requires(Network.class);
     private final Positive<Timer> timer = requires(Timer.class);
 
@@ -132,17 +140,17 @@ public class StunClientComp extends ComponentDefinition {
 
     private class EchoMngr {
 
-        Map<UUID, Session> ongoingSessions;
+        Map<UUID, StunSession> ongoingSessions;
         Map<UUID, UUID> echoTimeouts;
 
         public EchoMngr() {
-            this.ongoingSessions = new HashMap<UUID, Session>();
+            this.ongoingSessions = new HashMap<UUID, StunSession>();
             this.echoTimeouts = new HashMap<UUID, UUID>();
         }
 
         void startEchoSession() {
             Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> stunServers = stunServersMngr.getStunServers();
-            Session session = new Session(UUID.randomUUID(), self, stunServers);
+            StunSession session = new StunSession(UUID.randomUUID(), self, stunServers);
             LOG.info("{}starting new echo session:{}", logPrefix, session.id);
             LOG.info("{}stun server1:{} {}", new Object[]{logPrefix, stunServers.getValue0().getValue0().getBase(), stunServers.getValue0().getValue1().getBase()});
             LOG.info("{}stun server2:{} {}", new Object[]{logPrefix, stunServers.getValue1().getValue0().getBase(), stunServers.getValue1().getValue1().getBase()});
@@ -158,7 +166,7 @@ public class StunClientComp extends ComponentDefinition {
                         new Object[]{logPrefix, timeout.echo.getValue0(), timeout.echo.getValue1().getValue1().getBase()});
                 echoTimeouts.remove(timeout.echo.getValue0().id);
 
-                Session session = ongoingSessions.get(timeout.echo.getValue0().sessionId);
+                StunSession session = ongoingSessions.get(timeout.echo.getValue0().sessionId);
                 if (session == null) {
                     LOG.warn("{}session logic error", logPrefix);
                     return;
@@ -180,7 +188,7 @@ public class StunClientComp extends ComponentDefinition {
                     public void handle(Echo.Response content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Response> container) {
                         LOG.debug("{}received:{} from:{}", new Object[]{logPrefix, content, container.getHeader().getSource().getBase()});
                         cancelEchoTimeout(content.id);
-                        Session session = ongoingSessions.get(content.sessionId);
+                        StunSession session = ongoingSessions.get(content.sessionId);
                         if (session == null) {
                             LOG.error("{}session logic error", logPrefix);
                             throw new RuntimeException("session logic error");
@@ -194,26 +202,39 @@ public class StunClientComp extends ComponentDefinition {
                     }
                 };
 
-        private void processResult(Session session) {
+        private void processResult(StunSession session) {
             //TODO Alex - deal with result
             ongoingSessions.remove(session.id);
-            Session.Result sessionResult = session.getResult();
+            StunSession.Result sessionResult = session.getResult();
             if (sessionResult.isFailed()) {
                 //TODO Alex - what to do on session fail
                 LOG.warn("{}stun session failed with:{}", logPrefix, sessionResult.failureDescription.get());
+                throw new RuntimeException("stun session failed with:" + sessionResult.failureDescription.get());
             } else {
+                LOG.info("{}session result:{}", logPrefix, sessionResult.natState.get());
                 switch (sessionResult.natState.get()) {
                     case UDP_BLOCKED:
+                        trigger(new NatReady(NatedTrait.udpBlocked(), sessionResult.publicIp), stunPort);
+                        break;
                     case OPEN:
+                        trigger(new NatReady(NatedTrait.open(), sessionResult.publicIp), stunPort);
+                        break;
                     case FIREWALL:
-                        LOG.info("{}session result:{}", logPrefix, sessionResult.natState.get());
+                        trigger(new NatReady(NatedTrait.firewall(), sessionResult.publicIp), stunPort);
                         break;
                     case NAT:
-                        LOG.info("{}session result:NAT filter:{} mapping:{} allocation:{}", 
+                        LOG.info("{}session result:NAT filter:{} mapping:{} allocation:{}",
                                 new Object[]{logPrefix, sessionResult.filterPolicy.get(), sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get()});
-                        if(sessionResult.allocationPolicy.get().equals(Session.AllocationPolicy.PC)) {
+                        NatedTrait nat;
+                        if (sessionResult.allocationPolicy.get().equals(Nat.AllocationPolicy.PORT_CONTIGUITY)) {
                             LOG.info("{}session result:NAT delta:{}", logPrefix, sessionResult.delta.get());
+                            nat = NatedTrait.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
+                                    sessionResult.delta.get(), sessionResult.filterPolicy.get(), 0, new ArrayList<DecoratedAddress>());
+                        } else {
+                            nat = NatedTrait.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
+                                    0, sessionResult.filterPolicy.get(), 0, new ArrayList<DecoratedAddress>());
                         }
+                        trigger(new NatReady(nat, sessionResult.publicIp), stunPort);
                         break;
                     default:
                         LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());
@@ -221,11 +242,11 @@ public class StunClientComp extends ComponentDefinition {
             }
         }
 
-        private void processSession(Session session) {
+        private void processSession(StunSession session) {
             Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next = session.next();
             DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(next.getValue1().getValue0(), next.getValue1().getValue1(), Transport.UDP), null, null);
             ContentMsg request = new BasicContentMsg(requestHeader, next.getValue0());
-            LOG.debug("{}sending:{} from:{} to:{}", 
+            LOG.debug("{}sending:{} from:{} to:{}",
                     new Object[]{logPrefix, next.getValue0().type, next.getValue1().getValue0().getBase(), next.getValue1().getValue1().getBase()});
             trigger(request, network);
 
