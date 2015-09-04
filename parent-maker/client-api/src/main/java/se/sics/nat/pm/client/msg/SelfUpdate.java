@@ -16,20 +16,24 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.hp.client;
 
-import se.sics.kompics.PortType;
-import se.sics.nat.hp.client.msg.OpenConnection;
-import se.sics.nat.pm.client.msg.SelfUpdate;
+package se.sics.nat.pm.client.msg;
+
+import se.sics.kompics.KompicsEvent;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class SHPClientPort extends PortType {
-    {
-        negative(SelfUpdate.class);
-        negative(OpenConnection.Request.class);
-        positive(OpenConnection.Success.class);
-        positive(OpenConnection.Fail.class);
+public class SelfUpdate implements KompicsEvent {
+    public final DecoratedAddress self;
+    
+    public SelfUpdate(DecoratedAddress self) {
+        this.self = self;
+    }
+    
+    @Override
+    public String toString() {
+        return "SELF_UPDATE";
     }
 }

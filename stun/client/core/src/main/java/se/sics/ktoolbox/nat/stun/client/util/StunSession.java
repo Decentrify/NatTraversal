@@ -25,7 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import org.javatuples.Pair;
-import se.sics.ktoolbox.nat.stun.msg.Echo;
+import se.sics.ktoolbox.nat.stun.msg.StunEcho;
 import se.sics.nat.network.Nat;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
@@ -40,7 +40,7 @@ public class StunSession {
     public final UUID id;
     public Pair<DecoratedAddress, DecoratedAddress> self;
     public Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> stunServers;
-    public Phase state;
+    public Phase phase;
 
     private final DecoratedAddress[] echoResps;
     private final Result sessionResult;
@@ -49,26 +49,26 @@ public class StunSession {
         this.id = id;
         this.self = self;
         this.stunServers = stunServers;
-        this.state = Phase.TEST;
+        this.phase = new Phase();
         this.echoResps = new DecoratedAddress[8];
         this.sessionResult = new Result();
         setHandlers();
     }
 
     private void setHandlers() {
-        handlers[Phase.TEST.index] = new MsgHandler[3];
-        handlers[Phase.TEST.index][0] = new Test1();
-        handlers[Phase.TEST.index][1] = new Test2();
-        handlers[Phase.TEST.index][2] = new Test3();
-        handlers[Phase.MA.index] = new MsgHandler[8];
-        handlers[Phase.MA.index][0] = new MA();
-        handlers[Phase.MA.index][1] = new MA();
-        handlers[Phase.MA.index][2] = new MA();
-        handlers[Phase.MA.index][3] = new MA();
-        handlers[Phase.MA.index][4] = new MA();
-        handlers[Phase.MA.index][5] = new MA();
-        handlers[Phase.MA.index][6] = new MA();
-        handlers[Phase.MA.index][7] = new MA();
+        handlers[State.TEST.index] = new MsgHandler[3];
+        handlers[State.TEST.index][0] = new Test1();
+        handlers[State.TEST.index][1] = new Test2();
+        handlers[State.TEST.index][2] = new Test3();
+        handlers[State.MA.index] = new MsgHandler[8];
+        handlers[State.MA.index][0] = new MA();
+        handlers[State.MA.index][1] = new MA();
+        handlers[State.MA.index][2] = new MA();
+        handlers[State.MA.index][3] = new MA();
+        handlers[State.MA.index][4] = new MA();
+        handlers[State.MA.index][5] = new MA();
+        handlers[State.MA.index][6] = new MA();
+        handlers[State.MA.index][7] = new MA();
 
         maTargets[0] = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
         maTargets[1] = Pair.with(self.getValue0(), stunServers.getValue0().getValue1());
@@ -81,23 +81,23 @@ public class StunSession {
     }
 
     public boolean finished() {
-        return state.equals(Phase.SUCCESS) || state.equals(Phase.FAIL);
+        return phase.state.equals(State.SUCCESS) || phase.state.equals(State.FAIL);
     }
 
     public Result getResult() {
         return sessionResult;
     }
 
-    public Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
-        return handlers[state.index][state.phase].next();
+    public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
+        return handlers[phase.state.index][phase.subPhase].next();
     }
 
-    public void receivedResponse(Echo.Response resp, DecoratedAddress src) {
-        handlers[state.index][state.phase].receive(resp, src);
+    public void receivedResponse(StunEcho.Response resp, DecoratedAddress src) {
+        handlers[phase.state.index][phase.subPhase].receive(resp, src);
     }
 
     public void timeout() {
-        handlers[state.index][state.phase].timeout();
+        handlers[phase.state.index][phase.subPhase].timeout();
     }
 
     private void determineMappingPolicy() {
@@ -191,9 +191,9 @@ public class StunSession {
 
     public static interface MsgHandler {
 
-        public Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next();
+        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next();
 
-        public void receive(Echo.Response resp, DecoratedAddress src);
+        public void receive(StunEcho.Response resp, DecoratedAddress src);
 
         public void timeout();
     }
@@ -201,22 +201,22 @@ public class StunSession {
     public class Test1 implements MsgHandler {
 
         @Override
-        public Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
+        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
             Pair<DecoratedAddress, DecoratedAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-            return Pair.with(new Echo.Request(UUID.randomUUID(), id, Echo.Type.SIP_SP, null), routing);
+            return Pair.with(new StunEcho.Request(UUID.randomUUID(), id, StunEcho.Type.SIP_SP, null), routing);
         }
 
         @Override
-        public void receive(Echo.Response resp, DecoratedAddress src) {
+        public void receive(StunEcho.Response resp, DecoratedAddress src) {
             sessionResult.setPublicIp(resp.observed.get().getIp());
             echoResps[0] = resp.observed.get(); //we use test1 msg as MA0
-            state.setPhase(1);
+            phase.setState(State.TEST, 1);
         }
 
         @Override
         public void timeout() {
             sessionResult.setNatState(NatState.UDP_BLOCKED);
-            state = Phase.SUCCESS;
+            phase.setState(State.SUCCESS, 0);
             sessionResult.success();
         }
     }
@@ -224,22 +224,22 @@ public class StunSession {
     public class Test2 implements MsgHandler {
 
         @Override
-        public Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
+        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
             assert echoResps[0] != null;
             Pair<DecoratedAddress, DecoratedAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-            return Pair.with(new Echo.Request(UUID.randomUUID(), id, Echo.Type.DIP_DP, echoResps[0]), routing);
+            return Pair.with(new StunEcho.Request(UUID.randomUUID(), id, StunEcho.Type.DIP_DP, echoResps[0]), routing);
         }
 
         @Override
-        public void receive(Echo.Response resp, DecoratedAddress src) {
+        public void receive(StunEcho.Response resp, DecoratedAddress src) {
             if (self.getValue0().getIp().equals(echoResps[0].getIp())) {
                 sessionResult.setNatState(NatState.OPEN);
-                state = Phase.SUCCESS;
+                phase.setState(State.SUCCESS, 0);
                 sessionResult.success();
             } else {
                 sessionResult.setNatState(NatState.NAT);
                 sessionResult.setFilterPolicy(Nat.FilteringPolicy.ENDPOINT_INDEPENDENT);
-                state = Phase.MA;
+                phase.setState(State.MA, 0);
             }
         }
 
@@ -247,10 +247,10 @@ public class StunSession {
         public void timeout() {
             if (self.getValue0().getIp().equals(echoResps[0].getIp())) {
                 sessionResult.setNatState(NatState.FIREWALL);
-                state = Phase.SUCCESS;
+                phase.setState(State.SUCCESS, 0);
                 sessionResult.success();
             } else {
-                state.setPhase(2);
+                phase.setState(State.TEST, 2);
             }
         }
     }
@@ -258,23 +258,23 @@ public class StunSession {
     public class Test3 implements MsgHandler {
 
         @Override
-        public Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
+        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
             Pair<DecoratedAddress, DecoratedAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-            return Pair.with(new Echo.Request(UUID.randomUUID(), id, Echo.Type.SIP_DP, echoResps[0]), routing);
+            return Pair.with(new StunEcho.Request(UUID.randomUUID(), id, StunEcho.Type.SIP_DP, echoResps[0]), routing);
         }
 
         @Override
-        public void receive(Echo.Response resp, DecoratedAddress src) {
+        public void receive(StunEcho.Response resp, DecoratedAddress src) {
             sessionResult.setNatState(NatState.NAT);
             sessionResult.setFilterPolicy(Nat.FilteringPolicy.HOST_DEPENDENT);
-            state = Phase.MA;
+            phase.setState(State.MA, 0);
         }
 
         @Override
         public void timeout() {
             sessionResult.setNatState(NatState.NAT);
             sessionResult.setFilterPolicy(Nat.FilteringPolicy.PORT_DEPENDENT);
-            state = Phase.MA;
+            phase.setState(State.MA, 0);
         }
 
     }
@@ -282,44 +282,53 @@ public class StunSession {
     public class MA implements MsgHandler {
 
         @Override
-        public Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
-            return Pair.with(new Echo.Request(UUID.randomUUID(), id, Echo.Type.SIP_SP, null), maTargets[state.phase]);
+        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
+            return Pair.with(new StunEcho.Request(UUID.randomUUID(), id, StunEcho.Type.SIP_SP, null), maTargets[phase.subPhase]);
         }
 
         @Override
-        public void receive(Echo.Response resp, DecoratedAddress src) {
-            echoResps[state.phase] = resp.observed.get();
-            if (state.phase == 7) {
-                state = Phase.SUCCESS;
+        public void receive(StunEcho.Response resp, DecoratedAddress src) {
+            echoResps[phase.subPhase] = resp.observed.get();
+            if (phase.subPhase == 7) {
+                phase.setState(State.SUCCESS, 0);
                 determineMappingPolicy();
                 determineAllocationPolicy();
                 sessionResult.success();
             } else {
-                state.setPhase(state.phase + 1);
+                phase.setState(State.MA, phase.subPhase + 1);
             }
         }
 
         @Override
         public void timeout() {
-            state = Phase.FAIL;
+            phase.setState(State.FAIL, 0);
             sessionResult.fail("mapping allocation timeout");
         }
     }
 
-    public static enum Phase {
+    public static enum State {
 
-        TEST(0, 0), MA(1, 1), SUCCESS(2, 0), FAIL(3, 0);
-
+        TEST(0), MA(1), SUCCESS(2), FAIL(3);
         final int index;
-        int phase;
 
-        Phase(int setIndex, int initPhase) {
-            index = setIndex;
-            phase = initPhase;
+        State(int index) {
+            this.index = index;
+        }
+    }
+
+    public class Phase {
+
+        public State state;
+        public int subPhase;
+
+        Phase() {
+            state = State.TEST;
+            subPhase = 0;
         }
 
-        void setPhase(int setPhase) {
-            phase = setPhase;
+        public void setState(State state, int subPhase) {
+            this.state = state;
+            this.subPhase = subPhase;
         }
     }
 
@@ -347,15 +356,15 @@ public class StunSession {
             this.publicIp = Optional.absent();
             this.failureDescription = Optional.of("incomplete");
         }
-        
+
         private void setNatState(NatState setState) {
             assert !natState.isPresent() && setState != null;
             this.natState = Optional.of(setState);
         }
-        
-         private void setPublicIp(InetAddress publicIp) {
-             this.publicIp = Optional.of(publicIp);
-         }
+
+        private void setPublicIp(InetAddress publicIp) {
+            this.publicIp = Optional.of(publicIp);
+        }
 
         private void setFilterPolicy(Nat.FilteringPolicy setPolicy) {
             assert !filterPolicy.isPresent() && setPolicy != null;

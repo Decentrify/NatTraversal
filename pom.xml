@@ -23,8 +23,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <kompics.version>0.8.2-SNAPSHOT</kompics.version>
         
-        <util.version>1.8-SNAPSHOT</util.version>
-        <simulator.version>1.5-SNAPSHOT</simulator.version>
+        <util.version>1.9-SNAPSHOT</util.version>
+        <simulator.version>1.6-SNAPSHOT</simulator.version>
         <croupier.version>1.8-SNAPSHOT</croupier.version>
         
         <logger.version>1.7.5</logger.version>

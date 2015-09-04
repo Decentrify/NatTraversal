@@ -16,20 +16,22 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.hp.client;
+package se.sics.nat.system;
 
-import se.sics.kompics.PortType;
-import se.sics.nat.hp.client.msg.OpenConnection;
-import se.sics.nat.pm.client.msg.SelfUpdate;
+import se.sics.nat.simulation.ScenarioGen;
+import se.sics.p2ptoolbox.simulator.dsl.SimulationScenario;
+import se.sics.p2ptoolbox.simulator.run.LauncherComp;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class SHPClientPort extends PortType {
-    {
-        negative(SelfUpdate.class);
-        negative(OpenConnection.Request.class);
-        positive(OpenConnection.Success.class);
-        positive(OpenConnection.Fail.class);
+public class Main {
+
+    public static void main(String[] args) {
+        long seed = 123;
+        
+        SimulationScenario simpleBootScenario = ScenarioGen.simpleBoot();
+        simpleBootScenario.setSeed(seed);
+        simpleBootScenario.simulate(LauncherComp.class);
     }
 }

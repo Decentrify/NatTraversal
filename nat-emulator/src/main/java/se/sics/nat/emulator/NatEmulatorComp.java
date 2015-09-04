@@ -56,9 +56,9 @@ public class NatEmulatorComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(NatEmulatorComp.class);
     private String logPrefix = "";
 
-    private Positive<Network> localNetwork = requires(Network.class);
+    private Negative<Network> localNetwork = provides(Network.class);
     private Positive<Timer> timer = requires(Timer.class);
-    private Negative<Network> network = provides(Network.class);
+    private Positive<Network> network = requires(Network.class);
 
     private final InetAddress selfIp;
     private final int selfId;
@@ -106,49 +106,80 @@ public class NatEmulatorComp extends ComponentDefinition {
         }
     };
     //*************************************************************************
-    Handler handleIncoming = new Handler<ContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>>() {
+    Handler handleIncoming = new Handler<BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>>() {
         @Override
-        public void handle(ContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> msg) {
-            LOG.trace("{}received incoming:{}", logPrefix, msg);
+        public void handle(BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> container) {
+            LOG.trace("{}received incoming:{} from:{} on:{}",
+                    new Object[]{logPrefix, container.getContent(), container.getSource().getBase(), container.getDestination().getBase()});
             if (natType.type.equals(Nat.Type.OPEN)) {
-                LOG.debug("{}forwarding msg:{} network to local", logPrefix, msg);
-                trigger(msg, localNetwork);
+                LOG.debug("{}open - forwarding incoming", logPrefix);
+                trigger(container, localNetwork);
+                return;
+            }
+            if (!container.getProtocol().equals(Transport.UDP)) {
+                LOG.error("{}nat emulator does not emulate non UDP trafic");
+                throw new RuntimeException("nat emulator does not emulate non UDP trafic");
+            }
+
+            Optional<DecoratedAddress> privateAddress
+                    = receive(container.getDestination().getPort(), container.getSource().getBase(), container.getProtocol());
+            if (!privateAddress.isPresent()) {
+                LOG.warn("{}unable to forward incoming msg - filtered...", logPrefix);
                 return;
             }
 
-            Integer publicPort;
-            try {
-                publicPort = send(msg.getHeader().getSource(), msg.getHeader().getDestination().getBase(), msg.getHeader().getProtocol());
-            } catch (AllocationPolicyImpl.PortAllocationException ex) {
-                LOG.warn("{}unable to forward msg:{} local to network - dropping...", logPrefix, msg);
-                return;
-            }
-            DecoratedAddress self = new DecoratedAddress(new BasicAddress(selfIp, publicPort, selfId));
-            DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self, msg.getHeader().getDestination(), Transport.UDP), null, null);
-            ContentMsg fMsg = new BasicContentMsg(responseHeader, msg.getContent());
-            LOG.debug("{}forwarding msg:{} local to network", logPrefix, fMsg);
+            DecoratedHeader<DecoratedAddress> fHeader
+                    = container.getHeader().changeBasicHeader(new BasicHeader(container.getSource(), privateAddress.get(), Transport.UDP));
+            ContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> fMsg
+                    = new BasicContentMsg(fHeader, container.getContent());
+            LOG.debug("{}forwarding incoming:{} from:{} to:{}",
+                    new Object[]{logPrefix, container.getContent(), fMsg.getHeader().getSource().getBase(), fMsg.getHeader().getDestination().getBase()});
             trigger(fMsg, localNetwork);
         }
     };
 
-    Handler handleOutgoing = new Handler<ContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>>() {
+    Handler handleOutgoing = new Handler<BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>>() {
         @Override
-        public void handle(ContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> msg) {
-            LOG.trace("{}received outgoing:{}", logPrefix, msg);
+        public void handle(BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> container) {
+
+            LOG.trace("{}received outgoing:{} from:{} to:{}",
+                    new Object[]{logPrefix, container.getContent(), container.getSource().getBase(), container.getDestination().getBase()});
             if (natType.type.equals(Nat.Type.OPEN)) {
-                LOG.debug("{}forwarding msg:{} local to network", logPrefix, msg);
-                trigger(msg, network);
+                LOG.debug("{}open - forwarding outgoing", logPrefix);
+                trigger(container, network);
+                return;
+            }
+            if (!container.getProtocol().equals(Transport.UDP)) {
+                LOG.error("{}nat emulator does not emulate non UDP trafic");
+                throw new RuntimeException("nat emulator does not emulate non UDP trafic");
+            }
+
+            Integer publicPort;
+            try {
+                publicPort = send(container.getSource(), container.getDestination().getBase(), container.getProtocol());
+            } catch (AllocationPolicyImpl.PortAllocationException ex) {
+                LOG.warn("{}unable to forward outgoing msg - cannot allocate port...", logPrefix);
                 return;
             }
 
-            Optional<DecoratedAddress> privateAddress = receive(msg.getHeader().getDestination().getPort(), msg.getHeader().getSource().getBase(), msg.getHeader().getProtocol());
-            if (!privateAddress.isPresent()) {
-                LOG.warn("{}unable to forward msg:{} network to local - dropping...", logPrefix, msg);
-                return;
+            DecoratedAddress sendingAddress;
+            if (container.getSource().getIp().equals(selfIp)) {
+                if (container.getSource().getPort() == publicPort) {
+                    sendingAddress = container.getSource();
+                } else {
+                    LOG.debug("{}changing port", logPrefix);
+                    sendingAddress = container.getSource().changePort(publicPort);
+                }
+            } else {
+                LOG.debug("{}changing ip and port", logPrefix);
+                sendingAddress = new DecoratedAddress(new BasicAddress(selfIp, publicPort, selfId));
             }
-            DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(msg.getHeader().getSource(), privateAddress.get(), Transport.UDP), null, null);
-            ContentMsg fMsg = new BasicContentMsg(responseHeader, msg.getContent());
-            LOG.debug("{}forwarding msg:{} local to network", logPrefix, fMsg);
+            
+            DecoratedHeader<DecoratedAddress> fHeader = container.getHeader().changeBasicHeader(new BasicHeader(sendingAddress, container.getDestination(), Transport.UDP));
+            ContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> fMsg
+                    = new BasicContentMsg(fHeader, container.getContent());
+            LOG.debug("{}forwarding outgoing:{} from:{} to:{}",
+                    new Object[]{logPrefix, container.getContent(), fMsg.getHeader().getSource().getBase(), fMsg.getHeader().getDestination().getBase()});
             trigger(fMsg, network);
         }
     };

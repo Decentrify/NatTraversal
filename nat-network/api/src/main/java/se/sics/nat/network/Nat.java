@@ -59,8 +59,7 @@ public class Nat {
     public static enum MappingPolicy {
 
         // Ordering of policies is from least restrictive to most restrictive
-        OPEN("OP"), ENDPOINT_INDEPENDENT("EI"),
-        HOST_DEPENDENT("HD"), PORT_DEPENDENT("PD");
+        ENDPOINT_INDEPENDENT("EI"), HOST_DEPENDENT("HD"), PORT_DEPENDENT("PD");
         String code;
 
         private MappingPolicy(String code) {
@@ -82,7 +81,7 @@ public class Nat {
     public static enum AllocationPolicy {
 
         // Ordering of policies is from least restrictive to most restrictive
-        OPEN("OP"), PORT_PRESERVATION("PP"), PORT_CONTIGUITY("PC"), RANDOM("RD");
+        PORT_PRESERVATION("PP"), PORT_CONTIGUITY("PC"), RANDOM("RD");
         String code;
 
         private AllocationPolicy(String code) {
@@ -103,8 +102,7 @@ public class Nat {
 
     public static enum FilteringPolicy {
         // Ordering of policies is from least restrictive to most restrictive
-
-        OPEN("OP"), ENDPOINT_INDEPENDENT("EI"), HOST_DEPENDENT("HD"), PORT_DEPENDENT("PD");
+        ENDPOINT_INDEPENDENT("EI"), HOST_DEPENDENT("HD"), PORT_DEPENDENT("PD");
         String code;
 
         private FilteringPolicy(String code) {

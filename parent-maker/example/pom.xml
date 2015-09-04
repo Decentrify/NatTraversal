@@ -13,13 +13,13 @@
     <url>http://maven.apache.org</url>
     <dependencies>
         <dependency>
-            <groupId>se.sics.nat.pm</groupId>
-            <artifactId>server</artifactId>
+            <groupId>se.sics.nat.pm.server</groupId>
+            <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>se.sics.nat.pm</groupId>
-            <artifactId>client</artifactId>
+            <groupId>se.sics.nat.pm.client</groupId>
+            <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

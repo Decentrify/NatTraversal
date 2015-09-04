@@ -54,32 +54,32 @@ public class ScenarionGen {
         try {
             int server1Id = 1;
             InetAddress server1Ip = InetAddress.getByName("193.10.66.1");
-            BasicAddress server1Adr = new BasicAddress(server1Ip, 56788, server1Id);
+            DecoratedAddress server1Adr = new DecoratedAddress(new BasicAddress(server1Ip, 56788, server1Id));
             pmServers.put(server1Id, new PMServerHostInit(new PMServerComp.PMServerInit(new NatTraverserConfig(), server1Adr)));
 
             int server2Id = 2;
             InetAddress server2Ip = InetAddress.getByName("193.10.66.2");
-            BasicAddress server2Adr = new BasicAddress(server2Ip, 56788, server2Id);
+            DecoratedAddress server2Adr = new DecoratedAddress(new BasicAddress(server2Ip, 56788, server2Id));
             pmServers.put(server2Id, new PMServerHostInit(new PMServerComp.PMServerInit(new NatTraverserConfig(), server2Adr)));
 
             int server3Id = 3;
             InetAddress server3Ip = InetAddress.getByName("193.10.66.3");
-            BasicAddress server3Adr = new BasicAddress(server3Ip, 56788, server3Id);
+            DecoratedAddress server3Adr = new DecoratedAddress(new BasicAddress(server3Ip, 56788, server3Id));
             pmServers.put(server3Id, new PMServerHostInit(new PMServerComp.PMServerInit(new NatTraverserConfig(), server3Adr)));
 
 
             //MP:EI, FP:EI, AP:PP
             int natedNode1Id = 11;
-            InetAddress nat1Ip = InetAddress.getByName("193.10.67.1");
-            InetAddress natedNode1Ip = InetAddress.getByName("192.168.1.1");
-            BasicAddress natedNode1Adr = new BasicAddress(natedNode1Ip, 43210, natedNode1Id);
+            InetAddress public1Ip = InetAddress.getByName("193.10.67.1");
+            DecoratedAddress natedNode1Adr = new DecoratedAddress(new BasicAddress(public1Ip, 43210, natedNode1Id));
             NatedTrait nat1 = NatedTrait.nated(Nat.MappingPolicy.ENDPOINT_INDEPENDENT, Nat.AllocationPolicy.PORT_PRESERVATION, 0,
                     Nat.FilteringPolicy.ENDPOINT_INDEPENDENT, 10000, new ArrayList<DecoratedAddress>());
-            NatEmulatorComp.NatEmulatorInit nat1Init = new NatEmulatorComp.NatEmulatorInit(natedNode1Id, nat1, nat1Ip, natedNode1Id);
+            natedNode1Adr.addTrait(nat1);
+            NatEmulatorComp.NatEmulatorInit nat1Init = new NatEmulatorComp.NatEmulatorInit(natedNode1Id, nat1, public1Ip, natedNode1Id);
             Set<DecoratedAddress> publicSample1 = new HashSet<DecoratedAddress>();
-            publicSample1.add(new DecoratedAddress(server1Adr));
-            publicSample1.add(new DecoratedAddress(server2Adr));
-            publicSample1.add(new DecoratedAddress(server3Adr));
+            publicSample1.add(server1Adr);
+            publicSample1.add(server2Adr);
+            publicSample1.add(server3Adr);
             PMClientInit natedNode1Init = new PMClientInit(new NatTraverserConfig(), natedNode1Adr);
             pmClients.put(natedNode1Id, new PMClientHostInit(nat1Init, natedNode1Init, publicSample1));
         } catch (UnknownHostException ex) {
@@ -117,7 +117,7 @@ public class ScenarionGen {
 
                 @Override
                 public DecoratedAddress getAddress() {
-                    return new DecoratedAddress(pmServerHostInit.pmServerInit.self);
+                    return pmServerHostInit.pmServerInit.self;
                 }
 
                 @Override
@@ -159,7 +159,7 @@ public class ScenarionGen {
                     if (pmClientHostInit.natEmulatorInit.natType.type.equals(Nat.Type.NAT)) {
                         return new DecoratedAddress(new BasicAddress(pmClientHostInit.natEmulatorInit.selfIp, 0, pmClientHostInit.natEmulatorInit.selfId));
                     } else {
-                        return new DecoratedAddress(pmClientHostInit.pmClientInit.self);
+                        return pmClientHostInit.pmClientInit.self;
                     }
                 }
 

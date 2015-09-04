@@ -64,6 +64,10 @@ public class SimpleHolePunching {
         public Pong answer() {
             return new Pong(Pair.with(msgId.getValue0(), UUID.randomUUID()));
         }
+        
+        public Ready ready(DecoratedAddress observed) {
+            return new Ready(Pair.with(msgId.getValue0(), UUID.randomUUID()), observed);
+        }
     }
 
     public static class Pong extends SHPMsg {

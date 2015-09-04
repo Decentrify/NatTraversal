@@ -20,13 +20,13 @@
 package se.sics.nat.pm.client;
 
 import se.sics.kompics.PortType;
-import se.sics.nat.pm.client.msg.Update;
+import se.sics.nat.pm.client.msg.SelfUpdate;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class PMClientPort extends PortType {
     {
-        indication(Update.class);
+        indication(SelfUpdate.class);
     }
 }

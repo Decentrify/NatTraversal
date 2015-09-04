@@ -32,7 +32,7 @@ import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.nat.stun.msg.Echo;
+import se.sics.ktoolbox.nat.stun.msg.StunEcho;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
@@ -93,29 +93,29 @@ public class StunServerComp extends ComponentDefinition {
     private class EchoMngr {
         
         ClassMatchedHandler handleEchoRequest
-                = new ClassMatchedHandler<Echo.Request, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Request>>() {
+                = new ClassMatchedHandler<StunEcho.Request, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Request>>() {
 
                     @Override
-                    public void handle(Echo.Request content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Request> container) {
+                    public void handle(StunEcho.Request content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Request> container) {
                         DecoratedAddress recSelf = container.getDestination();
-                        LOG.debug("{}received echo:{} from:{} on:{}",
-                                new Object[]{logPrefix, content.type, container.getSource().getBase(), recSelf.getBase()});
+                        LOG.debug("{}received:{} from:{} on:{}",
+                                new Object[]{logPrefix, content, container.getSource().getBase(), recSelf.getBase()});
                         switch (content.type) {
                             case SIP_SP: {
-                                Echo.Response responseContent = content.answer(container.getSource());
+                                StunEcho.Response responseContent = content.answer(container.getSource());
                                 DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(container.getDestination(), container.getSource(), Transport.UDP), null, null);
                                 ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
-                                LOG.debug("{}sending echo:{} from:{} to:{}", 
-                                        new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
+                                LOG.debug("{}sending:{} from:{} to:{}", 
+                                        new Object[]{logPrefix, responseContent, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
                                 trigger(response, network);
                             }
                             break;
                             case SIP_DP: {
-                                Echo.Response responseContent = content.answer();
+                                StunEcho.Response responseContent = content.answer();
                                 DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self.getValue1(), content.target, Transport.UDP), null, null);
                                 ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
-                                LOG.debug("{}sending echo:{} from:{} to:{}", 
-                                        new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
+                                LOG.debug("{}sending:{} from:{} to:{}", 
+                                        new Object[]{logPrefix, responseContent, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
                                 trigger(response, network);
                             }
                             break;
@@ -124,15 +124,15 @@ public class StunServerComp extends ComponentDefinition {
                                     DecoratedAddress partner = getPartner();
                                     DecoratedHeader<DecoratedAddress> forwardHeader = new DecoratedHeader(new BasicHeader(self.getValue0(), partner, Transport.UDP), null, null);
                                     ContentMsg forward = new BasicContentMsg(forwardHeader, content);
-                                    LOG.debug("{}sending forwarding echo:{} from:{} to:{}", 
-                                        new Object[]{logPrefix, content.type, content.target.getBase(), forwardHeader.getDestination().getBase(), });
+                                    LOG.debug("{}sending forwarding:{} from:{} to:{}", 
+                                        new Object[]{logPrefix, content, content.target.getBase(), forwardHeader.getDestination().getBase(), });
                                     trigger(forward, network);
                                 } else {
-                                    Echo.Response responseContent = content.answer();
+                                    StunEcho.Response responseContent = content.answer();
                                     DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(self.getValue1(), content.target, Transport.UDP), null, null);
                                     ContentMsg response = new BasicContentMsg(responseHeader, responseContent);
-                                    LOG.debug("{}sending echo:{} from:{} to:{}", 
-                                        new Object[]{logPrefix, responseContent.type, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
+                                    LOG.debug("{}sending:{} from:{} to:{}", 
+                                        new Object[]{logPrefix, responseContent, responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
                                     trigger(response, network);
                                 }
                             }

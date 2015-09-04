@@ -52,7 +52,7 @@ import se.sics.nat.hp.common.msg.SimpleHolePunching.Ready;
 import se.sics.nat.hp.common.msg.SimpleHolePunching.Relay;
 import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.PMClientPort;
-import se.sics.nat.pm.client.msg.Update;
+import se.sics.nat.pm.client.msg.SelfUpdate;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
@@ -70,7 +70,6 @@ public class SHPClientComp extends ComponentDefinition {
     private final Negative<SHPClientPort> holePunching = provides(SHPClientPort.class);
     private final Positive<Network> network = requires(Network.class);
     private final Positive<Timer> timer = requires(Timer.class);
-
     private final Positive<PMClientPort> parentMaker = requires(PMClientPort.class);
 
     private final NatTraverserConfig config;
@@ -129,14 +128,14 @@ public class SHPClientComp extends ComponentDefinition {
     Handler handleInternalStateCheck = new Handler<PeriodicInternalStateCheck>() {
         @Override
         public void handle(PeriodicInternalStateCheck event) {
-            LOG.info("{}sessions - initiator:{} target:{}", 
+            LOG.info("{}sessions - initiator:{} target:{}",
                     new Object[]{logPrefix, initiatorSessions.size(), targetSessions.size()});
         }
     };
 
-    Handler handleSelfUpdate = new Handler<Update>() {
+    Handler handleSelfUpdate = new Handler<SelfUpdate>() {
         @Override
-        public void handle(Update update) {
+        public void handle(SelfUpdate update) {
             LOG.info("{}updating self from:{} to:{}",
                     new Object[]{logPrefix, self, update.self});
             self = update.self;
@@ -148,8 +147,13 @@ public class SHPClientComp extends ComponentDefinition {
         @Override
         public void handle(OpenConnection.Request request) {
             LOG.info("{}open connection request to:{}", logPrefix, request.target.getBase());
-
+            
             assert request.target.hasTrait(NatedTrait.class);
+            if(request.target.getTrait(NatedTrait.class).parents.isEmpty()) {
+                LOG.info("{}open connection to:{} failed - no parents", logPrefix, request.target.getBase());
+                trigger(request.fail(HPFailureStatus.TIMEOUT), holePunching);
+                return;
+            }
 
             SHPInitiatorSession session = new SHPInitiatorSession(UUID.randomUUID(), request);
             initiatorSessions.put(session.id, session);
@@ -169,7 +173,7 @@ public class SHPClientComp extends ComponentDefinition {
     Handler handleMsgTimeout = new Handler<MsgTimeout>() {
         @Override
         public void handle(MsgTimeout timeout) {
-            LOG.debug("{}timeout");
+            LOG.debug("{}timeout", logPrefix);
             if (initiatorSessions.containsKey(timeout.msgId.getValue0())) {
                 SHPInitiatorSession session = initiatorSessions.get(timeout.msgId.getValue0());
                 if (session == null) {
@@ -177,9 +181,9 @@ public class SHPClientComp extends ComponentDefinition {
                     throw new RuntimeException("initiator session management error");
                 }
                 if (session.timeout(timeout.target)) {
-                    LOG.info("{}session to:{} failed with:{}",
-                            new Object[]{logPrefix, session.req.target.getBase(), session.status});
-                    answer(session.req, session.req.fail(session.status, timeout.target));
+                    LOG.info("{}session initiator to:{} timed out",
+                            new Object[]{logPrefix, session.req.target.getBase()});
+                    trigger(session.req.fail(session.status), holePunching);
                     cleanSession(session);
                     initiatorSessions.remove(session.id);
                 } else {
@@ -193,7 +197,7 @@ public class SHPClientComp extends ComponentDefinition {
                     throw new RuntimeException("target session management error");
                 }
                 if (session.timeout(timeout.target)) {
-                    LOG.info("{}session from:{} failed with:{}",
+                    LOG.info("{}session target from:{} timed out",
                             new Object[]{logPrefix, session.target, session.status});
                     cleanSession(session);
                     targetSessions.remove(session.id);
@@ -218,52 +222,70 @@ public class SHPClientComp extends ComponentDefinition {
                         LOG.debug("{}late msg:{}", logPrefix, content);
                         return;
                     }
-                    if (session.state.equals(SHPInitiatorSession.State.OPEN_CONNECTION)) {
-                        session.state = SHPInitiatorSession.State.HOLE_PUNCHING;
-                        cleanSession(session);
+                    cleanSession(session);
 
+                    if (NatedTrait.isOpen(self)) {
+                        initiatorSessions.remove(session.id);
+
+                        Ready readyContent = content.ready(container.getSource());
+                        DecoratedHeader<DecoratedAddress> readyHeader = new DecoratedHeader(
+                                new BasicHeader(container.getDestination(), container.getSource(), Transport.UDP), null, null);
+                        ContentMsg readyMsg = new BasicContentMsg(readyHeader, readyContent);
+                        trigger(readyMsg, network);
+
+                        LOG.info("{}connection ready from:{} on:{}",
+                                new Object[]{logPrefix, container.getSource().getBase(), container.getDestination().getBase()});
+                        trigger(session.req.success(container.getDestination(), container.getSource()), holePunching);
+                    } else {
                         Pong pongContent = content.answer();
-                        DecoratedHeader<DecoratedAddress> pongHeader = new DecoratedHeader(new BasicHeader(container.getDestination(), container.getSource(), Transport.UDP), null, null);
+                        DecoratedHeader<DecoratedAddress> pongHeader = new DecoratedHeader(
+                                new BasicHeader(container.getDestination(), container.getSource(), Transport.UDP), null, null);
                         ContentMsg pongMsg = new BasicContentMsg(pongHeader, pongContent);
                         trigger(pongMsg, network);
                         session.pendingMsg(pongContent.msgId, scheduleMsgTimeout(pongContent.msgId, container.getSource()));
-                    } else {
-                        LOG.warn("{}unexpected msg:{} in state:{} from:{}",
-                                new Object[]{logPrefix, content, session.state, container.getSource().getBase()});
                     }
                 }
             };
 
+    //can be on both initiator and target
     ClassMatchedHandler handleReady
             = new ClassMatchedHandler<Ready, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Ready>>() {
                 @Override
                 public void handle(Ready content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Ready> container) {
                     LOG.debug("{}received shp ready from:{} on:{}",
                             new Object[]{logPrefix, container.getSource().getBase(), content.observed.getBase()});
-                    SHPInitiatorSession session = initiatorSessions.get(content.msgId.getValue0());
-                    if (session == null) {
-                        LOG.debug("{}late msg:{}", logPrefix, content);
-                        return;
-                    }
-                    if (session.state.equals(SHPInitiatorSession.State.HOLE_PUNCHING)) {
+                    if (initiatorSessions.containsKey(content.msgId.getValue0())) {
+                        SHPInitiatorSession session = initiatorSessions.get(content.msgId.getValue0());
+
                         cleanSession(session);
                         initiatorSessions.remove(session.id);
 
                         LOG.info("{}connection ready from:{} on:{}",
                                 new Object[]{logPrefix, container.getSource().getBase(), content.observed.getBase()});
-                        answer(session.req, session.req.success(content.observed, container.getSource()));
-                    } else {
-                        LOG.warn("{}unexpected msg:{} in state:{} from:{}",
-                                new Object[]{logPrefix, content, session.state, container.getSource().getBase()});
+                        trigger(session.req.success(content.observed, container.getSource()), holePunching);
+                        return;
+                    } else if (targetSessions.containsKey(content.msgId.getValue0())) {
+                        SHPTargetSession session = targetSessions.get(content.msgId.getValue0());
+
+                        cleanSession(session);
+                        targetSessions.remove(session.id);
+
+                        LOG.info("{}connection ready from:{} on:{}",
+                                new Object[]{logPrefix, container.getSource().getBase(), content.observed.getBase()});
+                        trigger(new OpenConnection.Success(UUID.randomUUID(), content.observed, container.getSource()), holePunching);
+                        return;
                     }
+                    LOG.debug("{}late msg:{}", logPrefix, content);
+                    return;
                 }
             };
-    //**************************CONNECTION_TARGET*******************************
+//**************************CONNECTION_TARGET*******************************
     ClassMatchedHandler handleInitiate
             = new ClassMatchedHandler<Initiate, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Initiate>>() {
                 @Override
                 public void handle(Initiate content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Initiate> container) {
                     LOG.debug("{}received shp initiate to:{}", logPrefix, content.connectTo.getBase());
+
                     if (!self.getTrait(NatedTrait.class).parents.contains(container.getSource())) {
                         LOG.warn("{}node:{} that is not my parent tried to make me open a connection to:{}",
                                 new Object[]{logPrefix, container.getSource().getBase(), content.connectTo.getBase()});
@@ -277,7 +299,8 @@ public class SHPClientComp extends ComponentDefinition {
                     targetSessions.put(session.id, session);
 
                     Ping pingContent = content.answer();
-                    DecoratedHeader<DecoratedAddress> pingHeader = new DecoratedHeader(new BasicHeader(self, content.connectTo, Transport.UDP), null, null);
+                    DecoratedHeader<DecoratedAddress> pingHeader = new DecoratedHeader(
+                            new BasicHeader(self, content.connectTo, Transport.UDP), null, null);
                     ContentMsg pingMsg = new BasicContentMsg(pingHeader, pingContent);
                     trigger(pingMsg, network);
                     session.pendingMsg(pingContent.msgId, scheduleMsgTimeout(pingContent.msgId, content.connectTo));
@@ -294,15 +317,16 @@ public class SHPClientComp extends ComponentDefinition {
                         LOG.debug("{}late msg:{}", logPrefix, content);
                         return;
                     }
-                    
+
                     cleanSession(session);
                     initiatorSessions.remove(session.id);
 
                     Ready readyContent = content.answer(container.getSource());
-                    DecoratedHeader<DecoratedAddress> readyHeader = new DecoratedHeader(new BasicHeader(container.getDestination(), container.getSource(), Transport.UDP), null, null);
+                    DecoratedHeader<DecoratedAddress> readyHeader = new DecoratedHeader(
+                            new BasicHeader(container.getDestination(), container.getSource(), Transport.UDP), null, null);
                     ContentMsg readyMsg = new BasicContentMsg(readyHeader, readyContent);
                     trigger(readyMsg, network);
-                    
+
                     LOG.info("{}connection ready from:{} on:{}",
                             new Object[]{logPrefix, container.getSource().getBase(), container.getDestination().getBase()});
                     trigger(new OpenConnection.Success(UUID.randomUUID(), container.getDestination(), container.getSource()), holePunching);
@@ -312,6 +336,7 @@ public class SHPClientComp extends ComponentDefinition {
     private void cleanSession(SHPSession session) {
         for (UUID timeoutId : session.clearMsgs().values()) {
             cancelMsgTimeout(timeoutId);
+
         }
     }
 
@@ -367,6 +392,7 @@ public class SHPClientComp extends ComponentDefinition {
     private void cancelMsgTimeout(UUID timeoutId) {
         CancelTimeout ct = new CancelTimeout(timeoutId);
         trigger(ct, timer);
+
     }
 
     public static class MsgTimeout extends Timeout {

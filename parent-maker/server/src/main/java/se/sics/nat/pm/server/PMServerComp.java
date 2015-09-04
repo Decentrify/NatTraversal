@@ -73,7 +73,7 @@ public class PMServerComp extends ComponentDefinition {
     private UUID heartbeatCheckId;
 
     public PMServerComp(PMServerInit init) {
-        this.self = new DecoratedAddress(init.self);
+        this.self = init.self;
         this.logPrefix = self.getBase() + " ";
         LOG.info("{}initiating...", logPrefix);
 
@@ -200,9 +200,9 @@ public class PMServerComp extends ComponentDefinition {
     public static class PMServerInit extends Init<PMServerComp> {
 
         public final NatTraverserConfig config;
-        public final BasicAddress self;
+        public final DecoratedAddress self;
 
-        public PMServerInit(NatTraverserConfig config, BasicAddress self) {
+        public PMServerInit(NatTraverserConfig config, DecoratedAddress self) {
             this.config = config;
             this.self = self;
         }

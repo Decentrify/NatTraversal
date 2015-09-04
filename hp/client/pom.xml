@@ -7,15 +7,15 @@
         <artifactId>hp</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    <groupId>se.sics.nat.hp</groupId>
-    <artifactId>client</artifactId>
+    <groupId>se.sics.nat.hp.client</groupId>
+    <artifactId>core</artifactId>
     <name>HP Client</name>
     <url>http://maven.apache.org</url>
   
     <dependencies>
         <dependency>
-            <groupId>se.sics.nat.hp</groupId>
-            <artifactId>client-api</artifactId>
+            <groupId>se.sics.nat.hp.client</groupId>
+            <artifactId>api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -21,6 +21,7 @@ package se.sics.nat.hp.client.msg;
 
 import java.util.UUID;
 import se.sics.kompics.Direct;
+import se.sics.kompics.KompicsEvent;
 import se.sics.nat.hp.client.HPFailureStatus;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
@@ -29,12 +30,11 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class OpenConnection {
-    public static class Request extends Direct.Request {
+    public static class Request implements KompicsEvent {
         public final UUID id;
         public final DecoratedAddress target;
         
         public Request(UUID id, DecoratedAddress target) {
-            super();
             this.id = id;
             this.target = target;
         }
@@ -43,12 +43,12 @@ public class OpenConnection {
             return new Success(id, self, target);
         }
         
-        public Fail fail(HPFailureStatus status, DecoratedAddress target) {
+        public Fail fail(HPFailureStatus status) {
             return new Fail(id, status, target);
         }
     }
     
-    public static class Success implements Direct.Response{
+    public static class Success implements KompicsEvent {
         public final UUID id;
         public final DecoratedAddress self;
         public final DecoratedAddress target;
@@ -60,7 +60,7 @@ public class OpenConnection {
         }
     }
     
-    public static class Fail implements Direct.Response {
+    public static class Fail implements KompicsEvent {
         public final UUID id;
         public final HPFailureStatus status;
         public final DecoratedAddress target;

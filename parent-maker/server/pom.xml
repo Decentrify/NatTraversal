@@ -7,15 +7,15 @@
     <artifactId>parent-maker</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.nat.pm</groupId>
-  <artifactId>server</artifactId>
+  <groupId>se.sics.nat.pm.server</groupId>
+  <artifactId>core</artifactId>
   <name>PM Server</name>
   <url>http://maven.apache.org</url>
   
   <dependencies>
       <dependency>
-          <groupId>se.sics.nat.pm</groupId>
-          <artifactId>server-api</artifactId>
+          <groupId>se.sics.nat.pm.server</groupId>
+          <artifactId>api</artifactId>
           <version>${project.version}</version>
       </dependency>
       <dependency>

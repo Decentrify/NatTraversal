@@ -42,12 +42,12 @@ import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.network.NatedTrait;
-import se.sics.nat.pm.client.msg.Update;
+import se.sics.nat.pm.client.msg.SelfUpdate;
 import se.sics.nat.pm.common.PMMsg;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
+import se.sics.p2ptoolbox.util.Container;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
@@ -77,9 +77,9 @@ public class PMClientComp extends ComponentDefinition {
     private UUID heartbeatCheckId;
 
     public PMClientComp(PMClientInit init) {
-        this.self = new DecoratedAddress(init.self);
+        this.self = init.self;
         this.logPrefix = self.getBase() + " ";
-        LOG.info("{}initiating...", logPrefix);
+        LOG.info("{}initiating with self:{}", logPrefix, self);
 
         this.config = init.config;
         this.changed = true;
@@ -132,9 +132,9 @@ public class PMClientComp extends ComponentDefinition {
                     new Object[]{logPrefix, sample.publicSample});
             if (parents.size() < config.nrParents) {
                 int nextParents = 2 * config.nrParents - parents.size();
-                Iterator<DecoratedAddress> it = sample.publicSample.iterator();
+                Iterator<Container<DecoratedAddress, Object>> it = sample.publicSample.iterator();
                 while (it.hasNext() && nextParents > 0) {
-                    DecoratedAddress nextParent = it.next();
+                    DecoratedAddress nextParent = it.next().getSource();
                     if (!parents.contains(nextParent)) {
                         LOG.info("{}connecting to parent:{}", logPrefix, nextParent.getBase());
                         DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(self, nextParent, Transport.UDP), null, null);
@@ -210,7 +210,7 @@ public class PMClientComp extends ComponentDefinition {
                 self = new DecoratedAddress(self.getBase());
                 self.addTrait(nat);
                 LOG.info("{}update self:{}", logPrefix, self);
-                trigger(new Update(self), parentMaker);
+                trigger(new SelfUpdate(self), parentMaker);
                 changed = false;
             }
         }
@@ -219,9 +219,9 @@ public class PMClientComp extends ComponentDefinition {
     public static class PMClientInit extends Init<PMClientComp> {
 
         public final NatTraverserConfig config;
-        public final BasicAddress self;
+        public final DecoratedAddress self;
 
-        public PMClientInit(NatTraverserConfig config, BasicAddress self) {
+        public PMClientInit(NatTraverserConfig config, DecoratedAddress self) {
             this.config = config;
             this.self = self;
         }

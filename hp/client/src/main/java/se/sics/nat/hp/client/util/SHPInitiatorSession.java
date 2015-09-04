@@ -18,10 +18,8 @@
  */
 package se.sics.nat.hp.client.util;
 
-import se.sics.nat.hp.client.HPFailureStatus;
 import java.util.UUID;
 import se.sics.nat.hp.client.msg.OpenConnection;
-import se.sics.nat.network.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
@@ -31,17 +29,10 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 public class SHPInitiatorSession extends SHPSession {
 
     public final OpenConnection.Request req;
-    public State state;
-
-    public static enum State {
-
-        OPEN_CONNECTION, HOLE_PUNCHING;
-    }
 
     public SHPInitiatorSession(UUID id, OpenConnection.Request req) {
         super(id);
         this.req = req;
-        this.state = State.OPEN_CONNECTION;
     }
 
     /**
@@ -49,13 +40,6 @@ public class SHPInitiatorSession extends SHPSession {
      */
     @Override
     public boolean timeout(DecoratedAddress src) {
-        switch (state) {
-            case OPEN_CONNECTION:
-            case HOLE_PUNCHING:
-                status = HPFailureStatus.TIMEOUT;
-                return true;
-            default:
-                throw new RuntimeException("initiator session - unhandled timeout in state:" + state);
-        }
+        return true;
     }
 }

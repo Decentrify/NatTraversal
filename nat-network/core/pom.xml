@@ -24,9 +24,14 @@
           <version>${project.version}</version>
       </dependency>
       <dependency>
-          <groupId>se.sics.nat.hp</groupId>
-          <artifactId>client-api</artifactId>
+          <groupId>se.sics.nat.hp.client</groupId>
+          <artifactId>api</artifactId>
           <version>${project.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>se.sics.ktoolbox.croupier</groupId>
+          <artifactId>croupier-core</artifactId>
+          <version>${croupier.version}</version>
       </dependency>
   </dependencies>
 </project>

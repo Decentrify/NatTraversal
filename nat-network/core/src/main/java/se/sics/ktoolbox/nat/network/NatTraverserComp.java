@@ -58,13 +58,15 @@ import se.sics.ktoolbox.nat.network.msg.NatConnection.OpenResponse;
 import se.sics.ktoolbox.nat.network.util.Feasibility;
 import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.PMClientPort;
-import se.sics.nat.pm.client.msg.Update;
+import se.sics.nat.pm.client.msg.SelfUpdate;
+import se.sics.p2ptoolbox.croupier.msg.CroupierMsg;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.p2ptoolbox.util.traits.OverlayMember;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -112,7 +114,7 @@ public class NatTraverserComp extends ComponentDefinition {
         subscribe(connectionTracker.handleNetCloseConnection, network);
 
         //connection maker
-        if (!self.hasTrait(NatedTrait.class)) {
+        if (NatedTrait.isOpen(self)) {
             subscribe(connectionMaker.handleOpenRequest, network);
         }
         subscribe(connectionMaker.handleOpenResponse, network);
@@ -157,9 +159,9 @@ public class NatTraverserComp extends ComponentDefinition {
         }
     };
 
-    Handler handleSelfUpdate = new Handler<Update>() {
+    Handler handleSelfUpdate = new Handler<SelfUpdate>() {
         @Override
-        public void handle(Update update) {
+        public void handle(SelfUpdate update) {
             LOG.info("{}updating self from:{} to:{}",
                     new Object[]{logPrefix, self, update.self});
             self = update.self;
@@ -211,13 +213,14 @@ public class NatTraverserComp extends ComponentDefinition {
                     return;
                 }
                 //open - open
-                if (!self.hasTrait(NatedTrait.class) && !destination.hasTrait(NatedTrait.class)) {
-                    LOG.debug("{}forwarding msg:{} local to network", logPrefix, msg);
+                if (NatedTrait.isOpen(self) && NatedTrait.isOpen(destination)) {
+                    LOG.debug("{}forwarding msg:{} local to network", logPrefix, contentMsg.getContent());
                     trigger(msg, network);
                     return;
                 }
                 //connecting
-                List<BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>> pending = pendingMsgs.get(destination.getBase());
+                List<BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>> pending
+                        = pendingMsgs.get(destination.getBase());
                 if (pending == null) {
                     if (connectionMaker.connect(contentMsg.getSource(), destination)) {
                         pending = new ArrayList<BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>>();
@@ -245,7 +248,7 @@ public class NatTraverserComp extends ComponentDefinition {
                     return;
                 }
                 if (!contentMsg.getProtocol().equals(Transport.UDP)) {
-                    LOG.info("{}forwarding msg:{}, not touching non UDP traffic", logPrefix, msg);
+                    LOG.info("{}forwarding msg:{}, not touching non UDP traffic", logPrefix, contentMsg.getContent());
                     trigger(msg, network);
                     return;
                 }
@@ -253,7 +256,12 @@ public class NatTraverserComp extends ComponentDefinition {
                     //skip - nat internal msgs
                     return;
                 }
-                LOG.trace("{}forwarding msg:{} network to local", logPrefix, msg);
+                if (contentMsg.getContent() instanceof CroupierMsg
+                        && contentMsg.getHeader().getTrait(OverlayMember.class).getOverlayId() == 0) {
+                    LOG.trace("{}not forwarding global croupier overlay 0 traffic - this overlay runs under nat", logPrefix);
+                    return;
+                }
+                LOG.trace("{}forwarding msg:{} network to local", logPrefix, contentMsg.getContent());
                 trigger(msg, local);
             }
         };
@@ -265,17 +273,22 @@ public class NatTraverserComp extends ComponentDefinition {
                 LOG.warn("{}weird pending empty to:{}", logPrefix, connection.getValue1().getBase());
                 return;
             }
+            if (!self.getBase().equals(connection.getValue0())) {
+                LOG.error("{}not yet handling mapping policy different than EI", logPrefix);
+                throw new RuntimeException("not yet handling mapping policy different than EI");
+            }
             for (BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> msg : pending) {
                 BasicHeader basicHeader = new BasicHeader(self, connection.getValue1(), Transport.UDP);
                 DecoratedHeader<DecoratedAddress> forwardHeader = msg.getHeader().changeBasicHeader(basicHeader);
                 ContentMsg forwardMsg = new BasicContentMsg(forwardHeader, msg.getContent());
-                LOG.debug("{}forwarding msg:{} local to network", logPrefix, forwardMsg);
+                LOG.debug("{}forwarding outgoing buffered msg:{} from:{} to:{} ",
+                        new Object[]{logPrefix, forwardMsg.getContent(), connection.getValue0(), connection.getValue1().getBase()});
                 trigger(forwardMsg, network);
             }
         }
-        
+
         public void connectFailed(BasicAddress target) {
-            LOG.info("{}connection to:{} failed, dropping buffered msgs", 
+            LOG.info("{}connection to:{} failed, dropping buffered msgs",
                     new Object[]{logPrefix, target});
             pendingMsgs.remove(target);
         }
@@ -299,7 +312,7 @@ public class NatTraverserComp extends ComponentDefinition {
         }
 
         public boolean connect(DecoratedAddress self, DecoratedAddress target) {
-            if(!target.hasTrait(NatedTrait.class)) {
+            if (NatedTrait.isOpen(target)) {
                 connectOpenNode(target);
                 return true;
             } else if (Feasibility.simpleHolePunching(self, target).equals(Feasibility.State.INITIATE)) {
@@ -318,8 +331,8 @@ public class NatTraverserComp extends ComponentDefinition {
                 = new ClassMatchedHandler<OpenRequest, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, OpenRequest>>() {
                     @Override
                     public void handle(OpenRequest content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, OpenRequest> container) {
-                        LOG.info("{}opened connection to:{} from:{}",
-                                new Object[]{logPrefix, container.getSource().getBase(), self});
+                        LOG.info("{}opened req connection to:{} from:{}",
+                                new Object[]{logPrefix, container.getSource().getBase(), self.getBase()});
                         connectionTracker.newConnection(self, container.getSource());
                         OpenResponse openContent = content.answer(container.getSource());
                         DecoratedHeader<DecoratedAddress> openHeader = new DecoratedHeader(new BasicHeader(self, container.getSource(), Transport.UDP), null, null);
@@ -332,7 +345,7 @@ public class NatTraverserComp extends ComponentDefinition {
                 = new ClassMatchedHandler<OpenResponse, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, OpenResponse>>() {
                     @Override
                     public void handle(OpenResponse content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, OpenResponse> container) {
-                        LOG.info("{}opened connection to:{} from:{}",
+                        LOG.info("{}opened resp connection to:{} from:{}",
                                 new Object[]{logPrefix, container.getSource().getBase(), content.observed.getBase()});
                         UUID timeoutId = pendingConnections.remove(container.getSource().getBase());
                         if (timeoutId == null) {
@@ -340,6 +353,7 @@ public class NatTraverserComp extends ComponentDefinition {
                             return;
                         }
                         connectionTracker.newConnection(self, container.getSource());
+                        trafficTracker.connected(Pair.with(container.getDestination().getBase(), container.getSource()));
                         cancelOpenConnectTimeout(timeoutId);
                     }
                 };
@@ -375,7 +389,7 @@ public class NatTraverserComp extends ComponentDefinition {
             ScheduleTimeout st = new ScheduleTimeout(config.msgRTT);
             OpenConnectTimeout oc = new OpenConnectTimeout(st, target);
             st.setTimeoutEvent(oc);
-            trigger(oc, timer);
+            trigger(st, timer);
             return oc.getTimeoutId();
         }
 

@@ -7,8 +7,8 @@
     <artifactId>parent-maker</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.nat.pm</groupId>
-  <artifactId>server-api</artifactId>
+  <groupId>se.sics.nat.pm.server</groupId>
+  <artifactId>api</artifactId>
   <name>PM Server API</name>
   <url>http://maven.apache.org</url>
 </project>

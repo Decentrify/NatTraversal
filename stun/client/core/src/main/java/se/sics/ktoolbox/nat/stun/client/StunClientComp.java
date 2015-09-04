@@ -18,7 +18,6 @@
  */
 package se.sics.ktoolbox.nat.stun.client;
 
-import com.google.common.base.Optional;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +43,7 @@ import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.nat.stun.NatReady;
 import se.sics.ktoolbox.nat.stun.StunClientPort;
 import se.sics.ktoolbox.nat.stun.client.util.StunSession;
-import se.sics.ktoolbox.nat.stun.msg.Echo;
+import se.sics.ktoolbox.nat.stun.msg.StunEcho;
 import se.sics.nat.network.Nat;
 import se.sics.nat.network.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
@@ -182,10 +181,10 @@ public class StunClientComp extends ComponentDefinition {
         };
 
         ClassMatchedHandler handleEchoResponse
-                = new ClassMatchedHandler<Echo.Response, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Response>>() {
+                = new ClassMatchedHandler<StunEcho.Response, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Response>>() {
 
                     @Override
-                    public void handle(Echo.Response content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Echo.Response> container) {
+                    public void handle(StunEcho.Response content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Response> container) {
                         LOG.debug("{}received:{} from:{}", new Object[]{logPrefix, content, container.getHeader().getSource().getBase()});
                         cancelEchoTimeout(content.id);
                         StunSession session = ongoingSessions.get(content.sessionId);
@@ -232,7 +231,7 @@ public class StunClientComp extends ComponentDefinition {
                                     sessionResult.delta.get(), sessionResult.filterPolicy.get(), 0, new ArrayList<DecoratedAddress>());
                         } else {
                             nat = NatedTrait.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
-                                    0, sessionResult.filterPolicy.get(), 0, new ArrayList<DecoratedAddress>());
+                                    0, sessionResult.filterPolicy.get(), 10000, new ArrayList<DecoratedAddress>());
                         }
                         trigger(new NatReady(nat, sessionResult.publicIp), stunPort);
                         break;
@@ -243,7 +242,7 @@ public class StunClientComp extends ComponentDefinition {
         }
 
         private void processSession(StunSession session) {
-            Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> next = session.next();
+            Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next = session.next();
             DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(next.getValue1().getValue0(), next.getValue1().getValue1(), Transport.UDP), null, null);
             ContentMsg request = new BasicContentMsg(requestHeader, next.getValue0());
             LOG.debug("{}sending:{} from:{} to:{}",
@@ -295,9 +294,9 @@ public class StunClientComp extends ComponentDefinition {
 
     public static class EchoTimeout extends Timeout {
 
-        public final Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> echo;
+        public final Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> echo;
 
-        public EchoTimeout(ScheduleTimeout request, Pair<Echo.Request, Pair<DecoratedAddress, DecoratedAddress>> echo) {
+        public EchoTimeout(ScheduleTimeout request, Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> echo) {
             super(request);
             this.echo = echo;
         }

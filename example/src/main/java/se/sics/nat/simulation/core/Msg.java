@@ -17,23 +17,17 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.pm.client.msg;
-
-import se.sics.kompics.KompicsEvent;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+package se.sics.nat.simulation.core;
 
 /**
+ *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Update implements KompicsEvent {
-    public final DecoratedAddress self;
-    
-    public Update(DecoratedAddress self) {
-        this.self = self;
+public class Msg {
+    public static class Ping {
     }
     
-    @Override
-    public String toString() {
-        return "PM_UPDATE";
+    public static class Pong {
+        
     }
 }

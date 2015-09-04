@@ -7,8 +7,8 @@
     <artifactId>parent-maker</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <groupId>se.sics.nat.pm</groupId>
-  <artifactId>client</artifactId>
+  <groupId>se.sics.nat.pm.client</groupId>
+  <artifactId>core</artifactId>
   <name>PM Client</name>
   <url>http://maven.apache.org</url>
   
@@ -19,8 +19,8 @@
           <version>${project.version}</version>
       </dependency>
       <dependency>
-          <groupId>se.sics.nat.pm</groupId>
-          <artifactId>client-api</artifactId>
+          <groupId>se.sics.nat.pm.client</groupId>
+          <artifactId>api</artifactId>
           <version>${project.version}</version>
       </dependency>
       <dependency>

@@ -19,6 +19,7 @@
 package se.sics.nat.network;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import se.sics.nat.network.Nat.AllocationPolicy;
 import se.sics.nat.network.Nat.FilteringPolicy;
@@ -40,14 +41,18 @@ public class NatedTrait implements Trait {
     public final long bindingTimeout;
     public final List<DecoratedAddress> parents;
 
+    public static boolean isOpen(DecoratedAddress adr) {
+        return adr.hasTrait(NatedTrait.class) && adr.getTrait(NatedTrait.class).type.equals(Type.OPEN);
+    }
+
     public static NatedTrait open() {
         return new NatedTrait(Type.OPEN, null, null, 0, null, 0, new ArrayList<DecoratedAddress>());
     }
-    
+
     public static NatedTrait firewall() {
         return new NatedTrait(Type.FIREWALL, null, null, 0, null, 0, new ArrayList<DecoratedAddress>());
     }
-    
+
     public static NatedTrait udpBlocked() {
         return new NatedTrait(Type.UDP_BLOCKED, null, null, 0, null, 0, new ArrayList<DecoratedAddress>());
     }
@@ -71,13 +76,12 @@ public class NatedTrait implements Trait {
         this.bindingTimeout = bindingTimeout;
         this.parents = parents;
     }
-    
+
     public NatedTrait changeParents(List<DecoratedAddress> parents) {
         return new NatedTrait(type, mappingPolicy, allocationPolicy, delta, filteringPolicy, bindingTimeout, parents);
     }
 
-    @Override
-    public String toString() {
+    public String natToString() {
         switch (type) {
             case OPEN:
                 return type.code;
@@ -92,6 +96,21 @@ public class NatedTrait implements Trait {
             default:
                 return "unknown";
         }
-
+    }
+    
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder(natToString());
+        if (!parents.isEmpty()) {
+            sb.append("<");
+            Iterator<DecoratedAddress> it = parents.iterator();
+            sb.append(it.next().getBase().toString());
+            while (it.hasNext()) {
+                sb.append(", ");
+                sb.append(it.next().getBase().toString());
+            }
+            sb.append(">");
+        }
+        return sb.toString();
     }
 }

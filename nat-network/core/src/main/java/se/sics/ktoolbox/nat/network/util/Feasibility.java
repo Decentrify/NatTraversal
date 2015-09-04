@@ -19,6 +19,7 @@
 
 package se.sics.ktoolbox.nat.network.util;
 
+import se.sics.nat.network.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
@@ -29,6 +30,9 @@ public class Feasibility {
         INITIATE, TARGET_INITIATE, UNFEASIBLE
     }
     public static State simpleHolePunching(DecoratedAddress self, DecoratedAddress target) {
+        if(NatedTrait.isOpen(self)) {
+            return State.INITIATE;
+        }
         return State.UNFEASIBLE;
     }
 }

@@ -39,7 +39,7 @@ import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.PMClientComp;
 import se.sics.nat.pm.client.PMClientComp.PMClientInit;
 import se.sics.nat.pm.client.PMClientPort;
-import se.sics.nat.pm.client.msg.Update;
+import se.sics.nat.pm.client.msg.SelfUpdate;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
@@ -112,9 +112,9 @@ public class PMClientHostComp extends ComponentDefinition {
         trigger(new CroupierSample(1, publicSample, new HashSet<DecoratedAddress>()), pmClient.getNegative(CroupierPort.class));
     }
     
-    Handler handleUpdate = new Handler<Update>() {
+    Handler handleUpdate = new Handler<SelfUpdate>() {
         @Override
-        public void handle(Update event) {
+        public void handle(SelfUpdate event) {
             LOG.info("{}self update:{}", logPrefix, event.self.getTrait(NatedTrait.class).parents);
         }
     };

@@ -37,7 +37,7 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
  *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public abstract class Echo implements StunMsg {
+public abstract class StunEcho implements StunMsg {
 
     public static enum Type {
         SIP_SP, SIP_DP, DIP_DP, DIP_SP
@@ -47,13 +47,13 @@ public abstract class Echo implements StunMsg {
     public final UUID sessionId;
     public final Type type;
 
-    protected Echo(UUID id, UUID sessionId, Type type) {
+    protected StunEcho(UUID id, UUID sessionId, Type type) {
         this.id = id;
         this.sessionId = sessionId;
         this.type = type;
     }
 
-    public static class Request extends Echo {
+    public static class Request extends StunEcho {
         public final DecoratedAddress target;
 
         public Request(UUID id, UUID sessionId, Type type, DecoratedAddress target) {
@@ -71,11 +71,11 @@ public abstract class Echo implements StunMsg {
 
         @Override
         public String toString() {
-            return "ECHO_REQ<" + type.toString() + ">";
+            return "STUN_ECHO_REQ<" + type.toString() + ">";
         }
     }
     
-    public static class Response extends Echo {
+    public static class Response extends StunEcho {
         public final Optional<DecoratedAddress> observed;
 
         private Response(UUID id, UUID sessionId, Type type, Optional observed) {
@@ -85,7 +85,7 @@ public abstract class Echo implements StunMsg {
         
         @Override
         public String toString() {
-            return "ECHO_RESP<" + type.toString() + ">";
+            return "STUN_ECHO_RESP<" + type.toString() + ">";
         }
     }
 }
