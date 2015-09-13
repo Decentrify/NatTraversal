@@ -50,14 +50,14 @@ import se.sics.nat.hp.common.msg.SimpleHolePunching.Ping;
 import se.sics.nat.hp.common.msg.SimpleHolePunching.Pong;
 import se.sics.nat.hp.common.msg.SimpleHolePunching.Ready;
 import se.sics.nat.hp.common.msg.SimpleHolePunching.Relay;
-import se.sics.nat.network.NatedTrait;
-import se.sics.nat.pm.client.PMClientPort;
-import se.sics.nat.pm.client.msg.SelfUpdate;
+import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
+import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -70,7 +70,7 @@ public class SHPClientComp extends ComponentDefinition {
     private final Negative<SHPClientPort> holePunching = provides(SHPClientPort.class);
     private final Positive<Network> network = requires(Network.class);
     private final Positive<Timer> timer = requires(Timer.class);
-    private final Positive<PMClientPort> parentMaker = requires(PMClientPort.class);
+    private final Positive<SelfAddressUpdatePort> parentMaker = requires(SelfAddressUpdatePort.class);
 
     private final NatTraverserConfig config;
     private DecoratedAddress self;
@@ -93,7 +93,7 @@ public class SHPClientComp extends ComponentDefinition {
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(handleInternalStateCheck, timer);
-        subscribe(handleSelfUpdate, parentMaker);
+        subscribe(handleSelfAddressUpdate, parentMaker);
 
         subscribe(handleOpenConnection, holePunching);
 
@@ -133,9 +133,9 @@ public class SHPClientComp extends ComponentDefinition {
         }
     };
 
-    Handler handleSelfUpdate = new Handler<SelfUpdate>() {
+    Handler handleSelfAddressUpdate = new Handler<SelfAddressUpdate>() {
         @Override
-        public void handle(SelfUpdate update) {
+        public void handle(SelfAddressUpdate update) {
             LOG.info("{}updating self from:{} to:{}",
                     new Object[]{logPrefix, self, update.self});
             self = update.self;

@@ -26,9 +26,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import se.sics.nat.common.NatTraverserConfig;
-import se.sics.nat.network.Nat;
 import se.sics.nat.emulator.NatEmulatorComp;
-import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.PMClientComp.PMClientInit;
 import se.sics.nat.pm.core.PMClientHostComp;
 import se.sics.nat.pm.core.PMClientHostComp.PMClientHostInit;
@@ -39,6 +37,8 @@ import se.sics.p2ptoolbox.simulator.cmd.impl.StartNodeCmd;
 import se.sics.p2ptoolbox.simulator.dsl.SimulationScenario;
 import se.sics.p2ptoolbox.simulator.dsl.adaptor.Operation1;
 import se.sics.p2ptoolbox.simulator.dsl.distribution.ConstantDistribution;
+import se.sics.p2ptoolbox.util.nat.Nat;
+import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
@@ -55,17 +55,20 @@ public class ScenarionGen {
             int server1Id = 1;
             InetAddress server1Ip = InetAddress.getByName("193.10.66.1");
             DecoratedAddress server1Adr = new DecoratedAddress(new BasicAddress(server1Ip, 56788, server1Id));
-            pmServers.put(server1Id, new PMServerHostInit(new PMServerComp.PMServerInit(new NatTraverserConfig(), server1Adr)));
+            pmServers.put(server1Id, new PMServerHostInit(new PMServerComp.PMServerInit(
+                    NatTraverserConfig.getDefault(), server1Adr)));
 
             int server2Id = 2;
             InetAddress server2Ip = InetAddress.getByName("193.10.66.2");
             DecoratedAddress server2Adr = new DecoratedAddress(new BasicAddress(server2Ip, 56788, server2Id));
-            pmServers.put(server2Id, new PMServerHostInit(new PMServerComp.PMServerInit(new NatTraverserConfig(), server2Adr)));
+            pmServers.put(server2Id, new PMServerHostInit(new PMServerComp.PMServerInit(
+                    NatTraverserConfig.getDefault(), server2Adr)));
 
             int server3Id = 3;
             InetAddress server3Ip = InetAddress.getByName("193.10.66.3");
             DecoratedAddress server3Adr = new DecoratedAddress(new BasicAddress(server3Ip, 56788, server3Id));
-            pmServers.put(server3Id, new PMServerHostInit(new PMServerComp.PMServerInit(new NatTraverserConfig(), server3Adr)));
+            pmServers.put(server3Id, new PMServerHostInit(new PMServerComp.PMServerInit(
+                    NatTraverserConfig.getDefault(), server3Adr)));
 
 
             //MP:EI, FP:EI, AP:PP
@@ -80,7 +83,7 @@ public class ScenarionGen {
             publicSample1.add(server1Adr);
             publicSample1.add(server2Adr);
             publicSample1.add(server3Adr);
-            PMClientInit natedNode1Init = new PMClientInit(new NatTraverserConfig(), natedNode1Adr);
+            PMClientInit natedNode1Init = new PMClientInit(NatTraverserConfig.getDefault(), natedNode1Adr);
             pmClients.put(natedNode1Id, new PMClientHostInit(nat1Init, natedNode1Init, publicSample1));
         } catch (UnknownHostException ex) {
             System.err.println("scenario error while binding localhost");

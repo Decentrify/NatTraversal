@@ -23,17 +23,31 @@ package se.sics.nat.common;
  */
 public class NatTraverserConfig {
 
-    public static long internalStateCheck = 30000;
-    public static long connectionHeartbeat = 10000;
-    public static long msgRTT = 1000;
+    public long internalStateCheck = 30000;
+    public long connectionHeartbeat = 10000;
+    public long msgRTT = 1000;
 
     /**
      * connection specific - should be half the binding timeout at most, since i
      * do roughly two heartbeats per heartbeat check
      */
-    public static long heartbeat = 5000;
+    public long heartbeat = 5000;
     
     //pm specific
-    public static int nrParents = 3;
-    public static int nrChildren = 100;
+    public final int nrChildren;
+    public final int nrParents;
+    
+    public static NatTraverserConfig getDefault() {
+        return new NatTraverserConfig(30000, 10000, 1000, 5000, 100, 3);
+    }
+    
+    public NatTraverserConfig(long internalStateCheck, long connectionHeartbeat, long msgRTT, 
+            long heartbeat, int nrChildren, int nrParents) {
+        this.internalStateCheck = internalStateCheck;
+        this.connectionHeartbeat = connectionHeartbeat;
+        this.msgRTT = msgRTT;
+        this.heartbeat = heartbeat;
+        this.nrChildren = nrChildren;
+        this.nrParents = nrParents;
+    }
 }

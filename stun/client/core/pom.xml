@@ -13,11 +13,6 @@
   <url>http://maven.apache.org</url>
   
   <dependencies>
-    <dependency>
-          <groupId>se.sics.nat.network</groupId>
-          <artifactId>api</artifactId>
-          <version>${project.version}</version>
-      </dependency>
       <dependency>
           <groupId>se.sics.nat.stun</groupId>
           <artifactId>common</artifactId>

@@ -41,17 +41,18 @@ import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.nat.common.NatTraverserConfig;
-import se.sics.nat.network.NatedTrait;
-import se.sics.nat.pm.client.msg.SelfUpdate;
 import se.sics.nat.pm.common.PMMsg;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
 import se.sics.p2ptoolbox.util.Container;
+import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
+import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -61,7 +62,7 @@ public class PMClientComp extends ComponentDefinition {
     private final static Logger LOG = LoggerFactory.getLogger(PMClientComp.class);
     private final String logPrefix;
 
-    private Negative<PMClientPort> parentMaker = provides(PMClientPort.class);
+    private Negative<SelfAddressUpdatePort> parentMaker = provides(SelfAddressUpdatePort.class);
     private Positive<Network> network = requires(Network.class);
     private Positive<Timer> timer = requires(Timer.class);
     private Positive<CroupierPort> croupier = requires(CroupierPort.class);
@@ -210,7 +211,7 @@ public class PMClientComp extends ComponentDefinition {
                 self = new DecoratedAddress(self.getBase());
                 self.addTrait(nat);
                 LOG.info("{}update self:{}", logPrefix, self);
-                trigger(new SelfUpdate(self), parentMaker);
+                trigger(new SelfAddressUpdate(self), parentMaker);
                 changed = false;
             }
         }

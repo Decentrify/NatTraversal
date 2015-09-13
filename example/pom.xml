@@ -1,79 +1,18 @@
-<?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>se.sics</groupId>
         <artifactId>nat</artifactId>
+        <groupId>se.sics</groupId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <groupId>se.sics.nat</groupId>
     <artifactId>example</artifactId>
+    <packaging>pom</packaging>
     <name>NAT Example</name>
-    <url>http://maven.apache.org</url>
-    <dependencies>
-        <dependency>
-            <groupId>se.sics.nat</groupId>
-            <artifactId>nat-emulator</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.stun.client</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.stun.server</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.pm.client</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.pm.server</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.hp.server</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.hp.client</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.network</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        
-        <dependency>
-            <groupId>se.sics.ktoolbox.croupier</groupId>
-            <artifactId>croupier-core</artifactId>
-            <version>${croupier.version}</version>
-        </dependency>
-        
-        <dependency> 
-            <groupId>se.sics.ktoolbox.simulator</groupId>
-            <artifactId>simulator-core</artifactId>
-            <version>${simulator.version}</version>
-        </dependency>
-        <dependency> 
-            <groupId>se.sics.ktoolbox.util</groupId>
-            <artifactId>basic</artifactId>
-            <version>${util.version}</version>
-        </dependency>
-      
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>${logger.version}</version>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>node</module>
+        <module>stunServer</module>
+        <!--<module>simulation</module>-->
+    </modules>
 </project>

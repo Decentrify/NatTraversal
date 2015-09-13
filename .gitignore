@@ -23,3 +23,9 @@
 /hp/common/target/
 /example/target/
 /common/target/
+/api/target/
+/network/target/
+/example/node/target/
+/example/stunServer/target/
+/stun/network/target/
+/core/target/

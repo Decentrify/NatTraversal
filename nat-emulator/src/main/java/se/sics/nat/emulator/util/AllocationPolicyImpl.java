@@ -20,7 +20,7 @@ package se.sics.nat.emulator.util;
 
 import java.util.Random;
 import java.util.Set;
-import se.sics.nat.network.Nat;
+import se.sics.p2ptoolbox.util.nat.Nat;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>

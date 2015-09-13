@@ -30,8 +30,8 @@ import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.nat.stun.client.StunClientComp;
-import se.sics.ktoolbox.nat.stun.client.StunClientComp.StunClientInit;
+import se.sics.nat.stun.client.StunClientComp;
+import se.sics.nat.stun.client.StunClientComp.StunClientInit;
 import se.sics.nat.emulator.NatEmulatorComp;
 import se.sics.nat.emulator.NatEmulatorComp.NatEmulatorInit;
 

@@ -20,16 +20,14 @@ package se.sics.nat.hp.client;
 
 import se.sics.kompics.PortType;
 import se.sics.nat.hp.client.msg.OpenConnection;
-import se.sics.nat.pm.client.msg.SelfUpdate;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class SHPClientPort extends PortType {
     {
-        negative(SelfUpdate.class);
-        negative(OpenConnection.Request.class);
-        positive(OpenConnection.Success.class);
-        positive(OpenConnection.Fail.class);
+        request(OpenConnection.Request.class);
+        indication(OpenConnection.Success.class);
+        indication(OpenConnection.Fail.class);
     }
 }

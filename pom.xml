@@ -12,9 +12,10 @@
         <module>stun</module>
         <module>parent-maker</module>
         <module>hp</module>
-        <module>nat-network</module>
+        <module>core</module>
         <module>example</module>
-    </modules>
+    <module>network</module>
+  </modules>
   
     <properties>
         <java.version>1.7</java.version>
@@ -25,11 +26,13 @@
         
         <util.version>1.9-SNAPSHOT</util.version>
         <simulator.version>1.6-SNAPSHOT</simulator.version>
-        <croupier.version>1.8-SNAPSHOT</croupier.version>
+        <croupier.version>1.9-SNAPSHOT</croupier.version>
+        <ipsolver.version>1.1-SNAPSHOT</ipsolver.version>
         
         <logger.version>1.7.5</logger.version>
         <tuples.version>1.2</tuples.version>
         <guava.version>18.0</guava.version>
+        <cli.version>1.3.1</cli.version>
     </properties>
   
     <dependencies>
@@ -48,13 +51,12 @@
             <artifactId>kompics-port-timer</artifactId>
             <version>${kompics.version}</version>
         </dependency>
-
         <dependency>
             <groupId>se.sics.ktoolbox.util</groupId>
             <artifactId>kompics-basic</artifactId>
             <version>${util.version}</version>
         </dependency>
-                
+        
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>

@@ -20,7 +20,7 @@ package se.sics.nat.emulator.util;
 
 import com.google.common.base.Optional;
 import org.javatuples.Pair;
-import se.sics.nat.network.Nat;
+import se.sics.p2ptoolbox.util.nat.Nat;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 
 /**

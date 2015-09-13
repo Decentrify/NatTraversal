@@ -35,14 +35,14 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 import se.sics.nat.emulator.NatEmulatorComp;
 import se.sics.nat.emulator.NatEmulatorComp.NatEmulatorInit;
-import se.sics.nat.network.NatedTrait;
 import se.sics.nat.pm.client.PMClientComp;
 import se.sics.nat.pm.client.PMClientComp.PMClientInit;
-import se.sics.nat.pm.client.PMClientPort;
-import se.sics.nat.pm.client.msg.SelfUpdate;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
+import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
+import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -108,14 +108,14 @@ public class PMClientHostComp extends ComponentDefinition {
         connect(pmClient.getNegative(Timer.class), timer);
         connect(pmClient.getNegative(Network.class), natEmulator.getPositive(Network.class));
         trigger(Start.event, pmClient.control());
-        subscribe(handleUpdate, pmClient.getPositive(PMClientPort.class));
+        subscribe(handleSelfAddressUpdate, pmClient.getPositive(SelfAddressUpdatePort.class));
         trigger(new CroupierSample(1, publicSample, new HashSet<DecoratedAddress>()), pmClient.getNegative(CroupierPort.class));
     }
     
-    Handler handleUpdate = new Handler<SelfUpdate>() {
+    Handler handleSelfAddressUpdate = new Handler<SelfAddressUpdate>() {
         @Override
-        public void handle(SelfUpdate event) {
-            LOG.info("{}self update:{}", logPrefix, event.self.getTrait(NatedTrait.class).parents);
+        public void handle(SelfAddressUpdate event) {
+            LOG.info("{}update self address:{}", logPrefix, event.self.getTrait(NatedTrait.class).parents);
         }
     };
     
