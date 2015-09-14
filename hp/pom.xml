@@ -15,5 +15,6 @@
         <module>client-api</module>
         <module>client</module>
         <module>server</module>
-    </modules>
+    <module>network</module>
+  </modules>
 </project>

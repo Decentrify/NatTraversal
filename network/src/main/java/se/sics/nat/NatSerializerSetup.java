@@ -21,6 +21,7 @@ package se.sics.nat;
 import se.sics.kompics.network.netty.serialization.Serializers;
 import se.sics.nat.common.croupier.GlobalCroupierView;
 import se.sics.nat.croupier.GlobalCroupierViewSerializer;
+import se.sics.nat.hp.SHPSerializerSetup;
 import se.sics.nat.msg.NatConnection;
 import se.sics.nat.msg.NatConnectionSerializer;
 import se.sics.nat.pm.PMSerializerSetup;
@@ -64,6 +65,7 @@ public class NatSerializerSetup {
         StunSerializerSetup.checkSetup();
         CroupierSerializerSetup.checkSetup();
         PMSerializerSetup.checkSetup();
+        SHPSerializerSetup.checkSetup();
     }
 
     public static int registerSerializers(int startingId) {

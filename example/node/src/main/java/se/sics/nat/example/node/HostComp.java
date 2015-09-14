@@ -66,6 +66,7 @@ import se.sics.nat.stun.client.StunClientComp.StunClientInit;
 import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.common.croupier.GlobalCroupierView;
 import se.sics.nat.NatSerializerSetup;
+import se.sics.nat.hp.SHPSerializerSetup;
 import se.sics.nat.hp.client.SHPClientComp;
 import se.sics.nat.hp.client.SHPClientPort;
 import se.sics.nat.hp.server.HPServerComp;
@@ -317,6 +318,7 @@ public class HostComp extends ComponentDefinition {
         serializerId = StunSerializerSetup.registerSerializers(serializerId);
         serializerId = CroupierSerializerSetup.registerSerializers(serializerId);
         serializerId = PMSerializerSetup.registerSerializers(serializerId);
+        serializerId = SHPSerializerSetup.registerSerializers(serializerId);
         serializerId = NatSerializerSetup.registerSerializers(serializerId);
         serializerId = NodeSerializerSetup.registerSerializers(serializerId);
 

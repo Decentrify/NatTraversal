@@ -82,6 +82,11 @@
             <artifactId>network</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>se.sics.nat.hp</groupId>
+            <artifactId>network</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         
         <dependency>
             <groupId>se.sics.ktoolbox.util</groupId>

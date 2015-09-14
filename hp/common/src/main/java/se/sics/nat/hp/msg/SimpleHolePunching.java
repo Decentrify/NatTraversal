@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.hp.common.msg;
+package se.sics.nat.hp.msg;
 
 import java.util.UUID;
 import org.javatuples.Pair;
@@ -45,7 +45,7 @@ public class SimpleHolePunching {
 
         public final DecoratedAddress connectTo;
 
-        private Initiate(Pair<UUID, UUID> msgId, DecoratedAddress connectTo) {
+        Initiate(Pair<UUID, UUID> msgId, DecoratedAddress connectTo) {
             super(msgId);
             this.connectTo = connectTo;
         }
@@ -57,7 +57,7 @@ public class SimpleHolePunching {
 
     public static class Ping extends SHPMsg {
 
-        private Ping(Pair<UUID, UUID> msgId) {
+       Ping(Pair<UUID, UUID> msgId) {
             super(msgId);
         }
 
@@ -72,7 +72,7 @@ public class SimpleHolePunching {
 
     public static class Pong extends SHPMsg {
 
-        private Pong(Pair<UUID, UUID> msgId) {
+        Pong(Pair<UUID, UUID> msgId) {
             super(msgId);
         }
         
@@ -85,7 +85,7 @@ public class SimpleHolePunching {
 
         public final DecoratedAddress observed;
 
-        private Ready(Pair<UUID, UUID> msgId, DecoratedAddress observed) {
+        Ready(Pair<UUID, UUID> msgId, DecoratedAddress observed) {
             super(msgId);
             this.observed = observed;
         }

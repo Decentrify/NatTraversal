@@ -36,7 +36,7 @@ import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.nat.hp.common.msg.SimpleHolePunching;
+import se.sics.nat.hp.msg.SimpleHolePunching;
 import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.pm.server.PMServerPort;
 import se.sics.nat.pm.server.msg.Update;
