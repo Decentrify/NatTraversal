@@ -16,5 +16,6 @@
         <module>server-api</module>
         <module>server</module>
         <module>example</module>
-    </modules>
+    <module>network</module>
+  </modules>
 </project>

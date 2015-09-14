@@ -23,6 +23,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.net.InetAddress;
 import java.util.EnumSet;
+import java.util.Iterator;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -50,6 +51,8 @@ import se.sics.kompics.timer.java.JavaTimer;
 import se.sics.ktoolbox.ipsolver.IpSolverComp;
 import se.sics.ktoolbox.ipsolver.IpSolverPort;
 import se.sics.ktoolbox.ipsolver.msg.GetIp;
+import se.sics.ktoolbox.ipsolver.util.IpAddressStatus;
+import se.sics.ktoolbox.ipsolver.util.IpHelper;
 import se.sics.nat.NatDetectionComp;
 import se.sics.nat.NatDetectionPort;
 import se.sics.nat.NatInitHelper;
@@ -66,6 +69,7 @@ import se.sics.nat.croupier.NatSerializerSetup;
 import se.sics.nat.hp.client.SHPClientComp;
 import se.sics.nat.hp.client.SHPClientPort;
 import se.sics.nat.hp.server.HPServerComp;
+import se.sics.nat.pm.PMSerializerSetup;
 import se.sics.nat.pm.client.PMClientComp;
 import se.sics.nat.pm.server.PMServerComp;
 import se.sics.nat.pm.server.PMServerPort;
@@ -166,11 +170,31 @@ public class HostComp extends ComponentDefinition {
     public Handler handleGetIp = new Handler<GetIp.Resp>() {
         @Override
         public void handle(GetIp.Resp resp) {
-            LOG.trace("{}received ips", logPrefix);
+            LOG.info("{}received ips:{}", logPrefix, resp.addrs);
             if (!resp.addrs.isEmpty()) {
-                privateIp = resp.addrs.get(0).getAddr();
+                Iterator<IpAddressStatus> it = resp.addrs.iterator();
+                while (it.hasNext()) {
+                    IpAddressStatus next = it.next();
+                    if (IpHelper.isPublic(next.getAddr())) {
+                        privateIp = next.getAddr();
+                        break;
+                    }
+                }
+                if (privateIp == null) {
+                    it = resp.addrs.iterator();
+                    while (it.hasNext()) {
+                        IpAddressStatus next = it.next();
+                        if (IpHelper.isPrivate(next.getAddr())) {
+                            privateIp = next.getAddr();
+                            break;
+                        }
+                    }
+                }
+                if(privateIp == null) {
+                    privateIp = resp.addrs.get(0).getAddr();
+                }
                 if (resp.addrs.size() > 1) {
-                    LOG.warn("{}multiple ips detected, proceeding with first one", logPrefix);
+                    LOG.warn("{}multiple ips detected, proceeding with:{}", logPrefix, privateIp);
                 }
                 LOG.info("{}starting: private ip:{}", logPrefix, privateIp);
                 LOG.info("{}starting: stunClient", logPrefix);
@@ -210,8 +234,8 @@ public class HostComp extends ComponentDefinition {
     private Handler handleNatReady = new Handler<NatReady>() {
         @Override
         public void handle(NatReady ready) {
-            LOG.info("{}nat detected:{} public ip:{}",
-                    new Object[]{logPrefix, ready.nat, ready.publicIp.get()});
+            LOG.info("{}nat detected:{} public ip:{} private ip:{}",
+                    new Object[]{logPrefix, ready.nat, ready.publicIp.get(), privateIp});
             if (ready.publicIp.isPresent()) {
                 systemConfigBuilder.setSelfIp(ready.publicIp.get());
             }
@@ -232,6 +256,12 @@ public class HostComp extends ComponentDefinition {
                     @Override
                     public NatNetworkHook.InitResult setUp(ComponentProxy proxy, NatNetworkHook.Init hookInit) {
                         Component[] comp = new Component[1];
+                        DecoratedAddress bindAddress = hookInit.adr;
+                        if (!privateIp.equals(hookInit.adr.getIp())) {
+                            LOG.info("{}binding on private:{}", logPrefix, privateIp.getHostAddress());
+                            System.setProperty("altBindIf", privateIp.getHostAddress());
+                        }
+                        LOG.info("{}binding on public:{}", new Object[]{logPrefix, hookInit.adr});
                         comp[0] = proxy.create(NettyNetwork.class, new NettyInit(hookInit.adr));
                         proxy.trigger(Start.event, comp[0].control());
                         return new NatNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
@@ -286,6 +316,7 @@ public class HostComp extends ComponentDefinition {
         serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
         serializerId = StunSerializerSetup.registerSerializers(serializerId);
         serializerId = CroupierSerializerSetup.registerSerializers(serializerId);
+        serializerId = PMSerializerSetup.registerSerializers(serializerId);
         serializerId = NatSerializerSetup.registerSerializers(serializerId);
         serializerId = NodeSerializerSetup.registerSerializers(serializerId);
 
