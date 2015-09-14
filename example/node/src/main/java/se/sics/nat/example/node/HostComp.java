@@ -65,7 +65,7 @@ import se.sics.nat.stun.client.StunClientComp;
 import se.sics.nat.stun.client.StunClientComp.StunClientInit;
 import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.common.croupier.GlobalCroupierView;
-import se.sics.nat.croupier.NatSerializerSetup;
+import se.sics.nat.NatSerializerSetup;
 import se.sics.nat.hp.client.SHPClientComp;
 import se.sics.nat.hp.client.SHPClientPort;
 import se.sics.nat.hp.server.HPServerComp;

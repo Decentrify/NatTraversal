@@ -19,9 +19,11 @@
 
 package se.sics.nat.stun.msg;
 
+import se.sics.nat.common.NatMsg;
+
 /**
  *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public interface StunMsg {
+public interface StunMsg extends NatMsg {
 }

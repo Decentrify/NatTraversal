@@ -20,7 +20,7 @@
 package se.sics.nat.example.node;
 
 import se.sics.kompics.network.netty.serialization.Serializers;
-import se.sics.nat.croupier.NatSerializerSetup;
+import se.sics.nat.NatSerializerSetup;
 import se.sics.nat.example.node.msg.Msg;
 import se.sics.nat.example.node.serializer.MsgSerializer;
 import se.sics.nat.stun.StunSerializerSetup;

@@ -45,7 +45,7 @@ public class NatConnection {
         public UUID id;
         public DecoratedAddress observed;
 
-        private OpenResponse(UUID id, DecoratedAddress observer) {
+        OpenResponse(UUID id, DecoratedAddress observer) {
             this.id = id;
             this.observed = observer;
         }
