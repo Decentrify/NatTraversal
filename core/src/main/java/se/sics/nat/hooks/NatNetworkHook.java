@@ -21,6 +21,7 @@ package se.sics.nat.hooks;
 
 import se.sics.kompics.Component;
 import se.sics.kompics.Positive;
+import se.sics.kompics.timer.Timer;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
@@ -33,9 +34,11 @@ public class NatNetworkHook {
 
     public static class Init implements Hook.Init {
         public final DecoratedAddress adr; 
+        public final Positive<Timer> timer;
         
-        public Init(DecoratedAddress adr) {
+        public Init(DecoratedAddress adr, Positive<Timer> timer) {
             this.adr = adr;
+             this.timer = timer;
         }
     }
     
@@ -51,9 +54,11 @@ public class NatNetworkHook {
 
     public static class Tear implements Hook.Tear {
         public final Component[] components;
+        public final Positive<Timer> timer;
         
-        public Tear(Component[] components) {
+        public Tear(Component[] components, Positive<Timer> timer) {
             this.components = components;
+            this.timer = timer;
         }
     }
 }

@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
 import org.cybergarage.upnp.UPnP;
 import org.cybergarage.upnp.ssdp.SSDPPacket;
@@ -37,7 +38,7 @@ import se.sics.kompics.Stop;
 import se.sics.nat.stun.upnp.cybergarage.Cybergarage;
 import se.sics.nat.stun.upnp.cybergarage.DetectedIP;
 import se.sics.nat.stun.upnp.cybergarage.ForwardPort;
-import se.sics.nat.stun.upnp.msg.GetPublicIp;
+import se.sics.nat.stun.upnp.msg.UpnpReady;
 import se.sics.nat.stun.upnp.msg.MapPorts;
 import se.sics.nat.stun.upnp.msg.UnmapPorts;
 import se.sics.nat.stun.upnp.util.Protocol;
@@ -71,7 +72,6 @@ public class UpnpComp extends ComponentDefinition {
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
-        subscribe(handleGetPublicIp, upnpPort);
         subscribe(handleMapPorts, upnpPort);
         subscribe(handleUnmapPorts, upnpPort);
     }
@@ -104,6 +104,7 @@ public class UpnpComp extends ComponentDefinition {
                     break;
                 }
             }
+            trigger(new UpnpReady(UUID.randomUUID(), upnpDeviceIp), upnpPort);
         }
     };
 
@@ -115,14 +116,6 @@ public class UpnpComp extends ComponentDefinition {
         }
     };
     //**************************************************************************
-
-    Handler handleGetPublicIp = new Handler<GetPublicIp.Req>() {
-        @Override
-        public void handle(GetPublicIp.Req req) {
-            LOG.trace("{}received:{}", logPrefix, req);
-            answer(req, req.answer(upnpDeviceIp));
-        }
-    };
 
     Handler handleMapPorts = new Handler<MapPorts.Req>() {
         @Override

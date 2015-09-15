@@ -16,22 +16,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.nat.stun.upnp.msg;
 
-package se.sics.nat.stun;
-
+import com.google.common.base.Optional;
 import java.net.InetAddress;
+import java.util.UUID;
+import se.sics.kompics.Direct.Request;
+import se.sics.kompics.Direct.Response;
 import se.sics.kompics.KompicsEvent;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatReady implements KompicsEvent {
-    public NatedTrait nat;
-    public InetAddress publicIp;
-    
-    public NatReady(NatedTrait nat, InetAddress publicIp) {
-        this.nat = nat;
-        this.publicIp = publicIp;
+public class UpnpReady implements KompicsEvent {
+
+    public final UUID id;
+    public final Optional<InetAddress> externalIp;
+
+    public UpnpReady(UUID id, InetAddress externalIp) {
+        this.id = id;
+        this.externalIp = Optional.fromNullable(externalIp);
     }
 }

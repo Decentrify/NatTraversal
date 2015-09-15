@@ -222,7 +222,7 @@ public class NatTraverserComp extends ComponentDefinition {
         private void setupNetwork() {
             LOG.info("{}setting up network",
                     new Object[]{logPrefix});
-            NatNetworkHook.InitResult result = natNetworkDefinition.setUp(this, new NatNetworkHook.Init(self));
+            NatNetworkHook.InitResult result = natNetworkDefinition.setUp(this, new NatNetworkHook.Init(self, timer));
             networkHook = result.components;
             for (Component component : networkHook) {
                 compToHook.put(component.id(), 1);
@@ -243,7 +243,7 @@ public class NatTraverserComp extends ComponentDefinition {
         private void tearDownNetwork() {
             LOG.info("{}tearing down network", new Object[]{logPrefix});
 
-            natNetworkDefinition.tearDown(this, new NatNetworkHook.Tear(networkHook));
+            natNetworkDefinition.tearDown(this, new NatNetworkHook.Tear(networkHook, timer));
             for (Component component : networkHook) {
                 compToHook.remove(component.id());
             }
@@ -467,8 +467,9 @@ public class NatTraverserComp extends ComponentDefinition {
                 return;
             }
             if (!self.getBase().equals(connection.getValue0())) {
-                LOG.error("{}not yet handling mapping policy different than EI", logPrefix);
-                throw new RuntimeException("not yet handling mapping policy different than EI");
+                LOG.warn("{}mapping policy different than EI, base:{} new:{}", 
+                        new Object[]{logPrefix, self.getBase(), connection.getValue0()});
+//                throw new RuntimeException("not yet handling mapping policy different than EI");
             }
             for (BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> msg : pending) {
                 BasicHeader basicHeader = new BasicHeader(self, connection.getValue1(), Transport.UDP);
@@ -649,8 +650,8 @@ public class NatTraverserComp extends ComponentDefinition {
                 for (Pair<BasicAddress, DecoratedAddress> target : newConnections.values()) {
                     LOG.trace("{}heartbeating to:{}", logPrefix, target.getValue1().getBase());
                     if (!self.getBase().equals(target.getValue0())) {
-                        LOG.error("{}not yet handling mapping policy different than EI", logPrefix);
-                        throw new RuntimeException("not yet handling mapping policy different than EI");
+                        LOG.warn("{}mapping policy different than EI", logPrefix);
+//                        throw new RuntimeException("not yet handling mapping policy different than EI");
                     }
                     DecoratedHeader<DecoratedAddress> heartbeatHeader = new DecoratedHeader(new BasicHeader(self, target.getValue1(), Transport.UDP), null, null);
                     ContentMsg heartbeat = new BasicContentMsg(heartbeatHeader, new Heartbeat(UUID.randomUUID()));

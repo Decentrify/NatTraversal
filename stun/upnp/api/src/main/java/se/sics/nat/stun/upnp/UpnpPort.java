@@ -19,7 +19,7 @@
 package se.sics.nat.stun.upnp;
 
 import se.sics.kompics.PortType;
-import se.sics.nat.stun.upnp.msg.GetPublicIp;
+import se.sics.nat.stun.upnp.msg.UpnpReady;
 import se.sics.nat.stun.upnp.msg.MapPorts;
 import se.sics.nat.stun.upnp.msg.UnmapPorts;
 
@@ -29,8 +29,7 @@ import se.sics.nat.stun.upnp.msg.UnmapPorts;
 public class UpnpPort extends PortType {
 
     {
-        request(GetPublicIp.Req.class);
-        indication(GetPublicIp.Resp.class);
+        indication(UpnpReady.class);
         request(MapPorts.Req.class);
         indication(MapPorts.Resp.class);
         request(UnmapPorts.Req.class);

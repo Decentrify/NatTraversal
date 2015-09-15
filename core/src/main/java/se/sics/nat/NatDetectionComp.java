@@ -18,6 +18,7 @@
  */
 package se.sics.nat;
 
+import java.net.InetAddress;
 import java.util.List;
 import java.util.UUID;
 import org.javatuples.Pair;
@@ -34,6 +35,7 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.timer.Timer;
+import se.sics.nat.common.util.NatDetectionResult;
 import se.sics.nat.stun.NatReady;
 import se.sics.nat.stun.StunClientPort;
 import se.sics.nat.stun.client.SCNetworkHook;
@@ -42,6 +44,8 @@ import se.sics.nat.stun.upnp.UpnpComp;
 import se.sics.nat.stun.upnp.UpnpPort;
 import se.sics.nat.stun.upnp.msg.MapPorts;
 import se.sics.nat.stun.upnp.msg.UnmapPorts;
+import se.sics.nat.stun.upnp.msg.UpnpReady;
+import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
@@ -55,16 +59,20 @@ public class NatDetectionComp extends ComponentDefinition {
 
     private final Positive<Timer> timer = requires(Timer.class);
     private final Negative<NatDetectionPort> natDetection = provides(NatDetectionPort.class);
-    
+    private final Negative<UpnpPort> upnp = provides(UpnpPort.class);
+
     private NatDetectionInit init;
 
     private Component stunClient;
     private Component upnpComp;
 
+    private NatDetectionResult natDetectionResult;
+
     public NatDetectionComp(NatDetectionInit init) {
         this.init = init;
         this.logPrefix = init.privateAdr + " ";
         LOG.info("{}initiating...", logPrefix);
+        this.natDetectionResult = new NatDetectionResult();
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
@@ -76,6 +84,7 @@ public class NatDetectionComp extends ComponentDefinition {
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
             connectStunClient();
+            connectUpnp();
         }
     };
 
@@ -83,7 +92,6 @@ public class NatDetectionComp extends ComponentDefinition {
         @Override
         public void handle(Stop event) {
             LOG.info("{}stopping...", logPrefix);
-            tearDownStunClient();
         }
     };
 
@@ -104,34 +112,22 @@ public class NatDetectionComp extends ComponentDefinition {
         subscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
     }
 
-    private void tearDownStunClient() {
-        trigger(Stop.event, stunClient.control());
-        disconnect(stunClient.getNegative(Timer.class), timer);
-        unsubscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
-    }
-
     private void connectUpnp() {
         upnpComp = create(UpnpComp.class, new UpnpComp.UpnpInit(1234, "nat upnp"));
+        connect(upnp, upnpComp.getPositive(UpnpPort.class));
         trigger(Start.event, upnpComp.control());
-//        trigger(new GetPublicIp.Req())
+        subscribe(handleUpnpReady, upnpComp.getPositive(UpnpPort.class));
     }
 
-    private void tearDownUpnp() {
-
-    }
-    
-    Handler handleMapPorts = new Handler<MapPorts.Resp>() {
+    Handler handleUpnpReady = new Handler<UpnpReady>() {
         @Override
-        public void handle(MapPorts.Resp resp) {
-            LOG.info("{}received map:{}", logPrefix, resp.ports);
-            trigger(new UnmapPorts.Req(UUID.randomUUID(), resp.ports), upnpComp.getPositive(UpnpPort.class));
-        }
-    };
-    
-    Handler handleUnmapPorts = new Handler<UnmapPorts.Resp>() {
-        @Override
-        public void handle(UnmapPorts.Resp resp) {
-            LOG.info("received unmap:{}", resp.ports);
+        public void handle(UpnpReady ready) {
+            LOG.info("{}upnp ready:{}", logPrefix, ready.externalIp);
+            natDetectionResult.setUpnpReady(ready.externalIp);
+            if (natDetectionResult.isReady()) {
+                Pair<NatedTrait, InetAddress> result = natDetectionResult.getResult();
+                trigger(new NatReady(result.getValue0(), result.getValue1()), natDetection);
+            }
         }
     };
 
@@ -139,8 +135,12 @@ public class NatDetectionComp extends ComponentDefinition {
         @Override
         public void handle(NatReady ready) {
             LOG.info("{}nat detected:{} public ip:{}",
-                    new Object[]{logPrefix, ready.nat, ready.publicIp.get()});
-            trigger(ready, natDetection);
+                    new Object[]{logPrefix, ready.nat, ready.publicIp});
+            natDetectionResult.setNatReady(ready.nat, ready.publicIp);
+            if (natDetectionResult.isReady()) {
+                Pair<NatedTrait, InetAddress> result = natDetectionResult.getResult();
+                trigger(new NatReady(result.getValue0(), result.getValue1()), natDetection);
+            }
         }
     };
 

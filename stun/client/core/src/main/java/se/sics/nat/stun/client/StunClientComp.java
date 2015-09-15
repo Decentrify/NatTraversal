@@ -239,13 +239,13 @@ public class StunClientComp extends ComponentDefinition {
                 LOG.info("{}session result:{}", logPrefix, sessionResult.natState.get());
                 switch (sessionResult.natState.get()) {
                     case UDP_BLOCKED:
-                        trigger(new NatReady(NatedTrait.udpBlocked(), sessionResult.publicIp), stunPort);
+                        trigger(new NatReady(NatedTrait.udpBlocked(), sessionResult.publicIp.get()), stunPort);
                         break;
                     case OPEN:
-                        trigger(new NatReady(NatedTrait.open(), sessionResult.publicIp), stunPort);
+                        trigger(new NatReady(NatedTrait.open(), sessionResult.publicIp.get()), stunPort);
                         break;
                     case FIREWALL:
-                        trigger(new NatReady(NatedTrait.firewall(), sessionResult.publicIp), stunPort);
+                        trigger(new NatReady(NatedTrait.firewall(), sessionResult.publicIp.get()), stunPort);
                         break;
                     case NAT:
                         LOG.info("{}session result:NAT filter:{} mapping:{} allocation:{}",
@@ -259,7 +259,7 @@ public class StunClientComp extends ComponentDefinition {
                             nat = NatedTrait.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
                                     0, sessionResult.filterPolicy.get(), 10000, new ArrayList<DecoratedAddress>());
                         }
-                        trigger(new NatReady(nat, sessionResult.publicIp), stunPort);
+                        trigger(new NatReady(nat, sessionResult.publicIp.get()), stunPort);
                         break;
                     default:
                         LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());

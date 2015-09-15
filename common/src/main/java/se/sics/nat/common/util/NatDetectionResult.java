@@ -17,36 +17,38 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.stun.upnp.msg;
+package se.sics.nat.common.util;
 
+import com.google.common.base.Optional;
 import java.net.InetAddress;
-import java.util.UUID;
-import se.sics.kompics.Direct.Request;
-import se.sics.kompics.Direct.Response;
+import org.javatuples.Pair;
+import se.sics.p2ptoolbox.util.nat.NatedTrait;
 
 /**
+ *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class GetPublicIp {
-    public static class Req extends Request {
-        public final UUID id;
-        
-        public Req(UUID id) {
-            this.id = id;
-        }
-        
-        public Resp answer(InetAddress externalIp) {
-            return new Resp(id, externalIp);
-        }
+public class NatDetectionResult {
+    private Optional<InetAddress> upnp = null;
+    private Pair<NatedTrait, InetAddress> nat = null;
+    
+    public void setNatReady(NatedTrait trait, InetAddress natAdr) {
+        nat = Pair.with(trait, natAdr);
     }
     
-    public static class Resp implements Response {
-        public final UUID id;
-        public final InetAddress externalIp;
-        
-        public Resp(UUID id, InetAddress externalIp) {
-            this.id = id;
-            this.externalIp = externalIp;
+    public void setUpnpReady(Optional<InetAddress> upnpAdr) {
+        this.upnp = upnpAdr;
+    }
+    
+    public boolean isReady() {
+        return upnp != null && nat != null;
+    }
+    
+    public Pair<NatedTrait, InetAddress> getResult() {
+        if(upnp.isPresent()) {
+            return Pair.with(NatedTrait.upnp(), upnp.get());
+        } else {
+            return nat;
         }
     }
 }

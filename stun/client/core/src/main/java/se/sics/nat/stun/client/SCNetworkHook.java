@@ -20,7 +20,10 @@
 package se.sics.nat.stun.client;
 
 import se.sics.kompics.Component;
+import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
+import se.sics.kompics.network.Network;
+import se.sics.kompics.timer.Timer;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
@@ -41,10 +44,10 @@ public class SCNetworkHook {
     }
     
     public static class InitResult implements Hook.InitResult {
-        public final Positive network;
+        public final Positive<Network> network;
         public final Component[] components;
         
-        public InitResult(Positive network, Component[] components) {
+        public InitResult(Positive<Network> network, Component[] components) {
             this.network = network;
             this.components = components;
         }

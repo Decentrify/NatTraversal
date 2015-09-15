@@ -23,7 +23,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.net.InetAddress;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -39,7 +42,6 @@ import se.sics.kompics.Fault;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
 import se.sics.kompics.Kompics;
-import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
@@ -57,36 +59,28 @@ import se.sics.nat.NatDetectionComp;
 import se.sics.nat.NatDetectionPort;
 import se.sics.nat.NatInitHelper;
 import se.sics.nat.hooks.NatNetworkHook;
-import se.sics.nat.filters.NatTrafficFilter;
 import se.sics.nat.NatTraverserComp;
 import se.sics.nat.stun.NatReady;
-import se.sics.nat.stun.StunClientPort;
-import se.sics.nat.stun.client.StunClientComp;
-import se.sics.nat.stun.client.StunClientComp.StunClientInit;
-import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.common.croupier.GlobalCroupierView;
 import se.sics.nat.NatSerializerSetup;
+import se.sics.nat.common.util.NatDetectionResult;
 import se.sics.nat.hp.SHPSerializerSetup;
-import se.sics.nat.hp.client.SHPClientComp;
-import se.sics.nat.hp.client.SHPClientPort;
-import se.sics.nat.hp.server.HPServerComp;
 import se.sics.nat.pm.PMSerializerSetup;
-import se.sics.nat.pm.client.PMClientComp;
-import se.sics.nat.pm.server.PMServerComp;
-import se.sics.nat.pm.server.PMServerPort;
 import se.sics.nat.stun.StunSerializerSetup;
 import se.sics.nat.stun.client.SCNetworkHook;
+import se.sics.nat.stun.upnp.UpnpPort;
+import se.sics.nat.stun.upnp.msg.MapPorts;
+import se.sics.nat.stun.upnp.msg.UnmapPorts;
+import se.sics.nat.stun.upnp.util.Protocol;
 import se.sics.p2ptoolbox.croupier.CroupierComp;
 import se.sics.p2ptoolbox.croupier.CroupierConfig;
 import se.sics.p2ptoolbox.croupier.CroupierControlPort;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.CroupierSerializerSetup;
-import se.sics.p2ptoolbox.croupier.msg.CroupierDisconnected;
 import se.sics.p2ptoolbox.croupier.msg.CroupierJoin;
 import se.sics.p2ptoolbox.croupier.msg.CroupierUpdate;
 import se.sics.p2ptoolbox.util.config.SystemConfig;
 import se.sics.p2ptoolbox.util.filters.IntegerOverlayFilter;
-import se.sics.p2ptoolbox.util.filters.PortTrafficFilter;
 import se.sics.p2ptoolbox.util.helper.SystemConfigBuilder;
 import se.sics.p2ptoolbox.util.nat.Nat;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
@@ -95,7 +89,6 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
 import se.sics.p2ptoolbox.util.serializer.BasicSerializerSetup;
 import se.sics.p2ptoolbox.util.traits.AcceptedTraits;
-import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 import se.sics.p2ptoolbox.util.update.SelfViewUpdatePort;
 
@@ -109,16 +102,16 @@ public class HostComp extends ComponentDefinition {
 
     private final HostInit init;
 
-    private Component timer;
-    private Component ipSolver;
-    private Component natDetection;
-    private Component nat;
-    private Component globalCroupier;
+    private Component timerComp;
+    private Component ipSolverComp;
+    private Component natDetectionComp;
+    private Component natComp;
+    private Component globalCroupierComp;
     private Component node;
 
     private Positive<Network> natNetwork;
     private Positive<Network> directNetwork;
-    private InetAddress privateIp;
+    private InetAddress localIp;
     private SystemConfigBuilder systemConfigBuilder;
     private SystemConfig systemConfig;
 
@@ -131,7 +124,7 @@ public class HostComp extends ComponentDefinition {
         subscribe(handleStop, control);
     }
 
-    //*************************CONTROL******************************************
+    //*****************************CONTROL**************************************
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
@@ -155,17 +148,17 @@ public class HostComp extends ComponentDefinition {
         return Fault.ResolveAction.RESOLVED;
     }
 
-    //**************************IP_DETECTION************************************
+    //****************************ADDRESS_DETECTION*****************************
     private void connectTimer() {
-        timer = create(JavaTimer.class, Init.NONE);
-        trigger(Start.event, timer.control());
+        timerComp = create(JavaTimer.class, Init.NONE);
+        trigger(Start.event, timerComp.control());
     }
 
     private void connectIpSolver() {
-        ipSolver = create(IpSolverComp.class, new IpSolverComp.IpSolverInit());
-        subscribe(handleGetIp, ipSolver.getPositive(IpSolverPort.class));
-        trigger(Start.event, ipSolver.control());
-        trigger(new GetIp.Req(EnumSet.of(GetIp.NetworkInterfacesMask.ALL)), ipSolver.getPositive(IpSolverPort.class));
+        ipSolverComp = create(IpSolverComp.class, new IpSolverComp.IpSolverInit());
+        subscribe(handleGetIp, ipSolverComp.getPositive(IpSolverPort.class));
+        trigger(Start.event, ipSolverComp.control());
+        trigger(new GetIp.Req(EnumSet.of(GetIp.NetworkInterfacesMask.ALL)), ipSolverComp.getPositive(IpSolverPort.class));
     }
 
     public Handler handleGetIp = new Handler<GetIp.Resp>() {
@@ -177,27 +170,27 @@ public class HostComp extends ComponentDefinition {
                 while (it.hasNext()) {
                     IpAddressStatus next = it.next();
                     if (IpHelper.isPublic(next.getAddr())) {
-                        privateIp = next.getAddr();
+                        localIp = next.getAddr();
                         break;
                     }
                 }
-                if (privateIp == null) {
+                if (localIp == null) {
                     it = resp.addrs.iterator();
                     while (it.hasNext()) {
                         IpAddressStatus next = it.next();
                         if (IpHelper.isPrivate(next.getAddr())) {
-                            privateIp = next.getAddr();
+                            localIp = next.getAddr();
                             break;
                         }
                     }
                 }
-                if(privateIp == null) {
-                    privateIp = resp.addrs.get(0).getAddr();
+                if (localIp == null) {
+                    localIp = resp.addrs.get(0).getAddr();
                 }
                 if (resp.addrs.size() > 1) {
-                    LOG.warn("{}multiple ips detected, proceeding with:{}", logPrefix, privateIp);
+                    LOG.warn("{}multiple ips detected, proceeding with:{}", logPrefix, localIp);
                 }
-                LOG.info("{}starting: private ip:{}", logPrefix, privateIp);
+                LOG.info("{}starting: private ip:{}", logPrefix, localIp);
                 LOG.info("{}starting: stunClient", logPrefix);
                 connectNatDetection();
             } else {
@@ -208,8 +201,8 @@ public class HostComp extends ComponentDefinition {
     };
 
     private void connectNatDetection() {
-        natDetection = create(NatDetectionComp.class, new NatDetectionComp.NatDetectionInit(
-                new BasicAddress(privateIp, systemConfigBuilder.getSelfPort(), systemConfigBuilder.getSelfId()),
+        natDetectionComp = create(NatDetectionComp.class, new NatDetectionComp.NatDetectionInit(
+                new BasicAddress(localIp, systemConfigBuilder.getSelfPort(), systemConfigBuilder.getSelfId()),
                 new NatInitHelper(ConfigFactory.load()),
                 new SCNetworkHook.Definition() {
 
@@ -227,29 +220,62 @@ public class HostComp extends ComponentDefinition {
                     }
                 }));
 
-        connect(natDetection.getNegative(Timer.class), timer.getPositive(Timer.class));
-        trigger(Start.event, natDetection.control());
-        subscribe(handleNatReady, natDetection.getPositive(NatDetectionPort.class));
+        connect(natDetectionComp.getNegative(Timer.class), timerComp.getPositive(Timer.class));
+        subscribe(handleNatReady, natDetectionComp.getPositive(NatDetectionPort.class));
+        trigger(Start.event, natDetectionComp.control());
     }
 
     private Handler handleNatReady = new Handler<NatReady>() {
         @Override
         public void handle(NatReady ready) {
             LOG.info("{}nat detected:{} public ip:{} private ip:{}",
-                    new Object[]{logPrefix, ready.nat, ready.publicIp.get(), privateIp});
-            if (ready.publicIp.isPresent()) {
-                systemConfigBuilder.setSelfIp(ready.publicIp.get());
-            }
+                    new Object[]{logPrefix, ready.nat, ready.publicIp, localIp});
+            systemConfigBuilder.setSelfIp(ready.publicIp);
             systemConfigBuilder.setSelfNat(ready.nat);
+            if (ready.nat.type.equals(Nat.Type.UPNP)) {
+                subscribe(handleMapPorts, natDetectionComp.getPositive(UpnpPort.class));
+                subscribe(handleUnmapPorts, natDetectionComp.getPositive(UpnpPort.class));
+                Map<Integer, Pair<Protocol, Integer>> mapPort = new HashMap<Integer, Pair<Protocol, Integer>>();
+                mapPort.put(systemConfigBuilder.getSelfPort(), Pair.with(Protocol.UDP, systemConfigBuilder.getSelfPort()));
+                trigger(new MapPorts.Req(UUID.randomUUID(), mapPort), natDetectionComp.getPositive(UpnpPort.class));
+            } else {
+                systemConfig = systemConfigBuilder.build();
+                connectRest();
+            }
+        }
+    };
+
+    private void connectRest() {
+        connectNatCroupier();
+        connectApp();
+    }
+
+    Handler handleMapPorts = new Handler<MapPorts.Resp>() {
+        @Override
+        public void handle(MapPorts.Resp resp) {
+            LOG.info("{}received map:{}", logPrefix, resp.ports);
+            int localPort = systemConfigBuilder.getSelfPort();
+            int upnpPort = resp.ports.get(systemConfigBuilder.getSelfPort()).getValue1();
+            if(localPort != upnpPort) {
+                //TODO Alex - fix
+                LOG.error("{}not handling yet upnp port different than local");
+                throw new RuntimeException("not handling yet upnp port different than local");
+            }
             systemConfig = systemConfigBuilder.build();
-            connectNatCroupier();
-            connectApp();
+            connectRest();
+        }
+    };
+
+    Handler handleUnmapPorts = new Handler<UnmapPorts.Resp>() {
+        @Override
+        public void handle(UnmapPorts.Resp resp) {
+            LOG.info("received unmap:{}", resp.ports);
         }
     };
 
     private void connectNatCroupier() {
-        globalCroupier = create(CroupierComp.class, new CroupierComp.CroupierInit(systemConfig, init.croupierConfig, init.natInit.globalCroupierOverlayId));
-        nat = create(NatTraverserComp.class, new NatTraverserComp.NatTraverserInit(
+        globalCroupierComp = create(CroupierComp.class, new CroupierComp.CroupierInit(systemConfig, init.croupierConfig, init.natInit.globalCroupierOverlayId));
+        natComp = create(NatTraverserComp.class, new NatTraverserComp.NatTraverserInit(
                 systemConfig,
                 new NatInitHelper(ConfigFactory.load()),
                 new NatNetworkHook.Definition() {
@@ -257,10 +283,9 @@ public class HostComp extends ComponentDefinition {
                     @Override
                     public NatNetworkHook.InitResult setUp(ComponentProxy proxy, NatNetworkHook.Init hookInit) {
                         Component[] comp = new Component[1];
-                        DecoratedAddress bindAddress = hookInit.adr;
-                        if (!privateIp.equals(hookInit.adr.getIp())) {
-                            LOG.info("{}binding on private:{}", logPrefix, privateIp.getHostAddress());
-                            System.setProperty("altBindIf", privateIp.getHostAddress());
+                        if (!localIp.equals(hookInit.adr.getIp())) {
+                            LOG.info("{}binding on private:{}", logPrefix, localIp.getHostAddress());
+                            System.setProperty("altBindIf", localIp.getHostAddress());
                         }
                         LOG.info("{}binding on public:{}", new Object[]{logPrefix, hookInit.adr});
                         comp[0] = proxy.create(NettyNetwork.class, new NettyInit(hookInit.adr));
@@ -276,23 +301,23 @@ public class HostComp extends ComponentDefinition {
                 },
                 new CroupierConfig(ConfigFactory.load())));
 
-        connect(globalCroupier.getNegative(Timer.class), timer.getPositive(Timer.class));
-        connect(globalCroupier.getNegative(SelfAddressUpdatePort.class), nat.getPositive(SelfAddressUpdatePort.class));
-        connect(globalCroupier.getNegative(Network.class), nat.getPositive(Network.class), new IntegerOverlayFilter(init.natInit.globalCroupierOverlayId));
-        connect(nat.getNegative(Timer.class), timer.getPositive(Timer.class));
-        connect(nat.getNegative(CroupierPort.class), globalCroupier.getPositive(CroupierPort.class));
+        connect(globalCroupierComp.getNegative(Timer.class), timerComp.getPositive(Timer.class));
+        connect(globalCroupierComp.getNegative(SelfAddressUpdatePort.class), natComp.getPositive(SelfAddressUpdatePort.class));
+        connect(globalCroupierComp.getNegative(Network.class), natComp.getPositive(Network.class), new IntegerOverlayFilter(init.natInit.globalCroupierOverlayId));
+        connect(natComp.getNegative(Timer.class), timerComp.getPositive(Timer.class));
+        connect(natComp.getNegative(CroupierPort.class), globalCroupierComp.getPositive(CroupierPort.class));
 
-        trigger(Start.event, nat.control());
-        trigger(Start.event, globalCroupier.control());
-        trigger(new CroupierUpdate(new GlobalCroupierView()), globalCroupier.getNegative(SelfViewUpdatePort.class));
-        trigger(new CroupierJoin(init.natInit.croupierBoostrap), globalCroupier.getPositive(CroupierControlPort.class));
+        trigger(Start.event, natComp.control());
+        trigger(Start.event, globalCroupierComp.control());
+        trigger(new CroupierUpdate(new GlobalCroupierView()), globalCroupierComp.getNegative(SelfViewUpdatePort.class));
+        trigger(new CroupierJoin(init.natInit.croupierBoostrap), globalCroupierComp.getPositive(CroupierControlPort.class));
     }
 
     private void connectApp() {
         node = create(NodeComp.class, new NodeComp.NodeInit(systemConfig.self, init.ping));
-        connect(node.getNegative(CroupierPort.class), globalCroupier.getPositive(CroupierPort.class));
-        connect(node.getNegative(Network.class), nat.getPositive(Network.class));
-        connect(node.getNegative(SelfAddressUpdatePort.class), nat.getPositive(SelfAddressUpdatePort.class));
+        connect(node.getNegative(CroupierPort.class), globalCroupierComp.getPositive(CroupierPort.class));
+        connect(node.getNegative(Network.class), natComp.getPositive(Network.class));
+        connect(node.getNegative(SelfAddressUpdatePort.class), natComp.getPositive(SelfAddressUpdatePort.class));
         trigger(Start.event, node.control());
     }
 
