@@ -193,6 +193,7 @@ public class NatTraverserComp extends ComponentDefinition {
                     new Object[]{logPrefix, connectionMaker.pendingConnections.size()});
             LOG.info("{}internal state check traffic tracker - buffering for targets:{}",
                     new Object[]{logPrefix, trafficTracker.pendingMsgs.size()});
+            compTracker.resetRetries();
         }
     };
 
@@ -209,16 +210,25 @@ public class NatTraverserComp extends ComponentDefinition {
     //*************************COMPONENT_TRACKER********************************
     public class ComponentTracker implements ComponentProxy {
 
-        public ComponentTracker(NatNetworkHook.Definition networkHookDefinition) {
-            this.natNetworkDefinition = networkHookDefinition;
-            this.compToHook = new HashMap<>();
-        }
-
-        //*********************NAT_NETWORK_HOOK*********************************
+        //hooks
         private final NatNetworkHook.Definition natNetworkDefinition;
         private final Map<UUID, Integer> compToHook;
         private Component[] networkHook;
+        
+        //components
+        private Component parentMakerComp;
+        private Component hpServerComp;
+        private Component hpClientComp;
 
+        private int hookRetry;
+        
+        public ComponentTracker(NatNetworkHook.Definition networkHookDefinition) {
+            this.natNetworkDefinition = networkHookDefinition;
+            this.compToHook = new HashMap<>();
+            this.hookRetry = natConfig.fatalRetries;
+        }
+
+        //*********************NAT_NETWORK_HOOK*********************************
         private void setupNetwork() {
             LOG.info("{}setting up network",
                     new Object[]{logPrefix});
@@ -243,6 +253,11 @@ public class NatTraverserComp extends ComponentDefinition {
         private void tearDownNetwork() {
             LOG.info("{}tearing down network", new Object[]{logPrefix});
 
+            hookRetry--;
+            if(hookRetry == 0) {
+                LOG.error("{}nat network hook fatal error - recurring errors", logPrefix);
+                throw new RuntimeException("nat network hook fatal error - recurring errors");
+            }
             natNetworkDefinition.tearDown(this, new NatNetworkHook.Tear(networkHook, timer));
             for (Component component : networkHook) {
                 compToHook.remove(component.id());
@@ -250,12 +265,12 @@ public class NatTraverserComp extends ComponentDefinition {
             networkHook = null;
             network = null;
         }
+        
+        public void resetRetries() {
+            hookRetry = natConfig.fatalRetries;
+        }
 
         //*************************COMPONENTS***********************************
-        private Component parentMakerComp;
-        private Component hpServerComp;
-        private Component hpClientComp;
-
         private void start() {
             setupNetwork();
             connectParentMaker();
@@ -467,7 +482,7 @@ public class NatTraverserComp extends ComponentDefinition {
                 return;
             }
             if (!self.getBase().equals(connection.getValue0())) {
-                LOG.warn("{}mapping policy different than EI, base:{} new:{}", 
+                LOG.warn("{}mapping policy different than EI, base:{} new:{}",
                         new Object[]{logPrefix, self.getBase(), connection.getValue0()});
 //                throw new RuntimeException("not yet handling mapping policy different than EI");
             }

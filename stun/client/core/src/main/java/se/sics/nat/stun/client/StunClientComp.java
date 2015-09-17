@@ -313,10 +313,12 @@ public class StunClientComp extends ComponentDefinition {
         private final Map<UUID, Integer> compToHook;
         private Component[] networkHook1;
         private Component[] networkHook2;
+        private int hookRetry;
 
         public HookTracker(SCNetworkHook.Definition networkHookDefinition) {
             this.networkHookDefinition = networkHookDefinition;
             this.compToHook = new HashMap<>();
+            this.hookRetry = StunClientConfig.fatalRetries;
         }
 
         private void setupHook1() {
@@ -357,7 +359,11 @@ public class StunClientComp extends ComponentDefinition {
 
         private void tearDown1() {
             LOG.info("{}tearing down hook1", new Object[]{logPrefix});
-
+            hookRetry--;
+            if(hookRetry == 0) {
+                LOG.error("{}stun client hook fatal error - recurring errors", logPrefix);
+                throw new RuntimeException("stun client hook fatal error - recurring errors");
+            }
             networkHookDefinition.tearDown(this, new SCNetworkHook.Tear(networkHook1));
             for (Component component : networkHook1) {
                 compToHook.remove(component.id());
@@ -375,6 +381,11 @@ public class StunClientComp extends ComponentDefinition {
             }
             networkHook2 = null;
             network2 = null;
+        }
+        
+        //for the moment no one resets
+        public void resetFailureRetry() {
+            hookRetry = StunClientConfig.fatalRetries;
         }
 
         //*******************************PROXY**********************************
@@ -457,6 +468,7 @@ public class StunClientComp extends ComponentDefinition {
     public static class StunClientConfig {
 
         public static long echoTimeout = 2000;
+        public static int fatalRetries = 5;
     }
 
     public static class EchoTimeout extends Timeout {

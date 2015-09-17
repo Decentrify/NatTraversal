@@ -26,6 +26,7 @@ public class NatTraverserConfig {
     public long internalStateCheck = 30000;
     public long connectionHeartbeat = 10000;
     public long msgRTT = 1000;
+    public int fatalRetries = 5;
 
     /**
      * connection specific - should be half the binding timeout at most, since i
