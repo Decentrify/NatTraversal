@@ -345,6 +345,11 @@ public class StunClientComp extends ComponentDefinition {
 
         private void restartHook(UUID compId) {
             Integer hookNr = compToHook.get(compId);
+            hookRetry--;
+            if(hookRetry == 0) {
+                LOG.error("{}stun client hook fatal error - recurring errors", logPrefix);
+                throw new RuntimeException("stun client hook fatal error - recurring errors");
+            }
             switch (hookNr) {
                 case 1:
                     tearDown1();
@@ -359,11 +364,6 @@ public class StunClientComp extends ComponentDefinition {
 
         private void tearDown1() {
             LOG.info("{}tearing down hook1", new Object[]{logPrefix});
-            hookRetry--;
-            if(hookRetry == 0) {
-                LOG.error("{}stun client hook fatal error - recurring errors", logPrefix);
-                throw new RuntimeException("stun client hook fatal error - recurring errors");
-            }
             networkHookDefinition.tearDown(this, new SCNetworkHook.Tear(networkHook1));
             for (Component component : networkHook1) {
                 compToHook.remove(component.id());
