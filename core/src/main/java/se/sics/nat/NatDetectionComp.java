@@ -20,7 +20,6 @@ package se.sics.nat;
 
 import java.net.InetAddress;
 import java.util.List;
-import java.util.UUID;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +41,6 @@ import se.sics.nat.stun.client.SCNetworkHook;
 import se.sics.nat.stun.client.StunClientComp;
 import se.sics.nat.stun.upnp.UpnpComp;
 import se.sics.nat.stun.upnp.UpnpPort;
-import se.sics.nat.stun.upnp.msg.MapPorts;
-import se.sics.nat.stun.upnp.msg.UnmapPorts;
 import se.sics.nat.stun.upnp.msg.UpnpReady;
 import se.sics.p2ptoolbox.util.nat.Nat;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
@@ -146,10 +143,6 @@ public class NatDetectionComp extends ComponentDefinition {
 
     private void finalise() {
         Pair<NatedTrait, InetAddress> result = natDetectionResult.getResult();
-        if (!result.getValue0().equals(Nat.Type.UPNP)) {
-            trigger(Stop.event, upnpComp.control());
-        }
-        trigger(Stop.event, stunClient.control());
         trigger(new NatReady(result.getValue0(), result.getValue1()), natDetection);
     }
 
