@@ -104,6 +104,9 @@ public class UpnpComp extends ComponentDefinition {
                     break;
                 }
             }
+            if(upnpDeviceIp == null) {
+                upnp.terminate(); //no upnp found should stop looking
+            }
             trigger(new UpnpReady(UUID.randomUUID(), upnpDeviceIp), upnpPort);
         }
     };
