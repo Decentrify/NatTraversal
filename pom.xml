@@ -25,7 +25,7 @@
         <kompics.version>0.8.3-SNAPSHOT</kompics.version>
         
         <util.version>1.9-SNAPSHOT</util.version>
-        <simulator.version>1.6-SNAPSHOT</simulator.version>
+        <simulator.version>1.7-SNAPSHOT</simulator.version>
         <croupier.version>1.9-SNAPSHOT</croupier.version>
         <ipsolver.version>1.1-SNAPSHOT</ipsolver.version>
         
