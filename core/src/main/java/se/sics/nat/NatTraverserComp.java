@@ -399,6 +399,7 @@ public class NatTraverserComp extends ComponentDefinition {
         Handler handleLocal = new Handler<Msg>() {
             @Override
             public void handle(Msg msg) {
+                LOG.trace("{}received outgoing:{}", logPrefix, msg);
                 if (!handleTraffic.getValue(msg)) {
                     /**
                      * should not get here. If I get here - the NatTrafficFilter
