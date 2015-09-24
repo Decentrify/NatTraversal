@@ -99,7 +99,7 @@ public class NatConnectionSerializer {
 
         @Override
         public void toBinary(Object o, ByteBuf buf) {
-            NatConnection.OpenRequest obj = (NatConnection.OpenRequest) o;
+            NatConnection.Heartbeat obj = (NatConnection.Heartbeat) o;
             Serializers.lookupSerializer(UUID.class).toBinary(obj.id, buf);
         }
 
