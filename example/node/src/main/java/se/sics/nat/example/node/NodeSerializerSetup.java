@@ -21,8 +21,8 @@ package se.sics.nat.example.node;
 
 import se.sics.kompics.network.netty.serialization.Serializers;
 import se.sics.nat.NatSerializerSetup;
-import se.sics.nat.example.node.msg.Msg;
-import se.sics.nat.example.node.serializer.MsgSerializer;
+import se.sics.nat.example.node.msg.NodeMsg;
+import se.sics.nat.example.node.serializer.NodeMsgSerializer;
 import se.sics.nat.stun.StunSerializerSetup;
 import se.sics.p2ptoolbox.croupier.CroupierSerializerSetup;
 import se.sics.p2ptoolbox.util.serializer.BasicSerializerSetup;
@@ -35,8 +35,8 @@ public class NodeSerializerSetup {
     public static int serializerIds = 2;
     
     public static enum NodeSerializers {
-        Ping(Msg.Ping.class, "nodePingSerializer"),
-        Pong(Msg.Pong.class, "nodePongSerializer");
+        Ping(NodeMsg.Ping.class, "nodePingSerializer"),
+        Pong(NodeMsg.Pong.class, "nodePongSerializer");
         
         public final Class serializedClass;
         public final String serializerName;
@@ -62,11 +62,11 @@ public class NodeSerializerSetup {
     public static int registerSerializers(int startingId) {
         int currentId = startingId;
         
-        MsgSerializer.Ping pingSerializer = new MsgSerializer.Ping(currentId++);
+        NodeMsgSerializer.Ping pingSerializer = new NodeMsgSerializer.Ping(currentId++);
         Serializers.register(pingSerializer, NodeSerializers.Ping.serializerName);
         Serializers.register(NodeSerializers.Ping.serializedClass, NodeSerializers.Ping.serializerName);
         
-        MsgSerializer.Pong pongSerializer = new MsgSerializer.Pong(currentId++);
+        NodeMsgSerializer.Pong pongSerializer = new NodeMsgSerializer.Pong(currentId++);
         Serializers.register(pongSerializer, NodeSerializers.Pong.serializerName);
         Serializers.register(NodeSerializers.Pong.serializedClass, NodeSerializers.Pong.serializerName);
         

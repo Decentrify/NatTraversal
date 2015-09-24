@@ -18,7 +18,7 @@
  */
 package se.sics.nat.example.node;
 
-import se.sics.nat.example.node.msg.Msg;
+import se.sics.nat.example.node.msg.NodeMsg;
 import java.util.HashSet;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -113,7 +113,7 @@ public class NodeComp extends ComponentDefinition {
                 if (!ponged.contains(target.getSource().getTrait(NatedTrait.class).natToString())) {
                     pinged.add(target.getSource().getTrait(NatedTrait.class).natToString());
                     DecoratedHeader<DecoratedAddress> pingHeader = new DecoratedHeader(self, target.getSource(), Transport.UDP);
-                    ContentMsg pingMsg = new BasicContentMsg(pingHeader, new Msg.Ping());
+                    ContentMsg pingMsg = new BasicContentMsg(pingHeader, new NodeMsg.Ping());
                     LOG.info("{}pinging from:{} to:{}", new Object[]{logPrefix, self, target.getSource()});
                     trigger(pingMsg, network);
                 }
@@ -122,7 +122,7 @@ public class NodeComp extends ComponentDefinition {
                 if (!ponged.contains(target.getSource().getTrait(NatedTrait.class).natToString())) {
                     pinged.add(target.getSource().getTrait(NatedTrait.class).natToString());
                     DecoratedHeader<DecoratedAddress> pingHeader = new DecoratedHeader(self, target.getSource(), Transport.UDP);
-                    ContentMsg pingMsg = new BasicContentMsg(pingHeader, new Msg.Ping());
+                    ContentMsg pingMsg = new BasicContentMsg(pingHeader, new NodeMsg.Ping());
                     LOG.info("{}pinging from:{} to:{}", new Object[]{logPrefix, self, target.getSource()});
                     trigger(pingMsg, network);
                 }
@@ -131,21 +131,21 @@ public class NodeComp extends ComponentDefinition {
     };
 
     ClassMatchedHandler handlePing
-            = new ClassMatchedHandler<Msg.Ping, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Msg.Ping>>() {
+            = new ClassMatchedHandler<NodeMsg.Ping, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, NodeMsg.Ping>>() {
                 @Override
-                public void handle(Msg.Ping content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Msg.Ping> container) {
+                public void handle(NodeMsg.Ping content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, NodeMsg.Ping> container) {
                     LOG.info("{}ping from:{} on:{}",
                             new Object[]{logPrefix, container.getSource(), container.getDestination()});
                     DecoratedHeader<DecoratedAddress> pongHeader = new DecoratedHeader(self, container.getSource(), Transport.UDP);
-                    ContentMsg pongMsg = new BasicContentMsg(pongHeader, new Msg.Pong());
+                    ContentMsg pongMsg = new BasicContentMsg(pongHeader, new NodeMsg.Pong());
                     trigger(pongMsg, network);
                 }
             };
 
     ClassMatchedHandler handlePong
-            = new ClassMatchedHandler<Msg.Pong, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Msg.Pong>>() {
+            = new ClassMatchedHandler<NodeMsg.Pong, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, NodeMsg.Pong>>() {
                 @Override
-                public void handle(Msg.Pong content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Msg.Pong> container) {
+                public void handle(NodeMsg.Pong content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, NodeMsg.Pong> container) {
                     LOG.info("{}pong from:{} on:{}",
                             new Object[]{logPrefix, container.getSource(), container.getDestination()});
                     ponged.add(container.getSource().getTrait(NatedTrait.class).natToString());

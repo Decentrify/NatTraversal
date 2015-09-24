@@ -13,40 +13,14 @@
     <url>http://maven.apache.org</url>
     <dependencies>
         <dependency>
-            <groupId>se.sics.nat.stun.client</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        
-        <dependency>
-            <groupId>se.sics.nat.pm.client</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.pm.server</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.hp.server</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.hp.client</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>se.sics.nat</groupId>
-            <artifactId>core</artifactId>
+            <artifactId>helper</artifactId>
             <version>${project.version}</version>
         </dependency>
         
         <dependency>
             <groupId>se.sics.ktoolbox.croupier</groupId>
-            <artifactId>croupier-core</artifactId>
+            <artifactId>croupier-api</artifactId>
             <version>${croupier.version}</version>
         </dependency>
         
@@ -59,11 +33,6 @@
             <groupId>se.sics.ktoolbox.util</groupId>
             <artifactId>kompics-basic</artifactId>
             <version>${util.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.ktoolbox.ipsolver</groupId>
-            <artifactId>core</artifactId>
-            <version>${ipsolver.version}</version>
         </dependency>
         
         <!-- Serializers -->
@@ -87,7 +56,6 @@
             <artifactId>network</artifactId>
             <version>${project.version}</version>
         </dependency>
-        
         <dependency>
             <groupId>se.sics.ktoolbox.util</groupId>
             <artifactId>util-serializer</artifactId>

@@ -31,6 +31,7 @@ import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
+import se.sics.kompics.ConfigurationException;
 import se.sics.kompics.ControlPort;
 import se.sics.kompics.Fault;
 import se.sics.kompics.Handler;
@@ -128,20 +129,23 @@ public class StunClientComp extends ComponentDefinition {
         this.hookTracker = new HookTracker(init.networkHookDefinition);
         this.stunServersMngr = new StunServerMngr(init.stunServers);
 
+        hookTracker.setupHook1();
+        hookTracker.setupHook2();
+
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(echoMngr.handleEchoTimeout, timer);
+        subscribe(echoMngr.handleEchoResponse, network1);
+        subscribe(echoMngr.handleEchoResponse, network2);
     }
 
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
-            hookTracker.setupHook1();
-            hookTracker.setupHook2();
+            hookTracker.startHook1(true);
+            hookTracker.startHook2(true);
             echoMngr.startEchoSession();
-            subscribe(echoMngr.handleEchoResponse, network1);
-            subscribe(echoMngr.handleEchoResponse, network2);
         }
     };
 
@@ -149,8 +153,8 @@ public class StunClientComp extends ComponentDefinition {
         @Override
         public void handle(Stop event) {
             LOG.info("{}stopping...", logPrefix);
-            hookTracker.tearDown1();
-            hookTracker.tearDown2();
+            hookTracker.preStop1();
+            hookTracker.preStop2();
         }
     };
 
@@ -239,7 +243,7 @@ public class StunClientComp extends ComponentDefinition {
                 LOG.info("{}session result:{}", logPrefix, sessionResult.natState.get());
                 switch (sessionResult.natState.get()) {
                     case UDP_BLOCKED:
-                        trigger(new NatReady(NatedTrait.udpBlocked(), sessionResult.publicIp.get()), stunPort);
+                        trigger(new NatReady(NatedTrait.udpBlocked(), null), stunPort);
                         break;
                     case OPEN:
                         trigger(new NatReady(NatedTrait.open(), sessionResult.publicIp.get()), stunPort);
@@ -310,6 +314,8 @@ public class StunClientComp extends ComponentDefinition {
     public class HookTracker implements ComponentProxy {
 
         private final SCNetworkHook.Definition networkHookDefinition;
+        private SCNetworkHook.SetupResult hookSetup1;
+        private SCNetworkHook.SetupResult hookSetup2;
         private final Map<UUID, Integer> compToHook;
         private Component[] networkHook1;
         private Component[] networkHook2;
@@ -324,47 +330,38 @@ public class StunClientComp extends ComponentDefinition {
         private void setupHook1() {
             LOG.info("{}setting up network hook1",
                     new Object[]{logPrefix});
-            SCNetworkHook.InitResult result = networkHookDefinition.setUp(this, new SCNetworkHook.Init(self.getValue0()));
-            networkHook1 = result.components;
+            hookSetup1 = networkHookDefinition.setup(this, new SCNetworkHook.SetupInit(self.getValue0()));
+            networkHook1 = hookSetup1.components;
             for (Component component : networkHook1) {
                 compToHook.put(component.id(), 1);
             }
-            network1 = result.network;
+            network1 = hookSetup1.network;
         }
 
         private void setupHook2() {
             LOG.info("{}setting up network hook2",
                     new Object[]{logPrefix});
-            SCNetworkHook.InitResult result = networkHookDefinition.setUp(this, new SCNetworkHook.Init(self.getValue1()));
-            networkHook2 = result.components;
+            hookSetup2 = networkHookDefinition.setup(this, new SCNetworkHook.SetupInit(self.getValue1()));
+            networkHook2 = hookSetup2.components;
             for (Component component : networkHook2) {
                 compToHook.put(component.id(), 2);
             }
-            network2 = result.network;
+            network2 = hookSetup2.network;
         }
 
-        private void restartHook(UUID compId) {
-            Integer hookNr = compToHook.get(compId);
-            hookRetry--;
-            if(hookRetry == 0) {
-                LOG.error("{}stun client hook fatal error - recurring errors", logPrefix);
-                throw new RuntimeException("stun client hook fatal error - recurring errors");
-            }
-            switch (hookNr) {
-                case 1:
-                    tearDown1();
-                    setupHook1();
-                    break;
-                case 2:
-                    tearDown2();
-                    setupHook2();
-                    break;
-            }
+        private void startHook1(boolean started) {
+            networkHookDefinition.start(this, hookSetup1, new SCNetworkHook.StartInit(started));
+            hookSetup1 = null;
         }
 
-        private void tearDown1() {
+        private void startHook2(boolean started) {
+            networkHookDefinition.start(this, hookSetup2, new SCNetworkHook.StartInit(started));
+            hookSetup2 = null;
+        }
+
+        private void preStop1() {
             LOG.info("{}tearing down hook1", new Object[]{logPrefix});
-            networkHookDefinition.tearDown(this, new SCNetworkHook.Tear(networkHook1));
+            networkHookDefinition.preStop(this, new SCNetworkHook.Tear(networkHook1));
             for (Component component : networkHook1) {
                 compToHook.remove(component.id());
             }
@@ -372,17 +369,39 @@ public class StunClientComp extends ComponentDefinition {
             network1 = null;
         }
 
-        private void tearDown2() {
+        private void preStop2() {
             LOG.info("{}tearing down hook2", new Object[]{logPrefix});
 
-            networkHookDefinition.tearDown(this, new SCNetworkHook.Tear(networkHook2));
+            networkHookDefinition.preStop(this, new SCNetworkHook.Tear(networkHook2));
             for (Component component : networkHook2) {
                 compToHook.remove(component.id());
             }
             networkHook2 = null;
             network2 = null;
         }
-        
+
+        private void restartHook(UUID compId) {
+            hookRetry--;
+            if (hookRetry == 0) {
+                LOG.error("{}stun client hook fatal error - recurring errors", logPrefix);
+                throw new RuntimeException("stun client hook fatal error - recurring errors");
+            }
+
+            Integer hookNr = compToHook.get(compId);
+            switch (hookNr) {
+                case 1:
+                    preStop1();
+                    setupHook1();
+                    startHook1(false);
+                    break;
+                case 2:
+                    preStop2();
+                    setupHook2();
+                    startHook2(false);
+                    break;
+            }
+        }
+
         //for the moment no one resets
         public void resetFailureRetry() {
             hookRetry = StunClientConfig.fatalRetries;
@@ -448,6 +467,11 @@ public class StunClientComp extends ComponentDefinition {
         public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive, ChannelFilter filter) {
             return StunClientComp.this.connect(positive, negative, filter);
         }
+
+        @Override
+        public <E extends KompicsEvent, P extends PortType> void subscribe(Handler<E> handler, Port<P> port) throws ConfigurationException {
+            StunClientComp.this.subscribe(handler, port);
+        }
     }
 
     public static class StunClientInit extends Init<StunClientComp> {
@@ -456,7 +480,7 @@ public class StunClientComp extends ComponentDefinition {
         public final List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
         public final SCNetworkHook.Definition networkHookDefinition;
 
-        public StunClientInit(Pair<DecoratedAddress, DecoratedAddress> startSelf, 
+        public StunClientInit(Pair<DecoratedAddress, DecoratedAddress> startSelf,
                 List<Pair<DecoratedAddress, DecoratedAddress>> stunServers,
                 SCNetworkHook.Definition networkHookDefinition) {
             this.self = startSelf;

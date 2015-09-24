@@ -42,7 +42,6 @@ import se.sics.nat.stun.client.StunClientComp;
 import se.sics.nat.stun.upnp.UpnpComp;
 import se.sics.nat.stun.upnp.UpnpPort;
 import se.sics.nat.stun.upnp.msg.UpnpReady;
-import se.sics.p2ptoolbox.util.nat.Nat;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
@@ -72,8 +71,13 @@ public class NatDetectionComp extends ComponentDefinition {
         LOG.info("{}initiating...", logPrefix);
         this.natDetectionResult = new NatDetectionResult();
 
+        connectStunClient();
+        connectUpnp();
+
         subscribe(handleStart, control);
         subscribe(handleStop, control);
+        subscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
+        subscribe(handleUpnpReady, upnpComp.getPositive(UpnpPort.class));
     }
 
     //**************************CONTROL*****************************************
@@ -81,8 +85,6 @@ public class NatDetectionComp extends ComponentDefinition {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
-            connectStunClient();
-            connectUpnp();
         }
     };
 
@@ -106,15 +108,11 @@ public class NatDetectionComp extends ComponentDefinition {
                 new DecoratedAddress(new BasicAddress(init.privateAdr.getIp(), init.scPorts.getValue1(), init.privateAdr.getId())));
         stunClient = create(StunClientComp.class, new StunClientComp.StunClientInit(scAdr, init.stunServers, init.scNetworkDefinition));
         connect(stunClient.getNegative(Timer.class), timer);
-        trigger(Start.event, stunClient.control());
-        subscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
     }
 
     private void connectUpnp() {
         upnpComp = create(UpnpComp.class, new UpnpComp.UpnpInit(1234, "nat upnp"));
         connect(upnp, upnpComp.getPositive(UpnpPort.class));
-        trigger(Start.event, upnpComp.control());
-        subscribe(handleUpnpReady, upnpComp.getPositive(UpnpPort.class));
     }
 
     Handler handleUpnpReady = new Handler<UpnpReady>() {
@@ -123,7 +121,7 @@ public class NatDetectionComp extends ComponentDefinition {
             LOG.info("{}upnp ready:{}", logPrefix, ready.externalIp);
             natDetectionResult.setUpnpReady(ready.externalIp);
             if (natDetectionResult.isReady()) {
-                finalise();
+                finish();
             }
         }
     };
@@ -141,7 +139,7 @@ public class NatDetectionComp extends ComponentDefinition {
         }
     };
 
-    private void finalise() {
+    private void finish() {
         Pair<NatedTrait, InetAddress> result = natDetectionResult.getResult();
         trigger(new NatReady(result.getValue0(), result.getValue1()), natDetection);
     }

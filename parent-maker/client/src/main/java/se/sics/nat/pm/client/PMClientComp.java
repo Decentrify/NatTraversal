@@ -51,6 +51,7 @@ import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.p2ptoolbox.util.update.SelfAddress;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
@@ -89,6 +90,7 @@ public class PMClientComp extends ComponentDefinition {
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
+        subscribe(handleSelfAddressRequest, parentMaker);
         subscribe(handleInternalStateCheck, timer);
         subscribe(handleCroupierSample, croupier);
         subscribe(handleRegisterResp, network);
@@ -115,6 +117,14 @@ public class PMClientComp extends ComponentDefinition {
             cancelInternalStateCheck();
             cancelHeartbeat();
             cancelHeartbeatCheck();
+        }
+    };
+
+    Handler handleSelfAddressRequest = new Handler<SelfAddress.Request>() {
+        @Override
+        public void handle(SelfAddress.Request req) {
+            LOG.debug("{}self request", logPrefix);
+            answer(req, req.answer(self));
         }
     };
 
@@ -206,17 +216,20 @@ public class PMClientComp extends ComponentDefinition {
                 parents.removeAll(suspected);
                 changed = true;
             }
-            if(changed && parents.size() == config.nrParents) {
-                NatedTrait nat = self.getTrait(NatedTrait.class).changeParents(new ArrayList<>(parents));
-                self = new DecoratedAddress(self.getBase());
-                self.addTrait(nat);
+            if (changed) {
+                updateSelf();
                 LOG.info("{}update self:{}", logPrefix, self);
                 trigger(new SelfAddressUpdate(self), parentMaker);
-                changed = false;
             }
         }
     };
 
+    private void updateSelf() {
+        NatedTrait nat = self.getTrait(NatedTrait.class).changeParents(new ArrayList<>(parents));
+        self = new DecoratedAddress(self.getBase());
+        self.addTrait(nat);
+        changed = false;
+    }
     public static class PMClientInit extends Init<PMClientComp> {
 
         public final NatTraverserConfig config;

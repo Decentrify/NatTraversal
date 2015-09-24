@@ -17,22 +17,17 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.stun;
+package se.sics.nat;
 
-import java.net.InetAddress;
-import se.sics.kompics.KompicsEvent;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
+import se.sics.kompics.Positive;
+import se.sics.kompics.network.Network;
+import se.sics.p2ptoolbox.croupier.CroupierPort;
+import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatReady implements KompicsEvent {
-    public NatedTrait nat;
-    public InetAddress publicIp;
-    
-    //TODO ALex change publicIp to optional - if udpBlocked I will not have a publicIp
-    public NatReady(NatedTrait nat, InetAddress publicIp) {
-        this.nat = nat;
-        this.publicIp = publicIp;
-    }
+public interface NatLauncherProxy extends ComponentProxy {
+    public void startApp(NatSetupResult result);
 }

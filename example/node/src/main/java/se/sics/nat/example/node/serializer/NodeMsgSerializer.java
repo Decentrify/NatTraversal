@@ -22,15 +22,15 @@ package se.sics.nat.example.node.serializer;
 import com.google.common.base.Optional;
 import io.netty.buffer.ByteBuf;
 import se.sics.kompics.network.netty.serialization.Serializer;
-import se.sics.nat.example.node.msg.Msg;
+import se.sics.nat.example.node.msg.NodeMsg;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public abstract class MsgSerializer implements Serializer {
+public abstract class NodeMsgSerializer implements Serializer {
     private final int id;
     
-    protected MsgSerializer(int id) {
+    protected NodeMsgSerializer(int id) {
         this.id = id;
     }
     
@@ -44,7 +44,7 @@ public abstract class MsgSerializer implements Serializer {
         //nothing
     }
 
-    public static class Ping extends MsgSerializer {
+    public static class Ping extends NodeMsgSerializer {
         
         public Ping(int id) {
             super(id);
@@ -52,18 +52,18 @@ public abstract class MsgSerializer implements Serializer {
         
         @Override
         public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
-            return new Msg.Ping();
+            return new NodeMsg.Ping();
         }
     }
     
-    public static class Pong extends MsgSerializer {
+    public static class Pong extends NodeMsgSerializer {
         public Pong(int id) {
             super(id);
         }
         
         @Override
         public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
-            return new Msg.Pong();
+            return new NodeMsg.Pong();
         }
     }
 }

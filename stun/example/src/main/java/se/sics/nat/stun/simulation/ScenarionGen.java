@@ -26,31 +26,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.javatuples.Pair;
-import se.sics.kompics.Component;
-import se.sics.kompics.Init;
-import se.sics.kompics.Positive;
-import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
-import se.sics.kompics.network.Network;
 import se.sics.nat.stun.client.StunClientComp.StunClientInit;
 import se.sics.nat.stun.server.StunServerComp;
 import se.sics.nat.stun.server.StunServerComp.StunServerInit;
 import se.sics.nat.emulator.NatEmulatorComp;
-import se.sics.nat.stun.client.SCNetworkHook;
 import se.sics.nat.stun.core.StunClientHostComp;
 import se.sics.nat.stun.core.StunClientHostComp.StunClientHostInit;
-import se.sics.nat.stun.server.SSNetworkHook;
 import se.sics.p2ptoolbox.simulator.cmd.impl.StartNodeCmd;
 import se.sics.p2ptoolbox.simulator.dsl.SimulationScenario;
 import se.sics.p2ptoolbox.simulator.dsl.adaptor.Operation1;
 import se.sics.p2ptoolbox.simulator.dsl.distribution.ConstantDistribution;
-import se.sics.p2ptoolbox.util.filters.PortTrafficFilter;
 import se.sics.p2ptoolbox.util.nat.Nat;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
-import se.sics.p2ptoolbox.util.proxy.util.DummyNetwork;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -73,54 +62,13 @@ public class ScenarionGen {
             List<DecoratedAddress> server1Partners = new ArrayList<DecoratedAddress>();
             server1Partners.add(server2Adr.getValue0());
             StunServerInit server1 = new StunServerInit(server1Adr, server1Partners,
-                    new SSNetworkHook.Definition() {
-                        private Positive<Network> network = null;
-
-                        @Override
-                        public SSNetworkHook.InitResult setUp(ComponentProxy proxy, SSNetworkHook.Init hookInit) {
-                            if (network == null) {
-                                network = proxy.requires(Network.class);
-                            }
-                            Component[] comp = new Component[1];
-                            comp[0] = proxy.create(DummyNetwork.class, Init.NONE);
-                            proxy.connect(comp[0].getNegative(Network.class), network,
-                                    new PortTrafficFilter(hookInit.adr.getPort(), hookInit.adr.getId()));
-                            proxy.trigger(Start.event, comp[0].control());
-                            return new SSNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
-                        }
-
-                        @Override
-                        public void tearDown(ComponentProxy proxy, SSNetworkHook.Tear hookTear) {
-                            proxy.trigger(Stop.event, hookTear.components[0].control());
-                            proxy.disconnect(hookTear.components[0].getNegative(Network.class), network);
-                        }
-                    });
+                    new ScenarioSSNetworkHook());
             stunServers.put(1, server1);
 
             List<DecoratedAddress> server2Partners = new ArrayList<DecoratedAddress>();
             server2Partners.add(server1Adr.getValue0());
             StunServerInit server2 = new StunServerInit(server2Adr, server2Partners,
-                    new SSNetworkHook.Definition() {
-                        private Positive<Network> network = null;
-
-                        @Override
-                        public SSNetworkHook.InitResult setUp(ComponentProxy proxy, SSNetworkHook.Init hookInit) {
-                            if (network == null) {
-                                network = proxy.requires(Network.class);
-                            }
-                            Component[] comp = new Component[1];
-                            comp[0] = proxy.create(DummyNetwork.class, Init.NONE);
-                            proxy.connect(comp[0].getNegative(Network.class), network,
-                                    new PortTrafficFilter(hookInit.adr.getPort(), hookInit.adr.getId()));
-                            return new SSNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
-                        }
-
-                        @Override
-                        public void tearDown(ComponentProxy proxy, SSNetworkHook.Tear hookTear) {
-                            proxy.trigger(Stop.event, hookTear.components[0].control());
-                            proxy.disconnect(hookTear.components[0].getNegative(Network.class), network);
-                        }
-                    });
+                    new ScenarioSSNetworkHook());
             stunServers.put(2, server2);
 
             int openNode1Id = 11;
@@ -132,27 +80,7 @@ public class ScenarionGen {
             openNode1Servers.add(server1Adr);
             openNode1Servers.add(server2Adr);
             StunClientInit openNode1Init = new StunClientInit(openNode1Adr, openNode1Servers,
-                    new SCNetworkHook.Definition() {
-                        private Positive<Network> network = null;
-
-                        @Override
-                        public SCNetworkHook.InitResult setUp(ComponentProxy proxy, SCNetworkHook.Init hookInit) {
-                            if (network == null) {
-                                network = proxy.requires(Network.class);
-                            }
-                            Component[] comp = new Component[1];
-                            comp[0] = proxy.create(DummyNetwork.class, Init.NONE);
-                            proxy.connect(comp[0].getNegative(Network.class), network,
-                                    new PortTrafficFilter(hookInit.adr.getPort(), hookInit.adr.getId()));
-                            return new SCNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
-                        }
-
-                        @Override
-                        public void tearDown(ComponentProxy proxy, SCNetworkHook.Tear hookTear) {
-                            proxy.trigger(Stop.event, hookTear.components[0].control());
-                            proxy.disconnect(hookTear.components[0].getNegative(Network.class), network);
-                        }
-                    });
+                    new ScenarioSCNetworkHook());
             stunClients.put(openNode1Id, new StunClientHostInit(openNode1Nat, openNode1Init));
 
             //MP:EI, FP:EI, AP:PP
@@ -168,27 +96,7 @@ public class ScenarionGen {
             natedNode1Servers.add(server1Adr);
             natedNode1Servers.add(server2Adr);
             StunClientInit natedNode1Init = new StunClientInit(natedNode1Adr, natedNode1Servers,
-                    new SCNetworkHook.Definition() {
-                        private Positive<Network> network = null;
-
-                        @Override
-                        public SCNetworkHook.InitResult setUp(ComponentProxy proxy, SCNetworkHook.Init hookInit) {
-                            if (network == null) {
-                                network = proxy.requires(Network.class);
-                            }
-                            Component[] comp = new Component[1];
-                            comp[0] = proxy.create(DummyNetwork.class, Init.NONE);
-                            proxy.connect(comp[0].getNegative(Network.class), network,
-                                    new PortTrafficFilter(hookInit.adr.getPort(), hookInit.adr.getId()));
-                            return new SCNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
-                        }
-
-                        @Override
-                        public void tearDown(ComponentProxy proxy, SCNetworkHook.Tear hookTear) {
-                            proxy.trigger(Stop.event, hookTear.components[0].control());
-                            proxy.disconnect(hookTear.components[0].getNegative(Network.class), network);
-                        }
-                    });
+                    new ScenarioSCNetworkHook());
             stunClients.put(natedNode1Id, new StunClientHostInit(nat1Init, natedNode1Init));
 
             //MP:EI, FP:HD, AP:PP
@@ -204,27 +112,7 @@ public class ScenarionGen {
             natedNode2Servers.add(server1Adr);
             natedNode2Servers.add(server2Adr);
             StunClientInit natedNode2Init = new StunClientInit(natedNode2Adr, natedNode2Servers,
-                    new SCNetworkHook.Definition() {
-                        private Positive<Network> network = null;
-
-                        @Override
-                        public SCNetworkHook.InitResult setUp(ComponentProxy proxy, SCNetworkHook.Init hookInit) {
-                            if (network == null) {
-                                network = proxy.requires(Network.class);
-                            }
-                            Component[] comp = new Component[1];
-                            comp[0] = proxy.create(DummyNetwork.class, Init.NONE);
-                            proxy.connect(comp[0].getNegative(Network.class), network,
-                                    new PortTrafficFilter(hookInit.adr.getPort(), hookInit.adr.getId()));
-                            return new SCNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
-                        }
-
-                        @Override
-                        public void tearDown(ComponentProxy proxy, SCNetworkHook.Tear hookTear) {
-                            proxy.trigger(Stop.event, hookTear.components[0].control());
-                            proxy.disconnect(hookTear.components[0].getNegative(Network.class), network);
-                        }
-                    });
+                    new ScenarioSCNetworkHook());
             stunClients.put(natedNode2Id, new StunClientHostInit(nat2Init, natedNode2Init));
 
             //MP:EI, FP:PD, AP:PP
@@ -240,27 +128,7 @@ public class ScenarionGen {
             natedNode3Servers.add(server1Adr);
             natedNode3Servers.add(server2Adr);
             StunClientInit natedNode3Init = new StunClientInit(natedNode3Adr, natedNode3Servers,
-                    new SCNetworkHook.Definition() {
-                        private Positive<Network> network = null;
-
-                        @Override
-                        public SCNetworkHook.InitResult setUp(ComponentProxy proxy, SCNetworkHook.Init hookInit) {
-                            if (network == null) {
-                                network = proxy.requires(Network.class);
-                            }
-                            Component[] comp = new Component[1];
-                            comp[0] = proxy.create(DummyNetwork.class, Init.NONE);
-                            proxy.connect(comp[0].getNegative(Network.class), network,
-                                    new PortTrafficFilter(hookInit.adr.getPort(), hookInit.adr.getId()));
-                            return new SCNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
-                        }
-
-                        @Override
-                        public void tearDown(ComponentProxy proxy, SCNetworkHook.Tear hookTear) {
-                            proxy.trigger(Stop.event, hookTear.components[0].control());
-                            proxy.disconnect(hookTear.components[0].getNegative(Network.class), network);
-                        }
-                    });
+                    new ScenarioSCNetworkHook());
             stunClients.put(natedNode3Id, new StunClientHostInit(nat3Init, natedNode3Init));
 
             //MP:EI, FP:PD, AP:PC
@@ -276,27 +144,7 @@ public class ScenarionGen {
             natedNode4Servers.add(server1Adr);
             natedNode4Servers.add(server2Adr);
             StunClientInit natedNode4Init = new StunClientInit(natedNode4Adr, natedNode4Servers,
-                    new SCNetworkHook.Definition() {
-                        private Positive<Network> network = null;
-
-                        @Override
-                        public SCNetworkHook.InitResult setUp(ComponentProxy proxy, SCNetworkHook.Init hookInit) {
-                            if (network == null) {
-                                network = proxy.requires(Network.class);
-                            }
-                            Component[] comp = new Component[1];
-                            comp[0] = proxy.create(DummyNetwork.class, Init.NONE);
-                            proxy.connect(comp[0].getNegative(Network.class), network,
-                                    new PortTrafficFilter(hookInit.adr.getPort(), hookInit.adr.getId()));
-                            return new SCNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
-                        }
-
-                        @Override
-                        public void tearDown(ComponentProxy proxy, SCNetworkHook.Tear hookTear) {
-                            proxy.trigger(Stop.event, hookTear.components[0].control());
-                            proxy.disconnect(hookTear.components[0].getNegative(Network.class), network);
-                        }
-                    });
+                    new ScenarioSCNetworkHook());
             stunClients.put(natedNode4Id, new StunClientHostInit(nat4Init, natedNode4Init));
 
             //MP:EI, FP:PD, AP:R
@@ -312,27 +160,7 @@ public class ScenarionGen {
             natedNode5Servers.add(server1Adr);
             natedNode5Servers.add(server2Adr);
             StunClientInit natedNode5Init = new StunClientInit(natedNode5Adr, natedNode5Servers,
-                    new SCNetworkHook.Definition() {
-                        private Positive<Network> network = null;
-
-                        @Override
-                        public SCNetworkHook.InitResult setUp(ComponentProxy proxy, SCNetworkHook.Init hookInit) {
-                            if (network == null) {
-                                network = proxy.requires(Network.class);
-                            }
-                            Component[] comp = new Component[1];
-                            comp[0] = proxy.create(DummyNetwork.class, Init.NONE);
-                            proxy.connect(comp[0].getNegative(Network.class), network,
-                                    new PortTrafficFilter(hookInit.adr.getPort(), hookInit.adr.getId()));
-                            return new SCNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
-                        }
-
-                        @Override
-                        public void tearDown(ComponentProxy proxy, SCNetworkHook.Tear hookTear) {
-                            proxy.trigger(Stop.event, hookTear.components[0].control());
-                            proxy.disconnect(hookTear.components[0].getNegative(Network.class), network);
-                        }
-                    });
+                    new ScenarioSCNetworkHook());
             stunClients.put(natedNode5Id, new StunClientHostInit(nat5Init, natedNode5Init));
         } catch (UnknownHostException ex) {
             System.err.println("scenario error while binding localhost");

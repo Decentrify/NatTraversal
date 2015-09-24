@@ -27,24 +27,30 @@ import se.sics.p2ptoolbox.util.proxy.Hook;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class SSNetworkHook {
-    public static interface Definition extends Hook.Definition<Init, InitResult, Tear> {
+    public static interface Definition extends Hook.Definition<SetupInit, SetupResult, StartInit, Tear> {
     }
 
-    public static class Init implements Hook.Init {
+    public static class SetupInit implements Hook.SetupInit {
         public final DecoratedAddress adr; 
         
-        public Init(DecoratedAddress adr) {
+        public SetupInit(DecoratedAddress adr) {
             this.adr = adr;
         }
     }
     
-    public static class InitResult implements Hook.InitResult {
+    public static class SetupResult implements Hook.SetupResult {
         public final Positive network;
         public final Component[] components;
         
-        public InitResult(Positive network, Component[] components) {
+        public SetupResult(Positive network, Component[] components) {
             this.network = network;
             this.components = components;
+        }
+    }
+    
+    public static class StartInit extends Hook.StartInit {
+        public StartInit(boolean started) {
+            super(started);
         }
     }
 

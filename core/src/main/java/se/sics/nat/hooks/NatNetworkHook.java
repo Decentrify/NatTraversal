@@ -16,7 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
 package se.sics.nat.hooks;
 
 import se.sics.kompics.Component;
@@ -29,33 +28,43 @@ import se.sics.p2ptoolbox.util.proxy.Hook;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatNetworkHook {
-    public static interface Definition extends Hook.Definition<Init, InitResult, Tear> {
+
+    public static interface Definition extends Hook.Definition<SetupInit, SetupResult, StartInit, Tear> {
     }
 
-    public static class Init implements Hook.Init {
-        public final DecoratedAddress adr; 
+    public static class SetupInit implements Hook.SetupInit {
+
+        public final DecoratedAddress adr;
         public final Positive<Timer> timer;
-        
-        public Init(DecoratedAddress adr, Positive<Timer> timer) {
+
+        public SetupInit(DecoratedAddress adr, Positive<Timer> timer) {
             this.adr = adr;
-             this.timer = timer;
+            this.timer = timer;
         }
     }
-    
-    public static class InitResult implements Hook.InitResult {
+
+    public static class SetupResult implements Hook.SetupResult {
+
         public final Positive network;
         public final Component[] components;
-        
-        public InitResult(Positive network, Component[] components) {
+
+        public SetupResult(Positive network, Component[] components) {
             this.network = network;
             this.components = components;
         }
     }
+    
+    public static class StartInit extends Hook.StartInit {
+        public StartInit(boolean started) {
+            super(started);
+        }
+    }
 
     public static class Tear implements Hook.Tear {
+
         public final Component[] components;
         public final Positive<Timer> timer;
-        
+
         public Tear(Component[] components, Positive<Timer> timer) {
             this.components = components;
             this.timer = timer;

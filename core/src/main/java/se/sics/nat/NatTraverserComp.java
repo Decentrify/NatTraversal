@@ -37,6 +37,7 @@ import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
+import se.sics.kompics.ConfigurationException;
 import se.sics.kompics.ControlPort;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
@@ -76,7 +77,6 @@ import se.sics.p2ptoolbox.croupier.msg.CroupierDisconnected;
 import se.sics.p2ptoolbox.util.config.SystemConfig;
 import se.sics.p2ptoolbox.util.filters.AndFilter;
 import se.sics.p2ptoolbox.util.filters.NotFilter;
-import se.sics.p2ptoolbox.util.filters.PortTrafficFilter;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
@@ -85,6 +85,7 @@ import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.p2ptoolbox.util.update.SelfAddress;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
@@ -96,15 +97,15 @@ public class NatTraverserComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(NatTraverserComp.class);
     private String logPrefix = "";
 
-    private final Negative<Network> providedNetwork = provides(Network.class); //do not use this port directly
+    private final Negative<SelfAddressUpdatePort> providedSAUpdate = provides(SelfAddressUpdatePort.class);
+    private final Negative<Network> providedNetwork = provides(Network.class);
     private Positive<Network> network;
     private final ChannelFilter<Msg, Boolean> handleTraffic = new AndFilter(new NatTrafficFilter(), new NotFilter(new NatInternalFilter()));
     private final ChannelFilter<Msg, Boolean> forwardTraffic = new AndFilter(new NotFilter(new NatTrafficFilter()), new NotFilter(new NatInternalFilter()));
 
-    private final Negative<SelfAddressUpdatePort> providedSAUpdate = provides(SelfAddressUpdatePort.class);
     private final Positive<Timer> timer = requires(Timer.class);
     private final Positive<CroupierPort> globalCroupier = requires(CroupierPort.class);
-    private Positive<SelfAddressUpdatePort> addressUpdate;
+
     private Positive<SHPClientPort> hpClient;
 
     private final NatTraverserConfig natConfig;
@@ -139,33 +140,34 @@ public class NatTraverserComp extends ComponentDefinition {
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(handleInternalStateCheck, timer);
+
+        compTracker.setup();
+        //connection tracker
+        subscribe(connectionTracker.handleHeartbeat, timer);
+        subscribe(connectionTracker.handleHeartbeatCheck, timer);
+        subscribe(connectionTracker.handlePartnerHeartbeat, network);
+        subscribe(connectionTracker.handleNetCloseConnection, network);
+
+        //connection maker
+        if (NatedTrait.isOpen(self)) {
+            subscribe(connectionMaker.handleOpenRequest, network);
+        }
+        subscribe(connectionMaker.handleOpenResponse, network);
+        subscribe(connectionMaker.handleOpenConnectionTimeout, timer);
+        subscribe(connectionMaker.handleOpenConnectionSuccess, hpClient);
+        subscribe(connectionMaker.handleOpenConnectionFail, hpClient);
+
+        //traffic tracker
+        subscribe(trafficTracker.handleLocal, providedNetwork);
+        subscribe(trafficTracker.handleNetwork, network);
     }
 
     //********************************CONTROL***********************************
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
-            LOG.info("{}starting...", logPrefix);
-            compTracker.start();
-
-            //connection tracker
-            subscribe(connectionTracker.handleHeartbeat, timer);
-            subscribe(connectionTracker.handleHeartbeatCheck, timer);
-            subscribe(connectionTracker.handlePartnerHeartbeat, network);
-            subscribe(connectionTracker.handleNetCloseConnection, network);
-
-            //connection maker
-            if (NatedTrait.isOpen(self)) {
-                subscribe(connectionMaker.handleOpenRequest, network);
-            }
-            subscribe(connectionMaker.handleOpenResponse, network);
-            subscribe(connectionMaker.handleOpenConnectionTimeout, timer);
-            subscribe(connectionMaker.handleOpenConnectionSuccess, hpClient);
-            subscribe(connectionMaker.handleOpenConnectionFail, hpClient);
-
-            //traffic tracker
-            subscribe(trafficTracker.handleLocal, providedNetwork);
-            subscribe(trafficTracker.handleNetwork, network);
+            LOG.info("{}starting with self:{}", logPrefix, self);
+            compTracker.start(true);
 
             scheduleInternalStateCheck();
             connectionTracker.scheduleHeartbeat();
@@ -177,6 +179,7 @@ public class NatTraverserComp extends ComponentDefinition {
         @Override
         public void handle(Stop event) {
             LOG.info("{}stopping...", logPrefix);
+            compTracker.preStop();
             cancelInternalStateCheck();
             connectionTracker.cancelHeartbeat();
             connectionTracker.cancelHeartbeatCheck();
@@ -197,31 +200,23 @@ public class NatTraverserComp extends ComponentDefinition {
         }
     };
 
-    Handler handleSelfAddressUpdate = new Handler<SelfAddressUpdate>() {
-        @Override
-        public void handle(SelfAddressUpdate update) {
-            LOG.info("{}updating self from:{} to:{}",
-                    new Object[]{logPrefix, self, update.self});
-            self = update.self;
-            trigger(update, providedSAUpdate);
-        }
-    };
-
     //*************************COMPONENT_TRACKER********************************
     public class ComponentTracker implements ComponentProxy {
 
         //hooks
         private final NatNetworkHook.Definition natNetworkDefinition;
+        private NatNetworkHook.SetupResult networkSetup;
         private final Map<UUID, Integer> compToHook;
         private Component[] networkHook;
-        
+
         //components
-        private Component parentMakerComp;
+        private Component pmClientComp;
+        private Component pmServerComp;
         private Component hpServerComp;
         private Component hpClientComp;
 
         private int hookRetry;
-        
+
         public ComponentTracker(NatNetworkHook.Definition networkHookDefinition) {
             this.natNetworkDefinition = networkHookDefinition;
             this.compToHook = new HashMap<>();
@@ -230,98 +225,134 @@ public class NatTraverserComp extends ComponentDefinition {
 
         //*********************NAT_NETWORK_HOOK*********************************
         private void setupNetwork() {
-            LOG.info("{}setting up network",
-                    new Object[]{logPrefix});
-            NatNetworkHook.InitResult result = natNetworkDefinition.setUp(this, new NatNetworkHook.Init(self, timer));
-            networkHook = result.components;
+            LOG.info("{}connecting network", logPrefix);
+            networkSetup = natNetworkDefinition.setup(this, new NatNetworkHook.SetupInit(self, timer));
+            networkHook = networkSetup.components;
             for (Component component : networkHook) {
                 compToHook.put(component.id(), 1);
             }
-            network = result.network;
+            network = networkSetup.network;
         }
 
-        private void restartNetwork(UUID compId) {
-            Integer hookNr = compToHook.get(compId);
-            if (hookNr != 1) {
-                LOG.error("{}hook logic exception", logPrefix);
-                throw new RuntimeException("hook logic exception");
-            }
-            tearDownNetwork();
-            setupNetwork();
+        private void startNetwork(boolean started) {
+            LOG.info("{}starting network", logPrefix);
+            natNetworkDefinition.start(this, networkSetup, new NatNetworkHook.StartInit(started));
+            networkSetup = null;
         }
 
-        private void tearDownNetwork() {
+        private void preStopNetwork() {
             LOG.info("{}tearing down network", new Object[]{logPrefix});
-
-            hookRetry--;
-            if(hookRetry == 0) {
-                LOG.error("{}nat network hook fatal error - recurring errors", logPrefix);
-                throw new RuntimeException("nat network hook fatal error - recurring errors");
-            }
-            natNetworkDefinition.tearDown(this, new NatNetworkHook.Tear(networkHook, timer));
+            natNetworkDefinition.preStop(this, new NatNetworkHook.Tear(networkHook, timer));
             for (Component component : networkHook) {
                 compToHook.remove(component.id());
             }
             networkHook = null;
             network = null;
         }
-        
+
+        private void restartNetwork(UUID compId) {
+            hookRetry--;
+            if (hookRetry == 0) {
+                LOG.error("{}nat network hook fatal error - recurring errors", logPrefix);
+                throw new RuntimeException("nat network hook fatal error - recurring errors");
+            }
+            LOG.info("{}restarting network", logPrefix);
+            Integer hookNr = compToHook.get(compId);
+            if (hookNr != 1) {
+                LOG.error("{}hook logic exception", logPrefix);
+                throw new RuntimeException("hook logic exception");
+            }
+            preStopNetwork();
+            setupNetwork();
+            startNetwork(false);
+        }
+
         public void resetRetries() {
             hookRetry = natConfig.fatalRetries;
         }
 
         //*************************COMPONENTS***********************************
-        private void start() {
+        private void setup() {
             setupNetwork();
-            connectParentMaker();
-            connectHPClient();
             if (NatedTrait.isOpen(self)) {
-                connectHPServer();
-            }
-        }
-
-        // croupier and parentMaker(client/server) are sybling modules and influence each others behaviour
-        private void connectParentMaker() {
-            if (NatedTrait.isOpen(systemConfig.self)) {
-                parentMakerComp = create(PMServerComp.class, new PMServerComp.PMServerInit(natConfig, self));
-                connect(parentMakerComp.getNegative(Timer.class), timer);
-                connect(parentMakerComp.getNegative(Network.class), network);
+                setupPMServer();
+                setupHPServer();
             } else {
-                parentMakerComp = create(PMClientComp.class, new PMClientComp.PMClientInit(natConfig, systemConfig.self));
-                connect(parentMakerComp.getNegative(Timer.class), timer);
-                connect(parentMakerComp.getNegative(Network.class), network);
-                connect(parentMakerComp.getNegative(CroupierPort.class), globalCroupier);
-
-                addressUpdate = parentMakerComp.getPositive(SelfAddressUpdatePort.class);
-                subscribe(handleSelfAddressUpdate, addressUpdate);
+                setupPMClient();
             }
-
-            trigger(Start.event, parentMakerComp.control());
+            setupHPClient();
         }
 
-        private void connectHPServer() {
+        private void start(boolean started) {
+            startNetwork(started);
+            if (!started) {
+                if (NatedTrait.isOpen(self)) {
+                    trigger(Start.event, pmServerComp.control());
+                    trigger(Start.event, hpServerComp.control());
+                } else {
+                    trigger(Start.event, pmClientComp.control());
+                }
+                trigger(Start.event, hpClientComp.control());
+            }
+        }
+
+        private void preStop() {
+            preStopNetwork();
+        }
+
+        private void setupPMServer() {
+            LOG.info("{}connecting pm server", logPrefix);
+            pmServerComp = create(PMServerComp.class, new PMServerComp.PMServerInit(natConfig, self));
+            connect(pmServerComp.getNegative(Timer.class), timer);
+            connect(pmServerComp.getNegative(Network.class), network);
+            subscribe(handleSelfAddressRequest, providedSAUpdate);
+        }
+
+        private void setupPMClient() {
+            LOG.info("{}connecting pm client", logPrefix);
+            pmClientComp = create(PMClientComp.class, new PMClientComp.PMClientInit(natConfig, systemConfig.self));
+            connect(pmClientComp.getNegative(Timer.class), timer);
+            connect(pmClientComp.getNegative(Network.class), network);
+            connect(pmClientComp.getNegative(CroupierPort.class), globalCroupier);
+            connect(pmClientComp.getPositive(SelfAddressUpdatePort.class), providedSAUpdate);
+            subscribe(handleSelfAddressUpdate, pmClientComp.getPositive(SelfAddressUpdatePort.class));
+        }
+
+        private void setupHPServer() {
+            LOG.info("{}connecting hp server", logPrefix);
             hpServerComp = create(HPServerComp.class, new HPServerComp.HPServerInit(natConfig, self));
             connect(hpServerComp.getNegative(Timer.class), timer);
             connect(hpServerComp.getNegative(Network.class), network);
-            connect(hpServerComp.getNegative(PMServerPort.class), parentMakerComp.getPositive(PMServerPort.class));
-            trigger(Start.event, hpServerComp.control());
+            connect(hpServerComp.getNegative(PMServerPort.class), pmServerComp.getPositive(PMServerPort.class));
         }
 
-        private void connectHPClient() {
+        private void setupHPClient() {
+            LOG.info("{}connecting hp client", logPrefix);
             hpClientComp = create(SHPClientComp.class, new SHPClientComp.SHPClientInit(natConfig, self));
             connect(hpClientComp.getNegative(Timer.class), timer);
             connect(hpClientComp.getNegative(Network.class), network);
             if (!NatedTrait.isOpen(systemConfig.self)) {
-                connect(hpClientComp.getNegative(SelfAddressUpdatePort.class), addressUpdate);
+                connect(hpClientComp.getNegative(SelfAddressUpdatePort.class),
+                        pmClientComp.getPositive(SelfAddressUpdatePort.class));
             }
             hpClient = hpClientComp.getPositive(SHPClientPort.class);
-            trigger(Start.event, hpClientComp.control());
         }
 
-        Handler handleCroupierDisconnect = new Handler<CroupierDisconnected>() {
+        Handler handleSelfAddressUpdate = new Handler<SelfAddressUpdate>() {
             @Override
-            public void handle(CroupierDisconnected event) {
-                LOG.warn("{}croupier disconnected", logPrefix);
+            public void handle(SelfAddressUpdate update) {
+                LOG.info("{}updating self from:{} to:{}",
+                        new Object[]{logPrefix, self, update.self});
+                self = update.self;
+                trigger(update, providedSAUpdate);
+            }
+        };
+
+        Handler handleSelfAddressRequest = new Handler<SelfAddress.Request>() {
+            @Override
+            public void handle(SelfAddress.Request req) {
+                LOG.trace("{}received self request");
+                answer(req, req.answer(self));
             }
         };
 
@@ -385,9 +416,14 @@ public class NatTraverserComp extends ComponentDefinition {
         public Negative<ControlPort> getControlPort() {
             return NatTraverserComp.this.control;
         }
+
+        @Override
+        public <E extends KompicsEvent, P extends PortType> void subscribe(Handler<E> handler, Port<P> port) throws ConfigurationException {
+            NatTraverserComp.this.subscribe(handler, port);
+        }
     }
 
-    //*************************TRAFFIC TRACKER**********************************
+//*************************TRAFFIC TRACKER**********************************
     public class TrafficTracker {
 
         public Map<BasicAddress, List<BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>>> pendingMsgs;

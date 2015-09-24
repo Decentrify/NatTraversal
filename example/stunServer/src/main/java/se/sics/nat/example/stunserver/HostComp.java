@@ -72,22 +72,11 @@ public class HostComp extends ComponentDefinition {
         LOG.info("{}initializing...", logPrefix);
         this.ssInit = init.ssInit;
 
-        systemSetup();
-
         subscribe(handleStart, control);
         subscribe(handleStop, control);
     }
 
     //*************************CONTROL******************************************
-    private void systemSetup() {
-        int serializerId = 128;
-        serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
-        serializerId = StunSerializerSetup.registerSerializers(serializerId);
-
-        ImmutableMap acceptedTraits = ImmutableMap.of(NatedTrait.class, Pair.with(0, (byte) 1));
-        DecoratedAddress.setAcceptedTraits(new AcceptedTraits(acceptedTraits));
-    }
-
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
@@ -148,18 +137,22 @@ public class HostComp extends ComponentDefinition {
     private void connectStunServer() {
         stunServer = create(StunServerComp.class, new StunServerInit(self, ssInit.partners,
                 new SSNetworkHook.Definition() {
-
                     @Override
-                    public SSNetworkHook.InitResult setUp(ComponentProxy proxy, SSNetworkHook.Init hookInit) {
+                    public SSNetworkHook.SetupResult setup(ComponentProxy proxy, SSNetworkHook.SetupInit hookInit) {
                         Component[] comp = new Component[1];
                         comp[0] = proxy.create(NettyNetwork.class, new NettyInit(hookInit.adr));
-                        trigger(Start.event, comp[0].control());
-                        return new SSNetworkHook.InitResult(comp[0].getPositive(Network.class), comp);
+                        return new SSNetworkHook.SetupResult(comp[0].getPositive(Network.class), comp);
                     }
 
                     @Override
-                    public void tearDown(ComponentProxy proxy, SSNetworkHook.Tear hookTear) {
-                        trigger(Stop.event, hookTear.components[0].control());
+                    public void start(ComponentProxy proxy, SSNetworkHook.SetupResult setupResult, SSNetworkHook.StartInit startInit) {
+                        if(!startInit.started) {
+                            trigger(Start.event, setupResult.components[0].control());
+                        }
+                    }
+
+                    @Override
+                    public void preStop(ComponentProxy proxy, SSNetworkHook.Tear hookTear) {
                     }
                 }));
         connect(stunServer.getNegative(Timer.class), timer.getPositive(Timer.class));
@@ -174,8 +167,18 @@ public class HostComp extends ComponentDefinition {
             this.ssInit = new StunServerInitHelper(config);
         }
     }
+    
+    private static void systemSetup() {
+        int serializerId = 128;
+        serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
+        serializerId = StunSerializerSetup.registerSerializers(serializerId);
+
+        ImmutableMap acceptedTraits = ImmutableMap.of(NatedTrait.class, Pair.with(0, (byte) 1));
+        DecoratedAddress.setAcceptedTraits(new AcceptedTraits(acceptedTraits));
+    }
 
     public static void main(String[] args) {
+        systemSetup();
         if (Kompics.isOn()) {
             Kompics.shutdown();
         }

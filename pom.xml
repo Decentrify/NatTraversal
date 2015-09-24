@@ -13,9 +13,10 @@
         <module>parent-maker</module>
         <module>hp</module>
         <module>core</module>
+        <module>network</module>
+        <module>helper</module>
         <module>example</module>
-    <module>network</module>
-  </modules>
+    </modules>
   
     <properties>
         <java.version>1.7</java.version>
@@ -27,7 +28,9 @@
         <util.version>1.9-SNAPSHOT</util.version>
         <simulator.version>1.7-SNAPSHOT</simulator.version>
         <croupier.version>1.9-SNAPSHOT</croupier.version>
+        <!--helper-->
         <ipsolver.version>1.1-SNAPSHOT</ipsolver.version>
+        <chunkmanager.version>1.3-SNAPSHOT</chunkmanager.version>
         
         <logger.version>1.7.5</logger.version>
         <tuples.version>1.2</tuples.version>

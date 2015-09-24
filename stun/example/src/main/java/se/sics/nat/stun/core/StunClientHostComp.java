@@ -60,14 +60,14 @@ public class StunClientHostComp extends ComponentDefinition {
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
+        connectNatEmulator();
+        connectStunClient();
     }
 
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting", logPrefix);
-            connectNatEmulator();
-            connectStunClient();
         }
     };
     Handler handleStop = new Handler<Stop>() {
@@ -88,14 +88,12 @@ public class StunClientHostComp extends ComponentDefinition {
         natEmulator = create(NatEmulatorComp.class, natEmulatorInit);
         connect(natEmulator.getNegative(Timer.class), timer);
         connect(natEmulator.getNegative(Network.class), network);
-        trigger(Start.event, natEmulator.control());
     }
     
     private void connectStunClient() {
         stunClient = create(StunClientComp.class, stunClientInit);
         connect(stunClient.getNegative(Timer.class), timer);
         connect(stunClient.getNegative(Network.class), natEmulator.getPositive(Network.class));
-        trigger(Start.event, stunClient.control());
     }
     
     public static class StunClientHostInit extends Init<StunClientHostComp> {

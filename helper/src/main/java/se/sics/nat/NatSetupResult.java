@@ -17,16 +17,29 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat.example.node.msg;
+package se.sics.nat;
+
+import se.sics.kompics.Positive;
+import se.sics.kompics.network.Network;
+import se.sics.p2ptoolbox.croupier.CroupierPort;
+import se.sics.p2ptoolbox.util.config.SystemConfig;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Msg {
-    public static class Ping {
-    }
+public class NatSetupResult {
+    public final Positive<Network> network;
+    public final Positive<SelfAddressUpdatePort> adrUpdate;
+    public final Positive<CroupierPort> globalCroupier;
+    public final SystemConfig systemConfig;
     
-    public static class Pong {
+    public NatSetupResult(Positive<Network> network, Positive<SelfAddressUpdatePort> adrUpdate, 
+            Positive<CroupierPort> globalCroupier, SystemConfig systemConfig) {
+        this.network = network;
+        this.adrUpdate = adrUpdate;
+        this.globalCroupier = globalCroupier;
+        this.systemConfig = systemConfig;
     }
 }
