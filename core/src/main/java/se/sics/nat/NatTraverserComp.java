@@ -442,7 +442,7 @@ public class NatTraverserComp extends ComponentDefinition {
                      * is not set or not working properly and I am processing
                      * more msgs than necessary
                      */
-                    LOG.warn("{}forwarding outgoing:{}", new Object[]{logPrefix, msg});
+                    LOG.info("{}forwarding outgoing:{}", new Object[]{logPrefix, msg});
                     trigger(msg, network);
                     return;
                 }
@@ -500,7 +500,7 @@ public class NatTraverserComp extends ComponentDefinition {
                      * is not set or not working properly and I am processing
                      * more msgs than necessary
                      */
-                    LOG.warn("{}forwarding incoming:{}", new Object[]{logPrefix, msg});
+                    LOG.info("{}forwarding incoming:{}", new Object[]{logPrefix, msg});
                     trigger(msg, providedNetwork);
                     return;
                 }
