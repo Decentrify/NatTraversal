@@ -15,7 +15,6 @@
         <module>core</module>
         <module>network</module>
         <module>helper</module>
-        <module>example</module>
     </modules>
   
     <properties>

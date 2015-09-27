@@ -19,11 +19,7 @@
 
 package se.sics.nat;
 
-import se.sics.kompics.Positive;
-import se.sics.kompics.network.Network;
-import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
-import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>

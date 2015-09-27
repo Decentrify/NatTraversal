@@ -86,7 +86,6 @@ public class NatSetup {
     private Component ipSolver;
     private Component natDetection;
     private Component natTraverser;
-    private Component globalCroupier;
     private SystemConfig systemConfig;
 
     public NatSetup(NatLauncherProxy proxy, Positive<Timer> timer, SystemConfigBuilder systemCBuilder) {
@@ -110,6 +109,10 @@ public class NatSetup {
             proxy.trigger(new GetIp.Req(EnumSet.of(GetIp.NetworkInterfacesMask.ALL)),
                     ipSolver.getPositive(IpSolverPort.class));
         }
+    }
+
+    public void connectGlobalCroupier(Positive<CroupierPort> globalCroupier) {
+        proxy.connect(natTraverser.getNegative(CroupierPort.class), globalCroupier);
     }
 
     private Handler handleGetIp = new Handler<GetIp.Resp>() {
@@ -276,27 +279,12 @@ public class NatSetup {
     //******************PHASE3 = NAT, CARACAL, G_CROUPIER***********************
     private void phase3() {
         buildSysConfig();
-        setupPhase3();
-        startPhase3();
+        setupNat();
+        proxy.trigger(Start.event, natTraverser.control());
         proxy.startApp(new NatSetupResult(
                 natTraverser.getPositive(Network.class),
                 natTraverser.getPositive(SelfAddressUpdatePort.class),
-                globalCroupier.getPositive(CroupierPort.class),
                 systemConfig));
-    }
-
-    private void setupPhase3() {
-        setupNat();
-        setupGlobalCroupier();
-    }
-
-    private void startPhase3() {
-        proxy.trigger(Start.event, natTraverser.control());
-        proxy.trigger(Start.event, globalCroupier.control());
-        proxy.trigger(new CroupierUpdate(new GlobalCroupierView()),
-                globalCroupier.getNegative(SelfViewUpdatePort.class));
-        proxy.trigger(new CroupierJoin(natCBuilder.croupierBoostrap),
-                globalCroupier.getPositive(CroupierControlPort.class));
     }
 
     private void setupNat() {
@@ -339,17 +327,4 @@ public class NatSetup {
 
         proxy.connect(natTraverser.getNegative(Timer.class), timer);
     }
-
-    private void setupGlobalCroupier() {
-        CroupierConfig croupierConfig = new CroupierConfig(systemConfig.config);
-        globalCroupier = proxy.create(CroupierComp.class,
-                new CroupierComp.CroupierInit(systemConfig, croupierConfig, natCBuilder.globalCroupierOverlayId));
-        proxy.connect(globalCroupier.getNegative(Timer.class), timer);
-        proxy.connect(globalCroupier.getNegative(SelfAddressUpdatePort.class),
-                natTraverser.getPositive(SelfAddressUpdatePort.class));
-        proxy.connect(globalCroupier.getNegative(Network.class),
-                natTraverser.getPositive(Network.class), new IntegerOverlayFilter(natCBuilder.globalCroupierOverlayId));
-        proxy.connect(globalCroupier.getPositive(CroupierPort.class), natTraverser.getNegative(CroupierPort.class));
-    }
-
 }
