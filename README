@@ -1,0 +1,2 @@
+increase version numbers with:
+mvn versions:set -DnewVersion=x.x.x-SNAPSHOT -DgenerateBackupPoms=false
