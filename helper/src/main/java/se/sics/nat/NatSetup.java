@@ -82,17 +82,25 @@ public class NatSetup {
     private final Positive<Timer> timer;
     private final SystemConfigBuilder systemCBuilder;
     private final NatInitHelper natCBuilder;
+    private final SCNetworkHook.Definition stunClientNetwork;
+    private final NatNetworkHook.Definition natNetwork;
+    private final boolean enableUpnpDetection;
 
     private Component ipSolver;
     private Component natDetection;
     private Component natTraverser;
     private SystemConfig systemConfig;
 
-    public NatSetup(NatLauncherProxy proxy, Positive<Timer> timer, SystemConfigBuilder systemCBuilder) {
+    public NatSetup(NatLauncherProxy proxy, Positive<Timer> timer, SystemConfigBuilder systemCBuilder,
+            SCNetworkHook.Definition stunClientNetwork, NatNetworkHook.Definition natNetwork, 
+            boolean enableUpnpDetection) {
         this.proxy = proxy;
         this.timer = timer;
         this.systemCBuilder = systemCBuilder;
         this.natCBuilder = new NatInitHelper(systemCBuilder.getConfig());
+        this.stunClientNetwork = stunClientNetwork;
+        this.natNetwork = natNetwork;
+        this.enableUpnpDetection = enableUpnpDetection;
     }
 
     //***********************PHASE1 = LOCAL_INTERFACE***************************
@@ -159,29 +167,7 @@ public class NatSetup {
         natDetection = proxy.create(NatDetectionComp.class, new NatDetectionComp.NatDetectionInit(
                 new BasicAddress(localInterface, systemCBuilder.getSelfPort(), systemCBuilder.getSelfId()),
                 new NatInitHelper(systemCBuilder.getConfig()),
-                new SCNetworkHook.Definition() {
-
-                    @Override
-                    public SCNetworkHook.SetupResult setup(ComponentProxy hookProxy, SCNetworkHook.SetupInit hookInit) {
-                        Component[] comp = new Component[1];
-                        LOG.info("{}binding on stun:{}", new Object[]{logPrefix, hookInit.adr});
-                        //network
-                        comp[0] = hookProxy.create(NettyNetwork.class, new NettyInit(hookInit.adr));
-
-                        return new SCNetworkHook.SetupResult(comp[0].getPositive(Network.class), comp);
-                    }
-
-                    @Override
-                    public void start(ComponentProxy proxy, SCNetworkHook.SetupResult setupResult, SCNetworkHook.StartInit startInit) {
-                        if (!startInit.started) {
-                            proxy.trigger(Start.event, setupResult.components[0].control());
-                        }
-                    }
-
-                    @Override
-                    public void preStop(ComponentProxy proxy, SCNetworkHook.Tear hookTear) {
-                    }
-                }));
+                stunClientNetwork, enableUpnpDetection));
 
         proxy.connect(natDetection.getNegative(Timer.class), timer);
         proxy.subscribe(handleNatReady, natDetection.getPositive(NatDetectionPort.class));
@@ -291,38 +277,7 @@ public class NatSetup {
         natTraverser = proxy.create(NatTraverserComp.class, new NatTraverserComp.NatTraverserInit(
                 systemConfig,
                 new NatInitHelper(systemConfig.config),
-                new NatNetworkHook.Definition() {
-
-                    @Override
-                    public NatNetworkHook.SetupResult setup(ComponentProxy hookProxy, NatNetworkHook.SetupInit hookInit) {
-                        Component[] comp = new Component[2];
-                        if (!localInterface.equals(hookInit.adr.getIp())) {
-                            LOG.info("{}binding on private:{}", logPrefix, localInterface.getHostAddress());
-                            System.setProperty("altBindIf", localInterface.getHostAddress());
-                        }
-                        LOG.info("{}binding on nat:{}", new Object[]{logPrefix, hookInit.adr});
-                        //network
-                        comp[0] = hookProxy.create(NettyNetwork.class, new NettyInit(hookInit.adr));
-
-                        //chunkmanager
-                        comp[1] = hookProxy.create(ChunkManagerComp.class, new ChunkManagerComp.CMInit(systemConfig, new ChunkManagerConfig(systemConfig.config)));
-                        hookProxy.connect(comp[1].getNegative(Network.class), comp[0].getPositive(Network.class));
-                        hookProxy.connect(comp[1].getNegative(Timer.class), hookInit.timer);
-                        return new NatNetworkHook.SetupResult(comp[1].getPositive(Network.class), comp);
-                    }
-
-                    @Override
-                    public void start(ComponentProxy proxy, NatNetworkHook.SetupResult setupResult, NatNetworkHook.StartInit startInit) {
-                        if (!startInit.started) {
-                            proxy.trigger(Start.event, setupResult.components[0].control());
-                            proxy.trigger(Start.event, setupResult.components[1].control());
-                        }
-                    }
-
-                    @Override
-                    public void preStop(ComponentProxy proxy, NatNetworkHook.Tear hookTear) {
-                    }
-                },
+                natNetwork,
                 new CroupierConfig(systemConfig.config)));
 
         proxy.connect(natTraverser.getNegative(Timer.class), timer);

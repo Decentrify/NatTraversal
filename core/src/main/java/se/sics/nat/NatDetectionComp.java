@@ -72,7 +72,9 @@ public class NatDetectionComp extends ComponentDefinition {
         this.natDetectionResult = new NatDetectionResult();
 
         connectStunClient();
-        connectUpnp();
+        if (init.enableUpnpDetection) {
+            connectUpnp();
+        }
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
@@ -132,7 +134,7 @@ public class NatDetectionComp extends ComponentDefinition {
             LOG.info("{}nat detected:{} public ip:{}",
                     new Object[]{logPrefix, ready.nat, ready.publicIp});
             natDetectionResult.setNatReady(ready.nat, ready.publicIp);
-            if (natDetectionResult.isReady()) {
+            if (upnpComp == null || natDetectionResult.isReady()) {
                 Pair<NatedTrait, InetAddress> result = natDetectionResult.getResult();
                 trigger(new NatReady(result.getValue0(), result.getValue1()), natDetection);
             }
@@ -151,13 +153,16 @@ public class NatDetectionComp extends ComponentDefinition {
         public final Pair<Integer, Integer> scPorts;
         public final List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
         public final SCNetworkHook.Definition scNetworkDefinition;
+        public final boolean enableUpnpDetection;
 
-        public NatDetectionInit(BasicAddress privateAdr, NatInitHelper ntInit, SCNetworkHook.Definition scNetworkDefinition) {
+        public NatDetectionInit(BasicAddress privateAdr, NatInitHelper ntInit, SCNetworkHook.Definition scNetworkDefinition,
+                boolean enableUpnpDetection) {
             this.privateAdr = privateAdr;
             this.scConfig = new StunClientComp.StunClientConfig();
             this.scPorts = ntInit.stunClientPorts;
             this.stunServers = ntInit.stunServers;
             this.scNetworkDefinition = scNetworkDefinition;
+            this.enableUpnpDetection = enableUpnpDetection;
         }
     }
 }

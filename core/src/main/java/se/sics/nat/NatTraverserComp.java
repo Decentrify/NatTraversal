@@ -65,7 +65,7 @@ import se.sics.nat.msg.NatConnection.Close;
 import se.sics.nat.msg.NatConnection.Heartbeat;
 import se.sics.nat.msg.NatConnection.OpenRequest;
 import se.sics.nat.msg.NatConnection.OpenResponse;
-import se.sics.nat.util.Feasibility;
+import se.sics.nat.util.NatTraverserFeasibility;
 import se.sics.nat.hp.client.SHPClientComp;
 import se.sics.nat.hp.server.HPServerComp;
 import se.sics.nat.pm.client.PMClientComp;
@@ -149,11 +149,6 @@ public class NatTraverserComp extends ComponentDefinition {
         subscribe(connectionTracker.handleNetCloseConnection, network);
 
         //connection maker
-        if (NatedTrait.isOpen(self)) {
-            subscribe(connectionMaker.handleOpenRequest, network);
-        }
-        subscribe(connectionMaker.handleOpenResponse, network);
-        subscribe(connectionMaker.handleOpenConnectionTimeout, timer);
         subscribe(connectionMaker.handleOpenConnectionSuccess, hpClient);
         subscribe(connectionMaker.handleOpenConnectionFail, hpClient);
 
@@ -450,29 +445,30 @@ public class NatTraverserComp extends ComponentDefinition {
                         = (BasicContentMsg) msg;
 
                 DecoratedAddress destination = contentMsg.getDestination();
+                if (NatTraverserFeasibility.direct(self, destination)) {
+                    LOG.debug("{}forwarding msg:{} local to network", logPrefix, contentMsg.getContent());
+                    trigger(msg, network);
+                    return;
+                }
                 Optional<Pair<BasicAddress, DecoratedAddress>> connection
                         = connectionTracker.connected(destination.getBase());
                 //already connected
                 if (connection.isPresent()) {
-                    if (!self.getBase().equals(connection.get().getValue0())) {
-                        LOG.error("{}not yet handling mapping policy different than EI", logPrefix);
-                        throw new RuntimeException("not yet handling mapping policy different than EI");
+                    DecoratedAddress connSelf = self.changeBase(connection.get().getValue0());
+                    DecoratedAddress connTarget = connection.get().getValue1();
+                    if (!self.getBase().equals(connSelf.getBase())) {
+                        LOG.warn("{}mapping alocation < EI", logPrefix);
+                        //TODO Alex - further check for correctness required
                     }
 
-                    //TODO Alex - should I do this header change all the time? or force the application to use correct adr
-                    BasicHeader basicHeader = new BasicHeader(self, connection.get().getValue1(), Transport.UDP);
+                    BasicHeader basicHeader = new BasicHeader(connSelf, connTarget, Transport.UDP);
                     DecoratedHeader<DecoratedAddress> forwardHeader = contentMsg.getHeader().changeBasicHeader(basicHeader);
                     ContentMsg forwardMsg = new BasicContentMsg(forwardHeader, contentMsg.getContent());
                     LOG.debug("{}forwarding msg:{} local to network", logPrefix, forwardMsg);
                     trigger(forwardMsg, network);
                     return;
                 }
-                //open - open
-                if (NatedTrait.isOpen(self) && NatedTrait.isOpen(destination)) {
-                    LOG.debug("{}forwarding msg:{} local to network", logPrefix, contentMsg.getContent());
-                    trigger(msg, network);
-                    return;
-                }
+
                 //connecting
                 List<BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>> pending
                         = pendingMsgs.get(destination.getBase());
@@ -518,13 +514,15 @@ public class NatTraverserComp extends ComponentDefinition {
                 LOG.warn("{}weird pending empty to:{}", logPrefix, connection.getValue1().getBase());
                 return;
             }
-            if (!self.getBase().equals(connection.getValue0())) {
-                LOG.warn("{}mapping policy different than EI, base:{} new:{}",
-                        new Object[]{logPrefix, self.getBase(), connection.getValue0()});
-//                throw new RuntimeException("not yet handling mapping policy different than EI");
+            DecoratedAddress connSelf = self.changeBase(connection.getValue0());
+            DecoratedAddress connTarget = connection.getValue1();
+            if (!self.getBase().equals(connSelf.getBase())) {
+                LOG.warn("{}mapping alocation < EI", logPrefix);
+                //TODO Alex - further check for correctness required
             }
+
             for (BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> msg : pending) {
-                BasicHeader basicHeader = new BasicHeader(self, connection.getValue1(), Transport.UDP);
+                BasicHeader basicHeader = new BasicHeader(connSelf, connTarget, Transport.UDP);
                 DecoratedHeader<DecoratedAddress> forwardHeader = msg.getHeader().changeBasicHeader(basicHeader);
                 ContentMsg forwardMsg = new BasicContentMsg(forwardHeader, msg.getContent());
                 LOG.debug("{}forwarding outgoing buffered msg:{} from:{} to:{} ",
@@ -548,69 +546,24 @@ public class NatTraverserComp extends ComponentDefinition {
             this.pendingConnections = new HashMap<BasicAddress, UUID>();
         }
 
-        private void connectOpenNode(DecoratedAddress target) {
-            LOG.info("{}opening connection to:{}", logPrefix, target.getBase());
-            pendingConnections.put(target.getBase(), scheduleOpenConnectTimeout(target.getBase()));
-            OpenRequest openContent = new OpenRequest(UUID.randomUUID());
-            DecoratedHeader<DecoratedAddress> openHeader = new DecoratedHeader(new BasicHeader(self, target, Transport.UDP), null, null);
-            ContentMsg openMsg = new BasicContentMsg(openHeader, openContent);
-            trigger(openMsg, network);
-        }
-
         public boolean connect(DecoratedAddress self, DecoratedAddress target) {
-            if (NatedTrait.isOpen(target)) {
-                connectOpenNode(target);
-                return true;
-            } else if (Feasibility.simpleHolePunching(self, target).equals(Feasibility.State.INITIATE)) {
-                pendingConnections.put(target.getBase(), null); //no timeout needed - the shp deals with timeout
-                LOG.info("{}connection request to shp to:{}", logPrefix, target.getBase());
-                trigger(new OpenConnection.Request(UUID.randomUUID(), target), hpClient);
-                return true;
-            } else {
-                LOG.warn("{}unfeasible nat combination self:{} target:{}",
-                        new Object[]{logPrefix, self.getTrait(NatedTrait.class).type, target.getTrait(NatedTrait.class).type});
-                return false;
+            switch (NatTraverserFeasibility.check(self, target)) {
+                case DIRECT:
+                    LOG.error("{}logical error - direct connection, should not get here");
+                    throw new RuntimeException("logical error - direct connection, should not get here");
+                case SHP:
+                    pendingConnections.put(target.getBase(), null); //no timeout needed - the shp deals with timeout
+                    LOG.info("{}connection request to shp to:{}", logPrefix, target.getBase());
+                    trigger(new OpenConnection.Request(UUID.randomUUID(), target), hpClient);
+                    return true;
+                case UNFEASIBLE:
+                default: //act as UNFEASIBLE
+                    LOG.warn("{}unfeasible nat combination self:{} target:{}",
+                            new Object[]{logPrefix, self.getTrait(NatedTrait.class).type, target.getTrait(NatedTrait.class).type});
+
+                    return false;
             }
         }
-
-        ClassMatchedHandler handleOpenRequest
-                = new ClassMatchedHandler<OpenRequest, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, OpenRequest>>() {
-                    @Override
-                    public void handle(OpenRequest content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, OpenRequest> container) {
-                        LOG.info("{}opened req connection to:{} from:{}",
-                                new Object[]{logPrefix, container.getSource().getBase(), self.getBase()});
-                        OpenResponse openContent = content.answer(container.getSource());
-                        DecoratedHeader<DecoratedAddress> openHeader = new DecoratedHeader(new BasicHeader(self, container.getSource(), Transport.UDP), null, null);
-                        ContentMsg openMsg = new BasicContentMsg(openHeader, openContent);
-                        trigger(openMsg, network);
-
-                        connectSuccess(Pair.with(self.getBase(), container.getSource()));
-                    }
-                };
-
-        ClassMatchedHandler handleOpenResponse
-                = new ClassMatchedHandler<OpenResponse, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, OpenResponse>>() {
-                    @Override
-                    public void handle(OpenResponse content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, OpenResponse> container) {
-                        LOG.info("{}opened resp connection to:{} from:{}",
-                                new Object[]{logPrefix, container.getSource().getBase(), content.observed.getBase()});
-                        UUID timeoutId = pendingConnections.remove(container.getSource().getBase());
-                        if (timeoutId == null) {
-                            LOG.info("{}late msg");
-                            return;
-                        }
-                        connectSuccess(Pair.with(content.observed.getBase(), container.getSource()));
-                        cancelOpenConnectTimeout(timeoutId);
-                    }
-                };
-
-        Handler handleOpenConnectionTimeout = new Handler<OpenConnectTimeout>() {
-            @Override
-            public void handle(OpenConnectTimeout timeout) {
-                LOG.info("{}open connection timeout to:{}", logPrefix, timeout.target);
-                connectFailed(timeout.target);
-            }
-        };
 
         Handler handleOpenConnectionSuccess = new Handler<OpenConnection.Success>() {
             @Override
@@ -639,19 +592,6 @@ public class NatTraverserComp extends ComponentDefinition {
         private void connectFailed(BasicAddress target) {
             pendingConnections.remove(target);
             trafficTracker.connectFailed(target);
-        }
-
-        private UUID scheduleOpenConnectTimeout(BasicAddress target) {
-            ScheduleTimeout st = new ScheduleTimeout(natConfig.msgRTT);
-            OpenConnectTimeout oc = new OpenConnectTimeout(st, target);
-            st.setTimeoutEvent(oc);
-            trigger(st, timer);
-            return oc.getTimeoutId();
-        }
-
-        private void cancelOpenConnectTimeout(UUID timeoutId) {
-            CancelTimeout cpt = new CancelTimeout(timeoutId);
-            trigger(cpt, timer);
         }
     }
 
@@ -835,16 +775,6 @@ public class NatTraverserComp extends ComponentDefinition {
 
         public PeriodicHeartbeatCheck(SchedulePeriodicTimeout spt) {
             super(spt);
-        }
-    }
-
-    public static class OpenConnectTimeout extends Timeout {
-
-        public final BasicAddress target;
-
-        public OpenConnectTimeout(ScheduleTimeout spt, BasicAddress target) {
-            super(spt);
-            this.target = target;
         }
     }
 

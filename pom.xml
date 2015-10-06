@@ -15,7 +15,7 @@
         <module>core</module>
         <module>network</module>
         <module>helper</module>
-    </modules>
+  </modules>
   
     <properties>
         <java.version>1.7</java.version>

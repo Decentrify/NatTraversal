@@ -18,9 +18,11 @@
  */
 package se.sics.nat.hooks;
 
+import java.net.InetAddress;
 import se.sics.kompics.Component;
 import se.sics.kompics.Positive;
 import se.sics.kompics.timer.Timer;
+import se.sics.p2ptoolbox.util.config.SystemConfig;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
@@ -30,6 +32,8 @@ import se.sics.p2ptoolbox.util.proxy.Hook;
 public class NatNetworkHook {
 
     public static interface Definition extends Hook.Definition<SetupInit, SetupResult, StartInit, Tear> {
+        //TODO Alex - fix - at the moment hack to inject localInterface and SystemConfig
+        public void tempHack(InetAddress localInterface, SystemConfig systemConfig);
     }
 
     public static class SetupInit implements Hook.SetupInit {
