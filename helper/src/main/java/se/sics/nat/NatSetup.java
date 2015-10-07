@@ -155,6 +155,10 @@ public class NatSetup {
         public void handle(NatReady ready) {
             LOG.info("{}nat detected:{} public ip:{} private ip:{}",
                     new Object[]{logPrefix, ready.nat, ready.publicIp, localInterface});
+            if(ready.nat.type.equals(Nat.Type.UDP_BLOCKED)) {
+                LOG.error("{}address is UDP blocked cannot join system", logPrefix);
+                System.exit(1);
+            }
             systemConfigBuilder.setSelfIp(ready.publicIp);
             systemConfigBuilder.setSelfNat(ready.nat);
             if (ready.nat.type.equals(Nat.Type.UPNP)) {
