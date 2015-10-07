@@ -18,6 +18,7 @@
  */
 package se.sics.nat;
 
+import com.google.common.base.Optional;
 import java.net.InetAddress;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -79,9 +80,10 @@ public class NatSetup {
         this.proxy = proxy;
         this.parent = parent;
         this.systemHooks = systemHooks;
-        if (!systemHooks.containsHooks(NatRequiredHooks.values())) {
-            LOG.error("{}setup problem, hooks missing", logPrefix);
-            throw new RuntimeException("setup problem, hooks missing");
+        Optional<String> missingHook = systemHooks.missingHook(NatRequiredHooks.values());
+        if (missingHook.isPresent()) {
+            LOG.error("{}setup problem, hook:{} missing", logPrefix, missingHook.get());
+            throw new RuntimeException("setup problem, hook:" +  missingHook.get() + " missing");
         }
         this.natInitHelper = new NatInitHelper(init.configBuilder.getConfig());
         this.netInterfaces = init.netInterfaces;
