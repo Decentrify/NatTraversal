@@ -49,7 +49,7 @@ public class NatAddressSolverHookFactory {
     private static int MIN_PORT = 10000;
     private static int MAX_PORT = (int) Math.pow((double) 2, (double) 16);
 
-    public Definition getIpSolver() {
+    public static Definition getIpSolver() {
         return new Definition() {
 
             @Override
@@ -114,7 +114,7 @@ public class NatAddressSolverHookFactory {
         };
     }
 
-    private Pair<Integer, Optional<Socket>> bind(InetAddress localIp, Integer prefferedPort) {
+    private static Pair<Integer, Optional<Socket>> bind(InetAddress localIp, Integer prefferedPort) {
         Integer port = (prefferedPort < MIN_PORT ? MIN_PORT : prefferedPort);
         Socket socket;
         while (port < MAX_PORT) {
@@ -144,7 +144,7 @@ public class NatAddressSolverHookFactory {
         throw new RuntimeException("could not bind on any port");
     }
 
-    public Definition getIpSolverEmulator(final InetAddress localIp) {
+    public static Definition getIpSolverEmulator(final InetAddress localIp) {
         return new Definition() {
 
             @Override
@@ -156,9 +156,11 @@ public class NatAddressSolverHookFactory {
             @Override
             public void start(ComponentProxy proxy, NatAddressSolverHP hookParent,
                     SetupResult setupResult, StartInit startInit) {
-                Pair<Integer, Optional<Socket>> stunClientPort1 = bind(localIp, hookParent.getStunClientPrefferedPorts().getValue0());
-                Pair<Integer, Optional<Socket>> stunClientPort2 = bind(localIp, hookParent.getStunClientPrefferedPorts().getValue1());
-                Pair<Integer, Optional<Socket>> appPort = bind(localIp, hookParent.getAppPrefferedPort());
+                Pair<Integer, Optional<Socket>> stunClientPort1 = Pair.with(hookParent.getStunClientPrefferedPorts().getValue0(),
+                        absentSocket());
+                Pair<Integer, Optional<Socket>> stunClientPort2 = Pair.with(hookParent.getStunClientPrefferedPorts().getValue1(),
+                        absentSocket());
+                Pair<Integer, Optional<Socket>> appPort = Pair.with(hookParent.getAppPrefferedPort(), absentSocket());
                 hookParent.onResult(new NatAddressSolverResult(localIp, stunClientPort1, stunClientPort2, appPort));
             }
 
@@ -167,5 +169,9 @@ public class NatAddressSolverHookFactory {
                     SetupResult setupResult, TearInit hookTear) {
             }
         };
+    }
+    
+    private static Optional<Socket> absentSocket() {
+        return Optional.absent();
     }
 }
