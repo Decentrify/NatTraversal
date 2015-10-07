@@ -18,6 +18,7 @@
  */
 package se.sics.nat.stun.server;
 
+import se.sics.nat.stun.server.hooks.SSNetworkHook;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,7 @@ import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * A partner is required to provide the stun service. Only nodes with the same
@@ -66,6 +68,10 @@ public class StunServerComp extends ComponentDefinition {
 
     private static final Logger LOG = LoggerFactory.getLogger(StunServerComp.class);
     private String logPrefix = "";
+    
+    public static enum RequiredHooks implements Hook.Required {
+        STUN_SERVER_NETWORK
+    }
 
     private Positive<Network> network1;
     private Positive<Network> network2;
@@ -185,7 +191,7 @@ public class StunServerComp extends ComponentDefinition {
     }
 
     //**************************HOOK_PARENT*************************************
-    public class HookTracker implements ComponentProxy {
+    public class HookTracker {
 
         private final SSNetworkHook.Definition networkHookDefinition;
         private SSNetworkHook.SetupResult hookSetup1;
@@ -205,7 +211,7 @@ public class StunServerComp extends ComponentDefinition {
         private void setupHook1() {
             LOG.info("{}setting up network hook1",
                     new Object[]{logPrefix});
-            hookSetup1 = networkHookDefinition.setup(this, new SSNetworkHook.SetupInit(self.getValue0()));
+            hookSetup1 = networkHookDefinition.setup(new StunServerProxy(), new SSNetworkHookParent(), new SSNetworkHook.SetupInit(self.getValue0()));
             networkHook1 = hookSetup1.components;
             for (Component component : networkHook1) {
                 compToHook.put(component.id(), 1);
@@ -216,7 +222,7 @@ public class StunServerComp extends ComponentDefinition {
         private void setupHook2() {
             LOG.info("{}setting up network hook2",
                     new Object[]{logPrefix});
-            hookSetup2 = networkHookDefinition.setup(this, new SSNetworkHook.SetupInit(self.getValue1()));
+            hookSetup2 = networkHookDefinition.setup(new StunServerProxy(), new SSNetworkHookParent(), new SSNetworkHook.SetupInit(self.getValue1()));
             networkHook2 = hookSetup2.components;
             for (Component component : networkHook2) {
                 compToHook.put(component.id(), 2);
@@ -225,19 +231,19 @@ public class StunServerComp extends ComponentDefinition {
         }
 
         private void startHook1(boolean started) {
-            networkHookDefinition.start(this, hookSetup1, new SSNetworkHook.StartInit(started));
+            networkHookDefinition.start(new StunServerProxy(), new SSNetworkHookParent(), hookSetup1, new SSNetworkHook.StartInit(started));
             hookSetup1 = null;
         }
 
         private void startHook2(boolean started) {
-            networkHookDefinition.start(this, hookSetup1, new SSNetworkHook.StartInit(started));
+            networkHookDefinition.start(new StunServerProxy(), new SSNetworkHookParent(), hookSetup2, new SSNetworkHook.StartInit(started));
             hookSetup1 = null;
         }
 
         private void preStop1() {
             LOG.info("{}tearing down hook1", new Object[]{logPrefix});
 
-            networkHookDefinition.preStop(this, new SSNetworkHook.Tear(networkHook1));
+            networkHookDefinition.preStop(new StunServerProxy(), new SSNetworkHookParent(), hookSetup1, new SSNetworkHook.TearInit());
             for (Component component : networkHook1) {
                 compToHook.remove(component.id());
             }
@@ -248,7 +254,7 @@ public class StunServerComp extends ComponentDefinition {
         private void preStop2() {
             LOG.info("{}tearing down hook2", new Object[]{logPrefix});
 
-            networkHookDefinition.preStop(this, new SSNetworkHook.Tear(networkHook2));
+            networkHookDefinition.preStop(new StunServerProxy(), new SSNetworkHookParent(), hookSetup2, new SSNetworkHook.TearInit());
             for (Component component : networkHook2) {
                 compToHook.remove(component.id());
             }
@@ -283,8 +289,13 @@ public class StunServerComp extends ComponentDefinition {
         public void resetFailureRetry() {
             hookRetry = StunServerConfig.fatalRetries;
         }
+    }
 
-        //*******************************PROXY**********************************
+    public class SSNetworkHookParent implements Hook.Parent {
+    }
+
+    public class StunServerProxy implements ComponentProxy {
+
         @Override
         public <P extends PortType> void trigger(KompicsEvent e, Port<P> p) {
             StunServerComp.this.trigger(e, p);

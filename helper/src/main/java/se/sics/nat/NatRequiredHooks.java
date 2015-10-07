@@ -16,23 +16,28 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.upnp.msg;
 
-import com.google.common.base.Optional;
-import java.net.InetAddress;
-import java.util.UUID;
-import se.sics.kompics.KompicsEvent;
+package se.sics.nat;
+
+import se.sics.nat.stun.client.StunClientComp;
+import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class UpnpReady implements KompicsEvent {
-
-    public final UUID id;
-    public final Optional<InetAddress> externalIp;
-
-    public UpnpReady(UUID id, InetAddress externalIp) {
-        this.id = id;
-        this.externalIp = Optional.fromNullable(externalIp);
+public enum NatRequiredHooks implements Hook.Required {
+    NAT_ADDRESS_SOLVER("NAT_ADDRESS_SOLVER"), 
+    UPNP(NatDetectionComp.RequiredHooks.NAT_UPNP.toString()), 
+    NAT_NETWORK(NatTraverserComp.RequiredHooks.NAT_NETWORK.toString()), 
+    STUN_CLIENT_NETWORK(StunClientComp.RequiredHooks.STUN_CLIENT_NETWORK.toString());
+    
+    String name;
+    NatRequiredHooks(String name) {
+        this.name = name;
+    }
+    
+    @Override
+    public String toString() {
+        return name;
     }
 }

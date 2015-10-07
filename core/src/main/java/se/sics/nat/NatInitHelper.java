@@ -42,7 +42,7 @@ public class NatInitHelper {
     private String logPrefix = "Nat:";
 
     public final NatTraverserConfig ntConfig;
-    public final Pair<Integer, Integer> stunClientPorts;
+    public Pair<Integer, Integer> stunClientPorts;
     public final List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
     public final Integer globalCroupierOverlayId;
     public final List<DecoratedAddress> croupierBoostrap;
@@ -91,5 +91,9 @@ public class NatInitHelper {
             LOG.error("{}unknown stun ip", logPrefix);
             throw new RuntimeException(ex);
         }
+    }
+    
+    public void setStunClientPorts(Pair<Integer, Integer> stunClientPorts) {
+        this.stunClientPorts = stunClientPorts;
     }
 }

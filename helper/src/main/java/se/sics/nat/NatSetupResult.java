@@ -19,8 +19,10 @@
 
 package se.sics.nat;
 
+import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.network.Network;
+import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.util.config.SystemConfig;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 
@@ -30,12 +32,14 @@ import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
 public class NatSetupResult {
     public final Positive<Network> network;
     public final Positive<SelfAddressUpdatePort> adrUpdate;
+    public final Negative<CroupierPort> peerSampling;
     public final SystemConfig systemConfig;
     
     public NatSetupResult(Positive<Network> network, Positive<SelfAddressUpdatePort> adrUpdate, 
-            SystemConfig systemConfig) {
+            Negative<CroupierPort> peerSampling, SystemConfig systemConfig) {
         this.network = network;
         this.adrUpdate = adrUpdate;
         this.systemConfig = systemConfig;
+        this.peerSampling = peerSampling;
     }
 }

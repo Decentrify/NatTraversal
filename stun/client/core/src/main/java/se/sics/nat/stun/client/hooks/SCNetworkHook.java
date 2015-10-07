@@ -16,18 +16,22 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.server;
+
+package se.sics.nat.stun.client.hooks;
 
 import se.sics.kompics.Component;
 import se.sics.kompics.Positive;
+import se.sics.kompics.network.Network;
+import se.sics.nat.stun.client.StunClientComp.SCNetworkHookParent;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
+ *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class SSNetworkHook {
-    public static interface Definition extends Hook.Definition<SetupInit, SetupResult, StartInit, Tear> {
+public class SCNetworkHook {
+    public static interface Definition extends Hook.Definition<SCNetworkHookParent, SetupInit, SetupResult, StartInit, TearInit> {
     }
 
     public static class SetupInit implements Hook.SetupInit {
@@ -39,10 +43,10 @@ public class SSNetworkHook {
     }
     
     public static class SetupResult implements Hook.SetupResult {
-        public final Positive network;
+        public final Positive<Network> network;
         public final Component[] components;
         
-        public SetupResult(Positive network, Component[] components) {
+        public SetupResult(Positive<Network> network, Component[] components) {
             this.network = network;
             this.components = components;
         }
@@ -53,12 +57,7 @@ public class SSNetworkHook {
             super(started);
         }
     }
-
-    public static class Tear implements Hook.Tear {
-        public final Component[] components;
-        
-        public Tear(Component[] components) {
-            this.components = components;
-        }
+    
+    public static class TearInit implements Hook.TearInit {
     }
 }

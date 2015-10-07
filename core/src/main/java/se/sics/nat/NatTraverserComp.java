@@ -22,6 +22,7 @@ import se.sics.nat.filters.NatTrafficFilter;
 import se.sics.nat.hooks.NatNetworkHook;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,9 +53,7 @@ import se.sics.kompics.network.Msg;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.CancelPeriodicTimeout;
-import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
-import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.nat.hp.client.SHPClientPort;
@@ -63,8 +62,6 @@ import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.filters.NatInternalFilter;
 import se.sics.nat.msg.NatConnection.Close;
 import se.sics.nat.msg.NatConnection.Heartbeat;
-import se.sics.nat.msg.NatConnection.OpenRequest;
-import se.sics.nat.msg.NatConnection.OpenResponse;
 import se.sics.nat.util.NatTraverserFeasibility;
 import se.sics.nat.hp.client.SHPClientComp;
 import se.sics.nat.hp.server.HPServerComp;
@@ -73,7 +70,6 @@ import se.sics.nat.pm.server.PMServerComp;
 import se.sics.nat.pm.server.PMServerPort;
 import se.sics.p2ptoolbox.croupier.CroupierConfig;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
-import se.sics.p2ptoolbox.croupier.msg.CroupierDisconnected;
 import se.sics.p2ptoolbox.util.config.SystemConfig;
 import se.sics.p2ptoolbox.util.filters.AndFilter;
 import se.sics.p2ptoolbox.util.filters.NotFilter;
@@ -85,6 +81,8 @@ import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.p2ptoolbox.util.proxy.Hook;
+import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
 import se.sics.p2ptoolbox.util.update.SelfAddress;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
@@ -97,15 +95,20 @@ public class NatTraverserComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(NatTraverserComp.class);
     private String logPrefix = "";
 
+    public static enum RequiredHooks implements Hook.Required {
+
+        NAT_NETWORK
+    }
+
     private final Negative<SelfAddressUpdatePort> providedSAUpdate = provides(SelfAddressUpdatePort.class);
     private final Negative<Network> providedNetwork = provides(Network.class);
-    private Positive<Network> network;
+    private final Positive<CroupierPort> peerSampling = requires(CroupierPort.class);
+    private final Positive<Timer> timer = requires(Timer.class);
+
     private final ChannelFilter<Msg, Boolean> handleTraffic = new AndFilter(new NatTrafficFilter(), new NotFilter(new NatInternalFilter()));
     private final ChannelFilter<Msg, Boolean> forwardTraffic = new AndFilter(new NotFilter(new NatTrafficFilter()), new NotFilter(new NatInternalFilter()));
 
-    private final Positive<Timer> timer = requires(Timer.class);
-    private final Positive<CroupierPort> globalCroupier = requires(CroupierPort.class);
-
+    private Positive<Network> network;
     private Positive<SHPClientPort> hpClient;
 
     private final NatTraverserConfig natConfig;
@@ -114,6 +117,7 @@ public class NatTraverserComp extends ComponentDefinition {
     private final CroupierConfig croupierConfig;
     private final List<DecoratedAddress> croupierBootstrap;
 
+    private final InetAddress localIp;
     private DecoratedAddress self;
 
     private UUID internalStateCheckId;
@@ -124,6 +128,7 @@ public class NatTraverserComp extends ComponentDefinition {
     private final ComponentTracker compTracker;
 
     public NatTraverserComp(NatTraverserInit init) {
+        this.localIp = init.localIp;
         this.systemConfig = init.systemConfig;
         this.natConfig = init.natConfig;
         this.self = systemConfig.self;
@@ -136,7 +141,8 @@ public class NatTraverserComp extends ComponentDefinition {
         this.connectionTracker = new ConnectionTracker();
         this.connectionMaker = new ConnectionMaker();
         this.trafficTracker = new TrafficTracker();
-        this.compTracker = new ComponentTracker(init.natNetworkDefinition);
+        NatNetworkHook.Definition natNetwork = init.systemHooks.getHook(RequiredHooks.NAT_NETWORK.toString(), NatNetworkHook.Definition.class);
+        this.compTracker = new ComponentTracker(natNetwork);
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(handleInternalStateCheck, timer);
@@ -196,7 +202,7 @@ public class NatTraverserComp extends ComponentDefinition {
     };
 
     //*************************COMPONENT_TRACKER********************************
-    public class ComponentTracker implements ComponentProxy {
+    public class ComponentTracker {
 
         //hooks
         private final NatNetworkHook.Definition natNetworkDefinition;
@@ -221,7 +227,7 @@ public class NatTraverserComp extends ComponentDefinition {
         //*********************NAT_NETWORK_HOOK*********************************
         private void setupNetwork() {
             LOG.info("{}connecting network", logPrefix);
-            networkSetup = natNetworkDefinition.setup(this, new NatNetworkHook.SetupInit(self, timer));
+            networkSetup = natNetworkDefinition.setup(new NatTraverserProxy(), new NatNetworkHookParent(), new NatNetworkHook.SetupInit(self, timer));
             networkHook = networkSetup.components;
             for (Component component : networkHook) {
                 compToHook.put(component.id(), 1);
@@ -231,13 +237,13 @@ public class NatTraverserComp extends ComponentDefinition {
 
         private void startNetwork(boolean started) {
             LOG.info("{}starting network", logPrefix);
-            natNetworkDefinition.start(this, networkSetup, new NatNetworkHook.StartInit(started));
+            natNetworkDefinition.start(new NatTraverserProxy(), new NatNetworkHookParent(), networkSetup, new NatNetworkHook.StartInit(started));
             networkSetup = null;
         }
 
         private void preStopNetwork() {
             LOG.info("{}tearing down network", new Object[]{logPrefix});
-            natNetworkDefinition.preStop(this, new NatNetworkHook.Tear(networkHook, timer));
+            natNetworkDefinition.preStop(new NatTraverserProxy(), new NatNetworkHookParent(), networkSetup, new NatNetworkHook.TearInit(timer));
             for (Component component : networkHook) {
                 compToHook.remove(component.id());
             }
@@ -308,7 +314,7 @@ public class NatTraverserComp extends ComponentDefinition {
             pmClientComp = create(PMClientComp.class, new PMClientComp.PMClientInit(natConfig, systemConfig.self));
             connect(pmClientComp.getNegative(Timer.class), timer);
             connect(pmClientComp.getNegative(Network.class), network);
-            connect(pmClientComp.getNegative(CroupierPort.class), globalCroupier);
+            connect(pmClientComp.getNegative(CroupierPort.class), peerSampling);
             connect(pmClientComp.getPositive(SelfAddressUpdatePort.class), providedSAUpdate);
             subscribe(handleSelfAddressUpdate, pmClientComp.getPositive(SelfAddressUpdatePort.class));
         }
@@ -351,7 +357,17 @@ public class NatTraverserComp extends ComponentDefinition {
             }
         };
 
-        //********************COMPONENT_PROXY***********************************
+    }
+
+    public class NatNetworkHookParent implements Hook.Parent {
+
+        public InetAddress getLocalInterface() {
+            return localIp;
+        }
+    }
+
+    public class NatTraverserProxy implements ComponentProxy {
+
         @Override
         public <P extends PortType> Positive<P> requires(Class<P> portType) {
             return NatTraverserComp.this.requires(portType);
@@ -780,21 +796,23 @@ public class NatTraverserComp extends ComponentDefinition {
 
     public static class NatTraverserInit extends Init<NatTraverserComp> {
 
+        public final InetAddress localIp;
         public final SystemConfig systemConfig;
         public final NatTraverserConfig natConfig;
-        public final NatNetworkHook.Definition natNetworkDefinition;
         public final int globalCroupierOverlayId;
         public final CroupierConfig croupierConfig;
         public final List<DecoratedAddress> croupierBootstrap;
+        public final SystemHookSetup systemHooks;
 
-        public NatTraverserInit(SystemConfig systemConfig, NatInitHelper nhInit, NatNetworkHook.Definition natNetworkDefinition,
-                CroupierConfig croupierConfig) {
+        public NatTraverserInit(InetAddress localIp, SystemConfig systemConfig, NatInitHelper nhInit,
+                CroupierConfig croupierConfig, SystemHookSetup systemHooks) {
+            this.localIp = localIp;
             this.systemConfig = systemConfig;
             this.natConfig = nhInit.ntConfig;
-            this.natNetworkDefinition = natNetworkDefinition;
             this.globalCroupierOverlayId = nhInit.globalCroupierOverlayId;
             this.croupierConfig = croupierConfig;
             this.croupierBootstrap = nhInit.croupierBoostrap;
+            this.systemHooks = systemHooks;
         }
     }
 }

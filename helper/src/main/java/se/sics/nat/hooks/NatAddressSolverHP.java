@@ -16,23 +16,19 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.upnp.msg;
+package se.sics.nat.hooks;
 
-import com.google.common.base.Optional;
-import java.net.InetAddress;
-import java.util.UUID;
-import se.sics.kompics.KompicsEvent;
+import org.javatuples.Pair;
+import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class UpnpReady implements KompicsEvent {
+public interface NatAddressSolverHP extends Hook.Parent {
 
-    public final UUID id;
-    public final Optional<InetAddress> externalIp;
+    public void onResult(NatAddressSolverResult result);
 
-    public UpnpReady(UUID id, InetAddress externalIp) {
-        this.id = id;
-        this.externalIp = Optional.fromNullable(externalIp);
-    }
+    public Pair<Integer, Integer> getStunClientPrefferedPorts();
+
+    public Integer getAppPrefferedPort();
 }

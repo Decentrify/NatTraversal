@@ -16,39 +16,33 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.hooks;
+package se.sics.nat.stun.server.hooks;
 
 import se.sics.kompics.Component;
 import se.sics.kompics.Positive;
-import se.sics.kompics.timer.Timer;
-import se.sics.nat.NatTraverserComp.NatNetworkHookParent;
+import se.sics.nat.stun.server.StunServerComp.SSNetworkHookParent;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatNetworkHook {
-
-    public static interface Definition extends Hook.Definition<NatNetworkHookParent, SetupInit, SetupResult, StartInit, TearInit> {
+public class SSNetworkHook {
+    public static interface Definition extends Hook.Definition<SSNetworkHookParent, SetupInit, SetupResult, StartInit, TearInit> {
     }
 
     public static class SetupInit implements Hook.SetupInit {
-
-        public final DecoratedAddress adr;
-        public final Positive<Timer> timer;
-
-        public SetupInit(DecoratedAddress adr, Positive<Timer> timer) {
+        public final DecoratedAddress adr; 
+        
+        public SetupInit(DecoratedAddress adr) {
             this.adr = adr;
-            this.timer = timer;
         }
     }
-
+    
     public static class SetupResult implements Hook.SetupResult {
-
         public final Positive network;
         public final Component[] components;
-
+        
         public SetupResult(Positive network, Component[] components) {
             this.network = network;
             this.components = components;
@@ -62,10 +56,5 @@ public class NatNetworkHook {
     }
 
     public static class TearInit implements Hook.TearInit {
-        public final Positive<Timer> timer;
-
-        public TearInit(Positive<Timer> timer) {
-            this.timer = timer;
-        }
     }
 }

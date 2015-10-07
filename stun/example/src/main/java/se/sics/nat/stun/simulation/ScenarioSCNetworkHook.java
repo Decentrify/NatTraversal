@@ -24,7 +24,6 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
-import se.sics.nat.stun.client.SCNetworkHook;
 import se.sics.p2ptoolbox.util.filters.PortTrafficFilter;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
 import se.sics.p2ptoolbox.util.proxy.util.DummyNetwork;

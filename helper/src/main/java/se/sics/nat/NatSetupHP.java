@@ -19,11 +19,11 @@
 
 package se.sics.nat;
 
-import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public interface NatLauncherProxy extends ComponentProxy {
-    public void startApp(NatSetupResult result);
+public interface NatSetupHP extends Hook.Parent {
+    public void onResult(NatSetupResult result);
 }

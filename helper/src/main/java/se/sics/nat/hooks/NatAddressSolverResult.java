@@ -16,23 +16,32 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.upnp.msg;
+
+package se.sics.nat.hooks;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
-import java.util.UUID;
-import se.sics.kompics.KompicsEvent;
+import java.net.Socket;
+import org.javatuples.Pair;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class UpnpReady implements KompicsEvent {
-
-    public final UUID id;
-    public final Optional<InetAddress> externalIp;
-
-    public UpnpReady(UUID id, InetAddress externalIp) {
-        this.id = id;
-        this.externalIp = Optional.fromNullable(externalIp);
+public class NatAddressSolverResult {
+    public final InetAddress localIp;
+    public final Pair<Integer, Integer> stunClientPorts;
+    public final Integer appPort;
+    
+    public final Pair<Optional<Socket>, Optional<Socket>> stunClientSockets;
+    public final Optional<Socket> appSocket;
+    
+    public NatAddressSolverResult(InetAddress localIp, Pair<Integer, Optional<Socket>> stunClientPort1, 
+            Pair<Integer, Optional<Socket>> stunClientPort2, Pair<Integer, Optional<Socket>> appPort) {
+        this.localIp = localIp;
+        this.stunClientPorts = Pair.with(stunClientPort1.getValue0(), stunClientPort2.getValue0());
+        this.appPort = appPort.getValue0();
+        
+        this.stunClientSockets = Pair.with(stunClientPort1.getValue1(), stunClientPort2.getValue1());
+        this.appSocket = appPort.getValue1();
     }
 }

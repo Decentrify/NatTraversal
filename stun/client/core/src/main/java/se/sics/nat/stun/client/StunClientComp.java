@@ -18,6 +18,7 @@
  */
 package se.sics.nat.stun.client;
 
+import se.sics.nat.stun.client.hooks.SCNetworkHook;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -61,6 +62,8 @@ import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.p2ptoolbox.util.proxy.Hook;
+import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -110,6 +113,10 @@ public class StunClientComp extends ComponentDefinition {
 
     private static final Logger LOG = LoggerFactory.getLogger(StunClientComp.class);
     private String logPrefix = "";
+    
+    public static enum RequiredHooks implements Hook.Required {
+        STUN_CLIENT_NETWORK
+    }
 
     private final Negative<StunClientPort> stunPort = provides(StunClientPort.class);
     private Positive<Network> network1;
@@ -126,7 +133,8 @@ public class StunClientComp extends ComponentDefinition {
         LOG.info("{}initiating...", logPrefix);
         this.self = init.self;
         this.echoMngr = new EchoMngr();
-        this.hookTracker = new HookTracker(init.networkHookDefinition);
+        SCNetworkHook.Definition stunClientNetwork = init.systemHooks.getHook(RequiredHooks.STUN_CLIENT_NETWORK.toString(), SCNetworkHook.Definition.class);
+        this.hookTracker = new HookTracker(stunClientNetwork);
         this.stunServersMngr = new StunServerMngr(init.stunServers);
 
         hookTracker.setupHook1();
@@ -311,7 +319,7 @@ public class StunClientComp extends ComponentDefinition {
     }
 
     //**************************HOOK_PARENT*************************************
-    public class HookTracker implements ComponentProxy {
+    public class HookTracker {
 
         private final SCNetworkHook.Definition networkHookDefinition;
         private SCNetworkHook.SetupResult hookSetup1;
@@ -330,7 +338,7 @@ public class StunClientComp extends ComponentDefinition {
         private void setupHook1() {
             LOG.info("{}setting up network hook1",
                     new Object[]{logPrefix});
-            hookSetup1 = networkHookDefinition.setup(this, new SCNetworkHook.SetupInit(self.getValue0()));
+            hookSetup1 = networkHookDefinition.setup(new StunClientProxy(), new SCNetworkHookParent(), new SCNetworkHook.SetupInit(self.getValue0()));
             networkHook1 = hookSetup1.components;
             for (Component component : networkHook1) {
                 compToHook.put(component.id(), 1);
@@ -341,7 +349,7 @@ public class StunClientComp extends ComponentDefinition {
         private void setupHook2() {
             LOG.info("{}setting up network hook2",
                     new Object[]{logPrefix});
-            hookSetup2 = networkHookDefinition.setup(this, new SCNetworkHook.SetupInit(self.getValue1()));
+            hookSetup2 = networkHookDefinition.setup(new StunClientProxy(), new SCNetworkHookParent(), new SCNetworkHook.SetupInit(self.getValue1()));
             networkHook2 = hookSetup2.components;
             for (Component component : networkHook2) {
                 compToHook.put(component.id(), 2);
@@ -350,18 +358,18 @@ public class StunClientComp extends ComponentDefinition {
         }
 
         private void startHook1(boolean started) {
-            networkHookDefinition.start(this, hookSetup1, new SCNetworkHook.StartInit(started));
+            networkHookDefinition.start(new StunClientProxy(), new SCNetworkHookParent(), hookSetup1, new SCNetworkHook.StartInit(started));
             hookSetup1 = null;
         }
 
         private void startHook2(boolean started) {
-            networkHookDefinition.start(this, hookSetup2, new SCNetworkHook.StartInit(started));
+            networkHookDefinition.start(new StunClientProxy(), new SCNetworkHookParent(), hookSetup2, new SCNetworkHook.StartInit(started));
             hookSetup2 = null;
         }
 
         private void preStop1() {
             LOG.info("{}tearing down hook1", new Object[]{logPrefix});
-            networkHookDefinition.preStop(this, new SCNetworkHook.Tear(networkHook1));
+            networkHookDefinition.preStop(new StunClientProxy(), new SCNetworkHookParent(), hookSetup1, new SCNetworkHook.TearInit());
             for (Component component : networkHook1) {
                 compToHook.remove(component.id());
             }
@@ -372,7 +380,7 @@ public class StunClientComp extends ComponentDefinition {
         private void preStop2() {
             LOG.info("{}tearing down hook2", new Object[]{logPrefix});
 
-            networkHookDefinition.preStop(this, new SCNetworkHook.Tear(networkHook2));
+            networkHookDefinition.preStop(new StunClientProxy(), new SCNetworkHookParent(), hookSetup2, new SCNetworkHook.TearInit());
             for (Component component : networkHook2) {
                 compToHook.remove(component.id());
             }
@@ -406,8 +414,12 @@ public class StunClientComp extends ComponentDefinition {
         public void resetFailureRetry() {
             hookRetry = StunClientConfig.fatalRetries;
         }
-
-        //*******************************PROXY**********************************
+    }
+    
+    public class SCNetworkHookParent implements Hook.Parent {
+    }
+ 
+    public class StunClientProxy implements ComponentProxy {
         @Override
         public <P extends PortType> void trigger(KompicsEvent e, Port<P> p) {
             StunClientComp.this.trigger(e, p);
@@ -478,14 +490,14 @@ public class StunClientComp extends ComponentDefinition {
 
         public final Pair<DecoratedAddress, DecoratedAddress> self;
         public final List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
-        public final SCNetworkHook.Definition networkHookDefinition;
-
+        public final SystemHookSetup systemHooks;
+        
         public StunClientInit(Pair<DecoratedAddress, DecoratedAddress> startSelf,
                 List<Pair<DecoratedAddress, DecoratedAddress>> stunServers,
-                SCNetworkHook.Definition networkHookDefinition) {
+                SystemHookSetup systemSetup) {
             this.self = startSelf;
             this.stunServers = stunServers;
-            this.networkHookDefinition = networkHookDefinition;
+            this.systemHooks = systemSetup;
         }
     }
 

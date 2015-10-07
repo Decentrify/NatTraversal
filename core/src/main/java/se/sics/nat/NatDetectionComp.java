@@ -23,28 +23,37 @@ import java.util.List;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.sics.kompics.Channel;
+import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
+import se.sics.kompics.ConfigurationException;
+import se.sics.kompics.ControlPort;
 import se.sics.kompics.Fault;
 import se.sics.kompics.Fault.ResolveAction;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
+import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.Negative;
+import se.sics.kompics.Port;
+import se.sics.kompics.PortType;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.timer.Timer;
 import se.sics.nat.common.util.NatDetectionResult;
+import se.sics.nat.hooks.NatUpnpHook;
 import se.sics.nat.stun.NatReady;
 import se.sics.nat.stun.StunClientPort;
-import se.sics.nat.stun.client.SCNetworkHook;
 import se.sics.nat.stun.client.StunClientComp;
-import se.sics.nat.stun.upnp.UpnpComp;
 import se.sics.nat.stun.upnp.UpnpPort;
 import se.sics.nat.stun.upnp.msg.UpnpReady;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.p2ptoolbox.util.proxy.Hook;
+import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -54,6 +63,11 @@ public class NatDetectionComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(NatDetectionComp.class);
     private String logPrefix = "";
 
+    public static enum RequiredHooks implements Hook.Required {
+
+        NAT_UPNP
+    }
+
     private final Positive<Timer> timer = requires(Timer.class);
     private final Negative<NatDetectionPort> natDetection = provides(NatDetectionPort.class);
     private final Negative<UpnpPort> upnp = provides(UpnpPort.class);
@@ -61,7 +75,7 @@ public class NatDetectionComp extends ComponentDefinition {
     private NatDetectionInit init;
 
     private Component stunClient;
-    private Component upnpComp;
+    private NatUpnpHook.SetupResult upnpSetup;
 
     private NatDetectionResult natDetectionResult;
 
@@ -71,15 +85,11 @@ public class NatDetectionComp extends ComponentDefinition {
         LOG.info("{}initiating...", logPrefix);
         this.natDetectionResult = new NatDetectionResult();
 
-        connectStunClient();
-        if (init.enableUpnpDetection) {
-            connectUpnp();
-        }
-
         subscribe(handleStart, control);
         subscribe(handleStop, control);
-        subscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
-        subscribe(handleUpnpReady, upnpComp.getPositive(UpnpPort.class));
+
+        connectStunClient();
+        connectUpnp();
     }
 
     //**************************CONTROL*****************************************
@@ -87,6 +97,7 @@ public class NatDetectionComp extends ComponentDefinition {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
+            startUpnp(true);
         }
     };
 
@@ -108,25 +119,11 @@ public class NatDetectionComp extends ComponentDefinition {
         Pair<DecoratedAddress, DecoratedAddress> scAdr = Pair.with(
                 new DecoratedAddress(new BasicAddress(init.privateAdr.getIp(), init.scPorts.getValue0(), init.privateAdr.getId())),
                 new DecoratedAddress(new BasicAddress(init.privateAdr.getIp(), init.scPorts.getValue1(), init.privateAdr.getId())));
-        stunClient = create(StunClientComp.class, new StunClientComp.StunClientInit(scAdr, init.stunServers, init.scNetworkDefinition));
+        stunClient = create(StunClientComp.class, new StunClientComp.StunClientInit(scAdr, init.stunServers, init.systemHooks));
         connect(stunClient.getNegative(Timer.class), timer);
-    }
 
-    private void connectUpnp() {
-        upnpComp = create(UpnpComp.class, new UpnpComp.UpnpInit(1234, "nat upnp"));
-        connect(upnp, upnpComp.getPositive(UpnpPort.class));
+        subscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
     }
-
-    Handler handleUpnpReady = new Handler<UpnpReady>() {
-        @Override
-        public void handle(UpnpReady ready) {
-            LOG.info("{}upnp ready:{}", logPrefix, ready.externalIp);
-            natDetectionResult.setUpnpReady(ready.externalIp);
-            if (natDetectionResult.isReady()) {
-                finish();
-            }
-        }
-    };
 
     private Handler handleNatReady = new Handler<NatReady>() {
         @Override
@@ -134,16 +131,103 @@ public class NatDetectionComp extends ComponentDefinition {
             LOG.info("{}nat detected:{} public ip:{}",
                     new Object[]{logPrefix, ready.nat, ready.publicIp});
             natDetectionResult.setNatReady(ready.nat, ready.publicIp);
-            if (upnpComp == null || natDetectionResult.isReady()) {
-                Pair<NatedTrait, InetAddress> result = natDetectionResult.getResult();
-                trigger(new NatReady(result.getValue0(), result.getValue1()), natDetection);
+            if (natDetectionResult.isReady()) {
+                finish();
             }
         }
     };
 
+    private void connectUpnp() {
+        NatUpnpHook.Definition upnpHook = init.systemHooks.getHook(RequiredHooks.NAT_UPNP.toString(), NatUpnpHook.Definition.class);
+        upnpSetup = upnpHook.setup(new NatDetectionProxy(), new NatUpnpHookParent(), new NatUpnpHook.SetupInit());
+    }
+
+    private void startUpnp(boolean started) {
+        NatUpnpHook.Definition upnpHook = init.systemHooks.getHook(RequiredHooks.NAT_UPNP.toString(), NatUpnpHook.Definition.class);
+        upnpHook.start(new NatDetectionProxy(), new NatUpnpHookParent(), upnpSetup, new NatUpnpHook.StartInit(started));
+    }
+
     private void finish() {
         Pair<NatedTrait, InetAddress> result = natDetectionResult.getResult();
         trigger(new NatReady(result.getValue0(), result.getValue1()), natDetection);
+    }
+
+    public class NatUpnpHookParent implements Hook.Parent {
+        public void onResult(UpnpReady ready) {
+            LOG.info("{}upnp ready:{}", logPrefix, ready.externalIp.get());
+            natDetectionResult.setUpnpReady(ready.externalIp);
+            if (natDetectionResult.isReady()) {
+                finish();
+            }
+        }
+    }
+
+    public class NatDetectionProxy implements ComponentProxy {
+
+        @Override
+        public <P extends PortType> Positive<P> requires(Class<P> portType) {
+            return NatDetectionComp.this.requires(portType);
+        }
+
+        @Override
+        public <P extends PortType> Negative<P> provides(Class<P> portType) {
+            return NatDetectionComp.this.provides(portType);
+        }
+
+        @Override
+        public Negative<ControlPort> getControlPort() {
+            return NatDetectionComp.this.control;
+        }
+
+        @Override
+        public <T extends ComponentDefinition> Component create(Class<T> definition, Init<T> initEvent) {
+            return NatDetectionComp.this.create(definition, initEvent);
+        }
+
+        @Override
+        public <T extends ComponentDefinition> Component create(Class<T> definition, Init.None initEvent) {
+            return NatDetectionComp.this.create(definition, initEvent);
+        }
+
+        @Override
+        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative) {
+            return NatDetectionComp.this.connect(negative, positive);
+        }
+
+        @Override
+        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative, ChannelFilter filter) {
+            return NatDetectionComp.this.connect(positive, negative, filter);
+        }
+
+        @Override
+        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive) {
+            return NatDetectionComp.this.connect(negative, positive);
+        }
+
+        @Override
+        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive, ChannelFilter filter) {
+            return NatDetectionComp.this.connect(negative, positive, filter);
+        }
+
+        @Override
+        public <P extends PortType> void disconnect(Negative<P> negative, Positive<P> positive) {
+            NatDetectionComp.this.disconnect(negative, positive);
+        }
+
+        @Override
+        public <P extends PortType> void disconnect(Positive<P> positive, Negative<P> negative) {
+            NatDetectionComp.this.disconnect(negative, positive);
+        }
+
+        @Override
+        public <P extends PortType> void trigger(KompicsEvent e, Port<P> p) {
+            NatDetectionComp.this.trigger(e, p);
+        }
+
+        @Override
+        public <E extends KompicsEvent, P extends PortType> void subscribe(Handler<E> handler, Port<P> port) throws ConfigurationException {
+            NatDetectionComp.this.subscribe(handler, port);
+        }
     }
 
     public static class NatDetectionInit extends Init<NatDetectionComp> {
@@ -152,17 +236,14 @@ public class NatDetectionComp extends ComponentDefinition {
         public final StunClientComp.StunClientConfig scConfig;
         public final Pair<Integer, Integer> scPorts;
         public final List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
-        public final SCNetworkHook.Definition scNetworkDefinition;
-        public final boolean enableUpnpDetection;
+        public final SystemHookSetup systemHooks;
 
-        public NatDetectionInit(BasicAddress privateAdr, NatInitHelper ntInit, SCNetworkHook.Definition scNetworkDefinition,
-                boolean enableUpnpDetection) {
+        public NatDetectionInit(BasicAddress privateAdr, NatInitHelper ntInit, SystemHookSetup systemHooks) {
             this.privateAdr = privateAdr;
             this.scConfig = new StunClientComp.StunClientConfig();
             this.scPorts = ntInit.stunClientPorts;
             this.stunServers = ntInit.stunServers;
-            this.scNetworkDefinition = scNetworkDefinition;
-            this.enableUpnpDetection = enableUpnpDetection;
+            this.systemHooks = systemHooks;
         }
     }
 }

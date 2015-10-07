@@ -18,54 +18,41 @@
  */
 package se.sics.nat.hooks;
 
+import java.util.EnumSet;
 import se.sics.kompics.Component;
-import se.sics.kompics.Positive;
-import se.sics.kompics.timer.Timer;
-import se.sics.nat.NatTraverserComp.NatNetworkHookParent;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.ktoolbox.ipsolver.msg.GetIp;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatNetworkHook {
+public class NatAddressSolverHook {
 
-    public static interface Definition extends Hook.Definition<NatNetworkHookParent, SetupInit, SetupResult, StartInit, TearInit> {
+    public static interface Definition extends Hook.Definition<NatAddressSolverHP, SetupInit, SetupResult, StartInit, TearInit> {
     }
 
     public static class SetupInit implements Hook.SetupInit {
-
-        public final DecoratedAddress adr;
-        public final Positive<Timer> timer;
-
-        public SetupInit(DecoratedAddress adr, Positive<Timer> timer) {
-            this.adr = adr;
-            this.timer = timer;
-        }
     }
 
     public static class SetupResult implements Hook.SetupResult {
 
-        public final Positive network;
-        public final Component[] components;
+        public final Component[] comp;
 
-        public SetupResult(Positive network, Component[] components) {
-            this.network = network;
-            this.components = components;
+        public SetupResult(Component[] comp) {
+            this.comp = comp;
         }
     }
-    
+
     public static class StartInit extends Hook.StartInit {
-        public StartInit(boolean started) {
+
+        public final EnumSet<GetIp.NetworkInterfacesMask> netInterfaces;
+
+        public StartInit(boolean started, EnumSet<GetIp.NetworkInterfacesMask> netInterfaces) {
             super(started);
+            this.netInterfaces = netInterfaces;
         }
     }
 
     public static class TearInit implements Hook.TearInit {
-        public final Positive<Timer> timer;
-
-        public TearInit(Positive<Timer> timer) {
-            this.timer = timer;
-        }
     }
 }
