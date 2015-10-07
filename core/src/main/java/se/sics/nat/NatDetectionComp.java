@@ -154,7 +154,8 @@ public class NatDetectionComp extends ComponentDefinition {
 
     public class NatUpnpHookParent implements Hook.Parent {
         public void onResult(UpnpReady ready) {
-            LOG.info("{}upnp ready:{}", logPrefix, ready.externalIp.get());
+            String upnpResult = (ready.externalIp.isPresent() ? ready.externalIp.get().toString() : "absent");
+            LOG.info("{}upnp ready:{}", logPrefix, upnpResult);
             natDetectionResult.setUpnpReady(ready.externalIp);
             if (natDetectionResult.isReady()) {
                 finish();
