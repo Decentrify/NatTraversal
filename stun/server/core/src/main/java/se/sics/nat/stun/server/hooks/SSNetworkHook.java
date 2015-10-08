@@ -20,7 +20,6 @@ package se.sics.nat.stun.server.hooks;
 
 import se.sics.kompics.Component;
 import se.sics.kompics.Positive;
-import se.sics.nat.stun.server.StunServerComp.SSNetworkHookParent;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
@@ -28,7 +27,9 @@ import se.sics.p2ptoolbox.util.proxy.Hook;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class SSNetworkHook {
-    public static interface Definition extends Hook.Definition<SSNetworkHookParent, SetupInit, SetupResult, StartInit, TearInit> {
+    public static interface Parent extends Hook.Parent {
+    }
+    public static interface Definition extends Hook.Definition<Parent, SetupInit, SetupResult, StartInit, TearInit> {
     }
 
     public static class SetupInit implements Hook.SetupInit {

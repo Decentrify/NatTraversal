@@ -25,8 +25,8 @@ import se.sics.kompics.Start;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.netty.NettyInit;
 import se.sics.kompics.network.netty.NettyNetwork;
-import se.sics.nat.stun.server.StunServerComp.SSNetworkHookParent;
 import se.sics.nat.stun.server.hooks.SSNetworkHook.Definition;
+import se.sics.nat.stun.server.hooks.SSNetworkHook.Parent;
 import se.sics.nat.stun.server.hooks.SSNetworkHook.SetupInit;
 import se.sics.nat.stun.server.hooks.SSNetworkHook.SetupResult;
 import se.sics.nat.stun.server.hooks.SSNetworkHook.StartInit;
@@ -43,7 +43,7 @@ public class SSNetworkHookFactory {
        return new Definition() {
 
             @Override
-            public SetupResult setup(ComponentProxy hookProxy, SSNetworkHookParent hookParent, SetupInit hookInit) {
+            public SetupResult setup(ComponentProxy hookProxy, Parent hookParent, SetupInit hookInit) {
                 Component[] comp = new Component[1];
                 //network
                 comp[0] = hookProxy.create(NettyNetwork.class, new NettyInit(hookInit.adr));
@@ -51,7 +51,7 @@ public class SSNetworkHookFactory {
             }
 
             @Override
-            public void start(ComponentProxy proxy, SSNetworkHookParent hookParent, SetupResult setupResult, 
+            public void start(ComponentProxy proxy, Parent hookParent, SetupResult setupResult, 
                     StartInit startInit) {
                 if (!startInit.started) {
                     proxy.trigger(Start.event, setupResult.components[0].control());
@@ -59,7 +59,7 @@ public class SSNetworkHookFactory {
             }
 
             @Override
-            public void preStop(ComponentProxy proxy, SSNetworkHookParent hookParent, 
+            public void preStop(ComponentProxy proxy, Parent hookParent, 
                     SetupResult setupResult, TearInit hookTear) {
             }
         };
@@ -69,17 +69,17 @@ public class SSNetworkHookFactory {
         return new Definition() {
 
             @Override
-            public SetupResult setup(ComponentProxy hookProxy, SSNetworkHookParent hookParent, SetupInit hookInit) {
+            public SetupResult setup(ComponentProxy hookProxy, Parent hookParent, SetupInit hookInit) {
                 return new SSNetworkHook.SetupResult(network, new Component[0]);
             }
 
             @Override
-            public void start(ComponentProxy proxy, SSNetworkHookParent hookParent, SetupResult setupResult, 
+            public void start(ComponentProxy proxy, Parent hookParent, SetupResult setupResult, 
                     StartInit startInit) {
             }
 
             @Override
-            public void preStop(ComponentProxy proxy, SSNetworkHookParent hookParent, SetupResult setupResult, 
+            public void preStop(ComponentProxy proxy, Parent hookParent, SetupResult setupResult, 
                     TearInit hookTear) {
             }
         };
