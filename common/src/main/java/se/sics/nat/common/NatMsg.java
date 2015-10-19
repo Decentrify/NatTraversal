@@ -19,8 +19,10 @@
 
 package se.sics.nat.common;
 
+import se.sics.kompics.KompicsEvent;
+
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public interface NatMsg {
+public interface NatMsg extends KompicsEvent {
 }

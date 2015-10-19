@@ -19,7 +19,6 @@
 package se.sics.nat;
 
 import se.sics.nat.filters.NatTrafficFilter;
-import se.sics.nat.hooks.NatNetworkHook;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import java.net.InetAddress;
@@ -33,22 +32,15 @@ import java.util.UUID;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.sics.kompics.Channel;
 import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.ConfigurationException;
-import se.sics.kompics.ControlPort;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
-import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.Negative;
-import se.sics.kompics.Port;
-import se.sics.kompics.PortType;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
 import se.sics.kompics.network.Msg;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
@@ -80,8 +72,6 @@ import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
-import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
-import se.sics.p2ptoolbox.util.proxy.Hook;
 import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
 import se.sics.p2ptoolbox.util.update.SelfAddress;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
@@ -95,20 +85,15 @@ public class NatTraverserComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(NatTraverserComp.class);
     private String logPrefix = "";
 
-    public static enum RequiredHooks implements Hook.Required {
-
-        NAT_NETWORK
-    }
-
     private final Negative<SelfAddressUpdatePort> providedSAUpdate = provides(SelfAddressUpdatePort.class);
     private final Negative<Network> providedNetwork = provides(Network.class);
+    private final Positive<Network> network = requires(Network.class);
     private final Positive<CroupierPort> peerSampling = requires(CroupierPort.class);
     private final Positive<Timer> timer = requires(Timer.class);
 
     private final ChannelFilter<Msg, Boolean> handleTraffic = new AndFilter(new NatTrafficFilter(), new NotFilter(new NatInternalFilter()));
     private final ChannelFilter<Msg, Boolean> forwardTraffic = new AndFilter(new NotFilter(new NatTrafficFilter()), new NotFilter(new NatInternalFilter()));
 
-    private Positive<Network> network;
     private Positive<SHPClientPort> hpClient;
 
     private final NatTraverserConfig natConfig;
@@ -117,9 +102,7 @@ public class NatTraverserComp extends ComponentDefinition {
     private final CroupierConfig croupierConfig;
     private final List<DecoratedAddress> croupierBootstrap;
 
-    private final InetAddress localIp;
     private DecoratedAddress self;
-
     private UUID internalStateCheckId;
 
     private final ConnectionTracker connectionTracker;
@@ -128,23 +111,21 @@ public class NatTraverserComp extends ComponentDefinition {
     private final ComponentTracker compTracker;
 
     public NatTraverserComp(NatTraverserInit init) {
-        this.localIp = init.localIp;
         this.systemConfig = init.systemConfig;
         this.natConfig = init.natConfig;
         this.self = systemConfig.self;
-        this.logPrefix = self.getBase() + " ";
-        LOG.info("{}initiating...", logPrefix);
         this.globalCroupierOverlayId = init.globalCroupierOverlayId;
         this.croupierConfig = init.croupierConfig;
         this.croupierBootstrap = init.croupierBootstrap;
 
+        this.logPrefix = self.getBase() + " ";
+        LOG.info("{}initiating...", logPrefix);
+
         this.connectionTracker = new ConnectionTracker();
         this.connectionMaker = new ConnectionMaker();
         this.trafficTracker = new TrafficTracker();
-        NatNetworkHook.Definition natNetwork = init.systemHooks.getHook(RequiredHooks.NAT_NETWORK.toString(), NatNetworkHook.Definition.class);
-        this.compTracker = new ComponentTracker(natNetwork);
+        this.compTracker = new ComponentTracker();
         subscribe(handleStart, control);
-        subscribe(handleStop, control);
         subscribe(handleInternalStateCheck, timer);
 
         compTracker.setup();
@@ -176,16 +157,12 @@ public class NatTraverserComp extends ComponentDefinition {
         }
     };
 
-    Handler handleStop = new Handler<Stop>() {
-        @Override
-        public void handle(Stop event) {
-            LOG.info("{}stopping...", logPrefix);
-            compTracker.preStop();
-            cancelInternalStateCheck();
-            connectionTracker.cancelHeartbeat();
-            connectionTracker.cancelHeartbeatCheck();
-        }
-    };
+    @Override
+    public void tearDown() {
+        cancelInternalStateCheck();
+        connectionTracker.cancelHeartbeat();
+        connectionTracker.cancelHeartbeatCheck();
+    }
 
     Handler handleInternalStateCheck = new Handler<PeriodicInternalStateCheck>() {
         @Override
@@ -197,84 +174,22 @@ public class NatTraverserComp extends ComponentDefinition {
                     new Object[]{logPrefix, connectionMaker.pendingConnections.size()});
             LOG.info("{}internal state check traffic tracker - buffering for targets:{}",
                     new Object[]{logPrefix, trafficTracker.pendingMsgs.size()});
-            compTracker.resetRetries();
         }
     };
 
     //*************************COMPONENT_TRACKER********************************
     public class ComponentTracker {
 
-        //hooks
-        private final NatNetworkHook.Definition natNetworkDefinition;
-        private NatNetworkHook.SetupResult networkSetup;
-        private final Map<UUID, Integer> compToHook;
-        private Component[] networkHook;
-
-        //components
         private Component pmClientComp;
         private Component pmServerComp;
         private Component hpServerComp;
         private Component hpClientComp;
 
-        private int hookRetry;
-
-        public ComponentTracker(NatNetworkHook.Definition networkHookDefinition) {
-            this.natNetworkDefinition = networkHookDefinition;
-            this.compToHook = new HashMap<>();
-            this.hookRetry = natConfig.fatalRetries;
-        }
-
-        //*********************NAT_NETWORK_HOOK*********************************
-        private void setupNetwork() {
-            LOG.info("{}connecting network", logPrefix);
-            networkSetup = natNetworkDefinition.setup(new NatTraverserProxy(), new NatNetworkHookParent(), new NatNetworkHook.SetupInit(self, timer));
-            networkHook = networkSetup.components;
-            for (Component component : networkHook) {
-                compToHook.put(component.id(), 1);
-            }
-            network = networkSetup.network;
-        }
-
-        private void startNetwork(boolean started) {
-            LOG.info("{}starting network", logPrefix);
-            natNetworkDefinition.start(new NatTraverserProxy(), new NatNetworkHookParent(), networkSetup, new NatNetworkHook.StartInit(started));
-            networkSetup = null;
-        }
-
-        private void preStopNetwork() {
-            LOG.info("{}tearing down network", new Object[]{logPrefix});
-            natNetworkDefinition.preStop(new NatTraverserProxy(), new NatNetworkHookParent(), networkSetup, new NatNetworkHook.TearInit(timer));
-            for (Component component : networkHook) {
-                compToHook.remove(component.id());
-            }
-            networkHook = null;
-            network = null;
-        }
-
-        private void restartNetwork(UUID compId) {
-            hookRetry--;
-            if (hookRetry == 0) {
-                LOG.error("{}nat network hook fatal error - recurring errors", logPrefix);
-                throw new RuntimeException("nat network hook fatal error - recurring errors");
-            }
-            LOG.info("{}restarting network", logPrefix);
-            Integer hookNr = compToHook.get(compId);
-            if (hookNr != 1) {
-                LOG.error("{}hook logic exception", logPrefix);
-                throw new RuntimeException("hook logic exception");
-            }
-            preStopNetwork();
-            setupNetwork();
-            startNetwork(false);
-        }
-
-        public void resetRetries() {
-            hookRetry = natConfig.fatalRetries;
+        public ComponentTracker() {
         }
 
         //*************************COMPONENTS***********************************
         private void setup() {
-            setupNetwork();
             if (NatedTrait.isOpen(self)) {
                 setupPMServer();
                 setupHPServer();
@@ -285,7 +200,6 @@ public class NatTraverserComp extends ComponentDefinition {
         }
 
         private void start(boolean started) {
-            startNetwork(started);
             if (!started) {
                 if (NatedTrait.isOpen(self)) {
                     trigger(Start.event, pmServerComp.control());
@@ -298,7 +212,6 @@ public class NatTraverserComp extends ComponentDefinition {
         }
 
         private void preStop() {
-            preStopNetwork();
         }
 
         private void setupPMServer() {
@@ -357,81 +270,6 @@ public class NatTraverserComp extends ComponentDefinition {
             }
         };
 
-    }
-
-    public class NatNetworkHookParent implements Hook.Parent {
-
-        public InetAddress getLocalInterface() {
-            return localIp;
-        }
-    }
-
-    public class NatTraverserProxy implements ComponentProxy {
-
-        @Override
-        public <P extends PortType> Positive<P> requires(Class<P> portType) {
-            return NatTraverserComp.this.requires(portType);
-        }
-
-        @Override
-        public <P extends PortType> Negative<P> provides(Class<P> portType) {
-            return NatTraverserComp.this.provides(portType);
-        }
-
-        @Override
-        public <P extends PortType> void trigger(KompicsEvent e, Port<P> p) {
-            NatTraverserComp.this.trigger(e, p);
-        }
-
-        @Override
-        public <T extends ComponentDefinition> Component create(Class<T> definition, Init<T> initEvent) {
-            return NatTraverserComp.this.create(definition, initEvent);
-        }
-
-        @Override
-        public <T extends ComponentDefinition> Component create(Class<T> definition, Init.None initEvent) {
-            return NatTraverserComp.this.create(definition, initEvent);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative) {
-            return NatTraverserComp.this.connect(negative, positive);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative, ChannelFilter filter) {
-            return NatTraverserComp.this.connect(negative, positive, filter);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive) {
-            return NatTraverserComp.this.connect(positive, negative);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive, ChannelFilter filter) {
-            return NatTraverserComp.this.connect(negative, positive, filter);
-        }
-
-        @Override
-        public <P extends PortType> void disconnect(Negative<P> negative, Positive<P> positive) {
-            NatTraverserComp.this.disconnect(negative, positive);
-        }
-
-        @Override
-        public <P extends PortType> void disconnect(Positive<P> positive, Negative<P> negative) {
-            NatTraverserComp.this.disconnect(negative, positive);
-        }
-
-        @Override
-        public Negative<ControlPort> getControlPort() {
-            return NatTraverserComp.this.control;
-        }
-
-        @Override
-        public <E extends KompicsEvent, P extends PortType> void subscribe(Handler<E> handler, Port<P> port) throws ConfigurationException {
-            NatTraverserComp.this.subscribe(handler, port);
-        }
     }
 
 //*************************TRAFFIC TRACKER**********************************

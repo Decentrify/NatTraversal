@@ -16,23 +16,26 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.nat;
 
-package se.sics.nat.stun;
-
-import java.net.InetAddress;
-import se.sics.kompics.KompicsEvent;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
+import se.sics.ktoolbox.networkmngr.NetworkMngrHooks;
+import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatReady implements KompicsEvent {
-    public NatedTrait nat;
-    public InetAddress publicIp;
-    
-    //TODO ALex change publicIp to optional - if udpBlocked I will not have a publicIp
-    public NatReady(NatedTrait nat, InetAddress publicIp) {
-        this.nat = nat;
-        this.publicIp = publicIp;
+public enum NatSetupHooks {
+
+    IP_SOLVER(NetworkMngrHooks.RequiredHooks.IP_SOLVER.hookName, NetworkMngrHooks.RequiredHooks.IP_SOLVER.hookType),
+    PORT_BINDING(NetworkMngrHooks.RequiredHooks.PORT_BINDING.hookName, NetworkMngrHooks.RequiredHooks.PORT_BINDING.hookType),
+    NETWORK(NetworkMngrHooks.RequiredHooks.NETWORK.hookName, NetworkMngrHooks.RequiredHooks.NETWORK.hookType),
+    UPNP(NatDetectionHooks.RequiredHooks.UPNP.hookName, NatDetectionHooks.RequiredHooks.UPNP.hookType);
+
+    public final String hookName;
+    public final Class<? extends Hook.Definition> hookType;
+
+    NatSetupHooks(String name, Class<? extends Hook.Definition> hookType) {
+        this.hookName = name;
+        this.hookType = hookType;
     }
 }

@@ -17,27 +17,22 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package se.sics.nat;
+package se.sics.nat.stun;
 
-import se.sics.nat.stun.client.StunClientComp;
-import se.sics.p2ptoolbox.util.proxy.Hook;
+import java.net.InetAddress;
+import se.sics.kompics.KompicsEvent;
+import se.sics.p2ptoolbox.util.nat.NatedTrait;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public enum NatRequiredHooks implements Hook.Required {
-    NAT_ADDRESS_SOLVER("NAT_ADDRESS_SOLVER"), 
-    UPNP(NatDetectionComp.RequiredHooks.NAT_UPNP.toString()), 
-    NAT_NETWORK(NatTraverserComp.RequiredHooks.NAT_NETWORK.toString()), 
-    STUN_CLIENT_NETWORK(StunClientComp.RequiredHooks.STUN_CLIENT_NETWORK.toString());
+public class NatDetected implements KompicsEvent {
+    public NatedTrait nat;
+    public InetAddress publicIp;
     
-    String name;
-    NatRequiredHooks(String name) {
-        this.name = name;
-    }
-    
-    @Override
-    public String toString() {
-        return name;
+    //TODO ALex change publicIp to optional - if udpBlocked I will not have a publicIp
+    public NatDetected(NatedTrait nat, InetAddress publicIp) {
+        this.nat = nat;
+        this.publicIp = publicIp;
     }
 }

@@ -19,15 +19,18 @@
 package se.sics.nat.hooks;
 
 import se.sics.kompics.Component;
-import se.sics.nat.NatDetectionComp.NatUpnpHookParent;
+import se.sics.nat.stun.upnp.msg.UpnpReady;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatUpnpHook {
+    public static interface Parent extends Hook.Parent {
+        public void onResult(UpnpReady ready);
+    }
 
-    public static interface Definition extends Hook.Definition<NatUpnpHookParent, SetupInit, SetupResult, StartInit, TearInit> {
+    public static interface Definition extends Hook.Definition<Parent, SetupInit, SetupResult, StartInit, TearInit> {
     }
 
     public static class SetupInit implements Hook.SetupInit {

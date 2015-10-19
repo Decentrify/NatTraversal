@@ -21,8 +21,8 @@ package se.sics.nat.hooks;
 import java.util.UUID;
 import se.sics.kompics.Component;
 import se.sics.kompics.Handler;
+import se.sics.kompics.Kill;
 import se.sics.kompics.Start;
-import se.sics.nat.NatDetectionComp.NatUpnpHookParent;
 import se.sics.nat.hooks.NatUpnpHook.Definition;
 import se.sics.nat.hooks.NatUpnpHook.SetupInit;
 import se.sics.nat.hooks.NatUpnpHook.SetupResult;
@@ -34,7 +34,6 @@ import se.sics.nat.stun.upnp.msg.UpnpReady;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatUpnpHookFactory {
@@ -45,7 +44,7 @@ public class NatUpnpHookFactory {
         return new Definition() {
 
             @Override
-            public NatUpnpHook.SetupResult setup(ComponentProxy hookProxy, final NatUpnpHookParent hookParent,
+            public NatUpnpHook.SetupResult setup(ComponentProxy hookProxy, final NatUpnpHook.Parent hookParent,
                     final SetupInit hookInit) {
                 Component[] comp = new Component[1];
                 comp[0] = hookProxy.create(UpnpComp.class, new UpnpComp.UpnpInit(UPNP_SEED, "nat upnp"));
@@ -59,7 +58,7 @@ public class NatUpnpHookFactory {
             }
 
             @Override
-            public void start(ComponentProxy proxy, NatUpnpHookParent hookParent, SetupResult setupResult,
+            public void start(ComponentProxy proxy, NatUpnpHook.Parent hookParent, SetupResult setupResult,
                     StartInit startInit) {
                 if (!startInit.started) {
                     proxy.trigger(Start.event, setupResult.comp[0].control());
@@ -67,8 +66,9 @@ public class NatUpnpHookFactory {
             }
 
             @Override
-            public void preStop(ComponentProxy proxy, NatUpnpHookParent hookParent, SetupResult setupResult,
+            public void preStop(ComponentProxy proxy, NatUpnpHook.Parent hookParent, SetupResult setupResult,
                     TearInit hookTear) {
+                proxy.trigger(Kill.event, setupResult.comp[0].control());
             }
         };
     }
@@ -77,20 +77,20 @@ public class NatUpnpHookFactory {
         return new Definition() {
 
             @Override
-            public NatUpnpHook.SetupResult setup(ComponentProxy hookProxy, NatUpnpHookParent hookParent,
+            public NatUpnpHook.SetupResult setup(ComponentProxy hookProxy, NatUpnpHook.Parent hookParent,
                     final SetupInit hookInit) {
                 Component[] comp = new Component[0];
                 return new NatUpnpHook.SetupResult(comp);
             }
 
             @Override
-            public void start(ComponentProxy proxy, NatUpnpHookParent hookParent, SetupResult setupResult,
+            public void start(ComponentProxy proxy, NatUpnpHook.Parent hookParent, SetupResult setupResult,
                     StartInit startInit) {
                 hookParent.onResult(new UpnpReady(UUID.randomUUID(), null));
             }
 
             @Override
-            public void preStop(ComponentProxy proxy, NatUpnpHookParent hookParent, SetupResult setupResult,
+            public void preStop(ComponentProxy proxy, NatUpnpHook.Parent hookParent, SetupResult setupResult,
                     TearInit hookTear) {
             }
         };

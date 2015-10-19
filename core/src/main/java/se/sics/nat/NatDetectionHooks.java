@@ -19,15 +19,24 @@
 
 package se.sics.nat;
 
-import se.sics.kompics.PortType;
-import se.sics.nat.stun.NatDetected;
+import se.sics.nat.hooks.NatUpnpHook;
+import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatDetectionPort extends PortType {
-    {
-        indication(NatDetected.class);
+public class NatDetectionHooks {
+    public static final Class<NatUpnpHook.Definition> UPNP_HOOK = NatUpnpHook.Definition.class;
+    
+    public static enum RequiredHooks {
+        UPNP("NAT_UPNP", UPNP_HOOK);
+        
+        public final String hookName;
+        public final Class<? extends Hook.Definition> hookType;
+
+        RequiredHooks(String name, Class<? extends Hook.Definition> hookType) {
+            this.hookName = name;
+            this.hookType = hookType;
+        }
     }
 }

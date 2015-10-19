@@ -28,7 +28,7 @@
         <simulator.version>1.7-SNAPSHOT</simulator.version>
         <croupier.version>1.9-SNAPSHOT</croupier.version>
         <!--helper-->
-        <ipsolver.version>1.1-SNAPSHOT</ipsolver.version>
+        <networkmngr.version>0.0.1-SNAPSHOT</networkmngr.version>
         <chunkmanager.version>1.3-SNAPSHOT</chunkmanager.version>
         
         <logger.version>1.7.5</logger.version>
