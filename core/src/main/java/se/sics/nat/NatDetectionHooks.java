@@ -19,14 +19,14 @@
 
 package se.sics.nat;
 
-import se.sics.nat.hooks.NatUpnpHook;
+import se.sics.nat.stun.upnp.hooks.UpnpHook;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatDetectionHooks {
-    public static final Class<NatUpnpHook.Definition> UPNP_HOOK = NatUpnpHook.Definition.class;
+    public static final Class<UpnpHook.Definition> UPNP_HOOK = UpnpHook.Definition.class;
     
     public static enum RequiredHooks {
         UPNP("NAT_UPNP", UPNP_HOOK);

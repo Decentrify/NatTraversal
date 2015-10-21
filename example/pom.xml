@@ -12,6 +12,11 @@
     
     <dependencies>
         <dependency>
+            <groupId>se.sics.nat</groupId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>se.sics.nat.stun.server</groupId>
             <artifactId>core</artifactId>
             <version>${project.version}</version>

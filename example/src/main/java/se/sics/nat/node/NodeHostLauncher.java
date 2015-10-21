@@ -16,32 +16,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stunserver;
+package se.sics.nat.node;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.ConfigFactory;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Init;
 import se.sics.kompics.Kompics;
-import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 import se.sics.kompics.timer.java.JavaTimer;
 import se.sics.ktoolbox.ipsolver.hooks.IpSolverHookFactory;
-import se.sics.ktoolbox.networkmngr.NetworkMngrComp;
-import se.sics.ktoolbox.networkmngr.NetworkMngrComp.NetworkMngrInit;
 import se.sics.ktoolbox.networkmngr.NetworkMngrHooks;
-import se.sics.ktoolbox.networkmngr.NetworkMngrPort;
 import se.sics.ktoolbox.networkmngr.hooks.NetworkHookFactory;
 import se.sics.ktoolbox.networkmngr.hooks.PortBindingHookFactory;
+import se.sics.nat.NatDetectionHooks;
+import se.sics.nat.node.NodeHostComp.NodeHostInit;
 import se.sics.nat.stun.StunSerializerSetup;
-import se.sics.nat.stun.server.StunServerComp;
-import se.sics.nat.stun.server.StunServerComp.StunServerInit;
-import se.sics.p2ptoolbox.util.config.KConfigCache;
+import se.sics.nat.stun.upnp.hooks.UpnpHook;
+import se.sics.nat.stun.upnp.hooks.UpnpHookFactory;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
@@ -53,30 +48,21 @@ import se.sics.p2ptoolbox.util.traits.AcceptedTraits;
  *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunServerHost extends ComponentDefinition {
+public class NodeHostLauncher extends ComponentDefinition {
 
-    private static final Logger LOG = LoggerFactory.getLogger(StunServerComp.class);
+    private static final Logger LOG = LoggerFactory.getLogger(NodeHostLauncher.class);
     private String logPrefix = "";
 
-    public StunServerHost() {
+    public NodeHostLauncher() {
         KConfigCore config = new KConfigCore(ConfigFactory.load());
         SystemHookSetup systemHooks = new SystemHookSetup();
         systemSetup(config, systemHooks);
 
         this.logPrefix = config.getNodeId() + " ";
-        KConfigCache configCache = new KConfigCache(config);
-        Optional<List> stunPartners = configCache.read(StunServerHostConfig.bootstrap);
-        if (!stunPartners.isPresent() || stunPartners.get().isEmpty()) {
-            LOG.error("{}cannot start with no stun partners");
-            throw new RuntimeException("cannot start with no stun partners");
-        }
 
         Component timer = create(JavaTimer.class, Init.NONE);
-        Component networkMngr = create(NetworkMngrComp.class, new NetworkMngrInit(config, systemHooks));
-        Component stun = create(StunServerComp.class, new StunServerInit(config, stunPartners.get()));
-        connect(stun.getNegative(Timer.class), timer.getPositive(Timer.class));
-        connect(stun.getNegative(Network.class), networkMngr.getPositive(Network.class));
-        connect(stun.getNegative(NetworkMngrPort.class), networkMngr.getPositive(NetworkMngrPort.class));
+        Component nodeHost = create(NodeHostComp.class, new NodeHostInit(config, systemHooks));
+        connect(nodeHost.getNegative(Timer.class), timer.getPositive(Timer.class));
     }
 
     private void systemSetup(KConfigCore config, SystemHookSetup systemHooks) {
@@ -97,6 +83,7 @@ public class StunServerHost extends ComponentDefinition {
         systemHooks.register(NetworkMngrHooks.RequiredHooks.IP_SOLVER.hookName, IpSolverHookFactory.getIpSolver());
         systemHooks.register(NetworkMngrHooks.RequiredHooks.PORT_BINDING.hookName, PortBindingHookFactory.getPortBinder());
         systemHooks.register(NetworkMngrHooks.RequiredHooks.NETWORK.hookName, NetworkHookFactory.getNettyNetwork());
+        systemHooks.register(NatDetectionHooks.RequiredHooks.UPNP.hookName, UpnpHookFactory.getGarageUpnp());
     }
     
     public static void main(String[] args) {
@@ -112,7 +99,7 @@ public class StunServerHost extends ComponentDefinition {
         if (Kompics.isOn()) {
             Kompics.shutdown();
         }
-        Kompics.createAndStart(StunServerHost.class, Runtime.getRuntime().availableProcessors(), 20); // Yes 20 is totally arbitrary
+        Kompics.createAndStart(NodeHostLauncher.class, Runtime.getRuntime().availableProcessors(), 20); // Yes 20 is totally arbitrary
     }
 
     public static void stop() {

@@ -30,9 +30,9 @@ import se.sics.p2ptoolbox.util.nat.NatedTrait;
 public class NatDetectionResult {
 
     private Optional<InetAddress> upnp = Optional.absent();
-    private Pair<NatedTrait, InetAddress> nat = null;
+    private Pair<NatedTrait, Optional<InetAddress>> nat = null;
 
-    public void setNatReady(NatedTrait trait, InetAddress natAdr) {
+    public void setNatReady(NatedTrait trait, Optional<InetAddress> natAdr) {
         nat = Pair.with(trait, natAdr);
     }
 
@@ -44,9 +44,9 @@ public class NatDetectionResult {
         return upnp != null && nat != null;
     }
 
-    public Pair<NatedTrait, InetAddress> getResult() {
+    public Pair<NatedTrait, Optional<InetAddress>> getResult() {
         if (upnp.isPresent()) {
-            return Pair.with(NatedTrait.upnp(), upnp.get());
+            return Pair.with(NatedTrait.upnp(), upnp);
         } else {
             return nat;
         }

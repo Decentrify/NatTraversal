@@ -49,7 +49,11 @@
             <version>${project.version}</version>
         </dependency>
         
-                
+        <dependency>
+            <groupId>se.sics.ktoolbox.networkmngr</groupId>
+            <artifactId>core</artifactId>
+            <version>${networkmngr.version}</version>
+        </dependency>
         <dependency>
             <groupId>se.sics.ktoolbox.croupier</groupId>
             <artifactId>croupier-core</artifactId>

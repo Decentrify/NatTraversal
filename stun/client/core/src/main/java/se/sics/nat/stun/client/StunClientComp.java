@@ -18,6 +18,9 @@
  */
 package se.sics.nat.stun.client;
 
+import com.google.common.base.Optional;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,10 +42,15 @@ import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
+import se.sics.ktoolbox.networkmngr.NetworkMngrConfig;
+import se.sics.ktoolbox.networkmngr.NetworkMngrPort;
+import se.sics.ktoolbox.networkmngr.events.Bind;
 import se.sics.nat.stun.NatDetected;
 import se.sics.nat.stun.StunClientPort;
 import se.sics.nat.stun.client.util.StunSession;
 import se.sics.nat.stun.msg.StunEcho;
+import se.sics.p2ptoolbox.util.config.KConfigCache;
+import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.nat.Nat;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
@@ -68,8 +76,7 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
  * SS2_FAILED | | ----------EchoChangeIpAndPort.Req----------------------->SS1 |
  * ServerHostChangeMsg.Req | SS2_FAILED <------EchoChangeIpAndPort.Resp(Failed
  * SS2)-----(If not Ack'd at SS1) | V SS2 (port 2) | | CHANGE_IP_TIMEOUT
- * <-------(EchoChangeIpAndPort.Resp not revd)----| | | CHANGED_IP,
- * <------(EchoChangeIpAndPort.Resp recvd)---------------| CHANGE_IP_TIMEOUT | |
+ * <-------(EchoChangeIpAndPort.Resp not revd)----| | | CHANGED_IP,  <------(EchoChangeIpAndPort.Resp recvd)---------------| CHANGE_IP_TIMEOUT | |
  * |---------------EchoChangePort.Req-----------------------> SS1 (port 1) |
  * CHANGE_PORT_TIMEOUT <-------(EchoChangePort.Resp not revd)-------| |
  * CHANGED_PORT <------(EchoChangeIpAndPort.Resp recvd)--------------|
@@ -99,36 +106,192 @@ public class StunClientComp extends ComponentDefinition {
 
     private static final Logger LOG = LoggerFactory.getLogger(StunClientComp.class);
     private String logPrefix = "";
-    
-    private final Negative<StunClientPort> stunPort = provides(StunClientPort.class);
-    private final Positive<Network> network = requires(Network.class);
-    private final Positive<Timer> timer = requires(Timer.class);
 
-    private final Pair<DecoratedAddress, DecoratedAddress> self;
-    private final EchoMngr echoMngr;
-    private final StunServerMngr stunServersMngr;
+    private final Negative<StunClientPort> stunPort = provides(StunClientPort.class);
+    private final Positive<Timer> timer = requires(Timer.class);
+    private final Positive<Network> network = requires(Network.class);
+    private final Positive<NetworkMngrPort> networkMngr = requires(NetworkMngrPort.class);
+
+    private final KConfigCache config;
+    private NetworkSetupMngr networkSetupMngr;
+    private StunServerMngr stunServersMngr;
+    private EchoMngr echoMngr;
+    private Pair<DecoratedAddress, DecoratedAddress> self;
 
     public StunClientComp(StunClientInit init) {
-        this.logPrefix = init.self.getValue0().getIp() + "<" + init.self.getValue0().getPort() + "," + init.self.getValue1().getPort() + "> ";
+        this.config = init.config;
+        this.logPrefix = config.getNodeId() + " ";
         LOG.info("{}initiating...", logPrefix);
-        this.self = init.self;
-        this.echoMngr = new EchoMngr();
-        this.stunServersMngr = new StunServerMngr(init.stunServers);
+        this.networkSetupMngr = new NetworkSetupMngr();
 
         subscribe(handleStart, control);
-        subscribe(echoMngr.handleEchoTimeout, timer);
-        subscribe(echoMngr.handleEchoResponse, network);
     }
 
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
-            echoMngr.startEchoSession();
+            networkSetupMngr.start();
+            subscribe(networkSetupMngr.handleConfig, timer);
+            subscribe(networkSetupMngr.handleBind, networkMngr);
         }
     };
 
-    //**************************************************************************
+    private void networkReady(Pair<DecoratedAddress, DecoratedAddress> self) {
+        this.self = self;
+        this.logPrefix = "<" + self.getValue0().getIp().getHostAddress()
+                + ":<" + self.getValue0().getPort() + ":" + self.getValue1().getPort() + ">:"
+                + self.getValue0().getId() + ">";
+        LOG.info("{}network ready, looking for stun servers...", logPrefix);
+        stunServersMngr = new StunServerMngr();
+        stunServersMngr.start();
+    }
+
+    private void stunServersFound() {
+        LOG.info("{}stun servers found, starting nat detection...", logPrefix);
+        echoMngr = new EchoMngr();
+        echoMngr.startEchoSession();
+        subscribe(echoMngr.handleEchoResponse, network);
+        subscribe(echoMngr.handleEchoTimeout, timer);
+    }
+
+    //******************************NETWORK*************************************
+    private class NetworkSetupMngr {
+
+        private UUID configTimeoutId;
+        private InetAddress ip;
+        private Pair<UUID, UUID> bindingSelf;
+        private Pair<DecoratedAddress, DecoratedAddress> adr = Pair.with(null, null);
+
+        void start() {
+
+            LOG.info("{}getting ip", logPrefix);
+            Optional<String> localIp = config.read(NetworkMngrConfig.localIp);
+            if (!localIp.isPresent()) {
+                scheduleConfigTimeout();
+            } else {
+                setIp(localIp.get());
+                bindPorts();
+            }
+        }
+
+        Handler handleConfig = new Handler<ConfigTimeout>() {
+            @Override
+            public void handle(ConfigTimeout event) {
+                Optional<String> localIp = config.read(NetworkMngrConfig.localIp);
+                if (!localIp.isPresent()) {
+                    LOG.error("{}no local ip set in config - check networkMngr", logPrefix);
+                    throw new RuntimeException("no local ip set in config - check networkMngr");
+                } else {
+                    setIp(localIp.get());
+                    bindPorts();
+                }
+            }
+        };
+
+        private void setIp(String sIp) {
+            try {
+                ip = InetAddress.getByName(sIp);
+                logPrefix = "<" + ip.getHostAddress() + ":" + config.getNodeId() + ">";
+                LOG.info("{}ip set, binding ports...", logPrefix);
+            } catch (UnknownHostException ex) {
+                LOG.error("{}ip error:{}", logPrefix, ex.getMessage());
+                throw new RuntimeException("ip error");
+            }
+        }
+
+        private void bindPorts() {
+            Optional<Integer> port1 = config.read(StunClientConfig.stunClientPort1);
+            if (!port1.isPresent()) {
+                LOG.error("{}missing stun client port1", logPrefix);
+                throw new RuntimeException("missing stun server port1");
+            }
+            Optional<Integer> port2 = config.read(StunClientConfig.stunClientPort2);
+            if (!port2.isPresent()) {
+                LOG.error("{}missing stun client port2", logPrefix);
+                throw new RuntimeException("missing stun server port2");
+            }
+            DecoratedAddress adr1 = DecoratedAddress.open(ip, port1.get(), config.getNodeId());
+            DecoratedAddress adr2 = DecoratedAddress.open(ip, port2.get(), config.getNodeId());
+            bindingSelf = Pair.with(UUID.randomUUID(), UUID.randomUUID());
+            LOG.info("{}binding:{}", logPrefix, adr1);
+            trigger(new Bind.Request(bindingSelf.getValue0(), adr1, false), networkMngr);
+            LOG.info("{}binding:{}", logPrefix, adr2);
+            trigger(new Bind.Request(bindingSelf.getValue1(), adr2, false), networkMngr);
+        }
+
+        Handler handleBind = new Handler<Bind.Response>() {
+            @Override
+            public void handle(Bind.Response resp) {
+                if (bindingSelf.getValue0().equals(resp.req.id)) {
+                    LOG.info("{}bound adr1 port:{}", logPrefix, resp.boundPort);
+                    DecoratedAddress adr1 = DecoratedAddress.open(ip, resp.boundPort, config.getNodeId());
+                    adr = Pair.with(adr1, adr.getValue1());
+                } else {
+                    LOG.info("{}bound adr2 port:{}", logPrefix, resp.boundPort);
+                    DecoratedAddress adr2 = DecoratedAddress.open(ip, resp.boundPort, config.getNodeId());
+                    adr = Pair.with(adr.getValue0(), adr2);
+                }
+                if (adr.getValue0() != null && adr.getValue1() != null) {
+                    networkReady(adr);
+                }
+            }
+        };
+
+        private void scheduleConfigTimeout() {
+            if (configTimeoutId != null) {
+                LOG.warn("{} double starting config timeout", logPrefix);
+                return;
+            }
+            ScheduleTimeout spt = new ScheduleTimeout(StunClientConfig.CONFIG_TIMEOUT);
+            ConfigTimeout ct = new ConfigTimeout(spt);
+            spt.setTimeoutEvent(ct);
+            configTimeoutId = ct.getTimeoutId();
+            trigger(spt, timer);
+        }
+
+        private void cancelShuffleTimeout() {
+            if (configTimeoutId == null) {
+                LOG.warn("{} double stopping config timeout", logPrefix);
+            }
+            CancelTimeout cpt = new CancelTimeout(configTimeoutId);
+            configTimeoutId = null;
+            trigger(cpt, timer);
+        }
+    }
+
+    //******************************STUN_SERVERS********************************
+    private class StunServerMngr {
+
+        List<Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>>> stunServers
+                = new ArrayList<>(); //list of <<stun server 2 adr>,<stun server partner 2 adr>>
+
+        public StunServerMngr() {
+        }
+
+        public void start() {
+            Optional<DecoratedAddress> stunServer1Adr1 = config.read(StunClientConfig.stunServer1Adr1);
+            Optional<DecoratedAddress> stunServer1Adr2 = config.read(StunClientConfig.stunServer1Adr2);
+            Optional<DecoratedAddress> stunServer2Adr1 = config.read(StunClientConfig.stunServer2Adr1);
+            Optional<DecoratedAddress> stunServer2Adr2 = config.read(StunClientConfig.stunServer2Adr2);
+
+            if (!stunServer1Adr1.isPresent() || !stunServer1Adr2.isPresent()
+                    || !stunServer2Adr1.isPresent() || !stunServer1Adr2.isPresent()) {
+                LOG.error("{}stun servers incomplete", logPrefix);
+                throw new RuntimeException("stun servers incomplete");
+            }
+            stunServers.add(Pair.with(
+                    Pair.with(stunServer1Adr1.get(), stunServer1Adr2.get()),
+                    Pair.with(stunServer2Adr1.get(), stunServer2Adr2.get())));
+            stunServersFound();
+        }
+
+        public Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> getStunServers() {
+            return stunServers.get(0);
+        }
+    }
+
+    //********************************ECHO**************************************
     private class EchoMngr {
 
         Map<UUID, StunSession> ongoingSessions;
@@ -205,13 +368,14 @@ public class StunClientComp extends ComponentDefinition {
                 LOG.info("{}session result:{}", logPrefix, sessionResult.natState.get());
                 switch (sessionResult.natState.get()) {
                     case UDP_BLOCKED:
-                        trigger(new NatDetected(NatedTrait.udpBlocked(), null), stunPort);
+                        Optional<InetAddress> missing = Optional.absent();
+                        trigger(new NatDetected(NatedTrait.udpBlocked(), missing), stunPort);
                         break;
                     case OPEN:
-                        trigger(new NatDetected(NatedTrait.open(), sessionResult.publicIp.get()), stunPort);
+                        trigger(new NatDetected(NatedTrait.open(), sessionResult.publicIp), stunPort);
                         break;
                     case FIREWALL:
-                        trigger(new NatDetected(NatedTrait.firewall(), sessionResult.publicIp.get()), stunPort);
+                        trigger(new NatDetected(NatedTrait.firewall(), sessionResult.publicIp), stunPort);
                         break;
                     case NAT:
                         LOG.info("{}session result:NAT filter:{} mapping:{} allocation:{}",
@@ -225,7 +389,7 @@ public class StunClientComp extends ComponentDefinition {
                             nat = NatedTrait.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
                                     0, sessionResult.filterPolicy.get(), 10000, new ArrayList<DecoratedAddress>());
                         }
-                        trigger(new NatDetected(nat, sessionResult.publicIp.get()), stunPort);
+                        trigger(new NatDetected(nat, sessionResult.publicIp), stunPort);
                         break;
                     default:
                         LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());
@@ -239,9 +403,9 @@ public class StunClientComp extends ComponentDefinition {
             ContentMsg request = new BasicContentMsg(requestHeader, next.getValue0());
             LOG.debug("{}sending:{} from:{} to:{}",
                     new Object[]{logPrefix, next.getValue0().type, next.getValue1().getValue0().getBase(), next.getValue1().getValue1().getBase()});
-                trigger(request, network);
+            trigger(request, network);
 
-            ScheduleTimeout st = new ScheduleTimeout(StunClientConfig.echoTimeout);
+            ScheduleTimeout st = new ScheduleTimeout(StunClientConfig.ECHO_TIMEOUT);
             EchoTimeout timeout = new EchoTimeout(st, next);
             st.setTimeoutEvent(timeout);
             trigger(st, timer);
@@ -255,38 +419,28 @@ public class StunClientComp extends ComponentDefinition {
         }
     }
 
-    private class StunServerMngr {
-
-        List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
-
-        public StunServerMngr(List<Pair<DecoratedAddress, DecoratedAddress>> stunServers) {
-            this.stunServers = stunServers;
-        }
-
-        public Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> getStunServers() {
-            return Pair.with(stunServers.get(0), stunServers.get(1));
-        }
-    }
-
     public static class StunClientInit extends Init<StunClientComp> {
 
-        public final Pair<DecoratedAddress, DecoratedAddress> self;
-        public final List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
-        
-        public StunClientInit(Pair<DecoratedAddress, DecoratedAddress> startSelf,
-                List<Pair<DecoratedAddress, DecoratedAddress>> stunServers) {
-            this.self = startSelf;
-            this.stunServers = stunServers;
+        public final KConfigCache config;
+
+        public StunClientInit(KConfigCore configCore) {
+            this.config = new KConfigCache(configCore);
         }
     }
 
-    public static class StunClientConfig {
+    private static class ConfigTimeout extends Timeout {
 
-        public static long echoTimeout = 2000;
-        public static int fatalRetries = 5;
+        public ConfigTimeout(ScheduleTimeout request) {
+            super(request);
+        }
+
+        @Override
+        public String toString() {
+            return "CONFIG_TIMEOUT";
+        }
     }
 
-    public static class EchoTimeout extends Timeout {
+    private static class EchoTimeout extends Timeout {
 
         public final Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> echo;
 

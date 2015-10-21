@@ -19,6 +19,7 @@
 
 package se.sics.nat.stun;
 
+import com.google.common.base.Optional;
 import java.net.InetAddress;
 import se.sics.kompics.KompicsEvent;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
@@ -28,10 +29,13 @@ import se.sics.p2ptoolbox.util.nat.NatedTrait;
  */
 public class NatDetected implements KompicsEvent {
     public NatedTrait nat;
-    public InetAddress publicIp;
+    public Optional<InetAddress> publicIp;
     
-    //TODO ALex change publicIp to optional - if udpBlocked I will not have a publicIp
-    public NatDetected(NatedTrait nat, InetAddress publicIp) {
+    /**
+     * @param nat
+     * @param publicIp - optional - missing only if nat - udpBlocked
+     */
+    public NatDetected(NatedTrait nat, Optional<InetAddress> publicIp) {
         this.nat = nat;
         this.publicIp = publicIp;
     }
