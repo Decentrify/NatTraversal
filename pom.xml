@@ -10,12 +10,12 @@
         <module>common</module>
         <module>nat-emulator</module>
         <module>stun</module>
-        <module>parent-maker</module>
-        <module>hp</module>
+        <!--<module>parent-maker</module>-->
+<!--        <module>hp</module>
         <module>core</module>
         <module>network</module>
         <module>helper</module>
-        <module>example</module>
+        <module>example</module>-->
     </modules>
   
     <properties>
@@ -26,10 +26,12 @@
         <kompics.version>0.8.3-SNAPSHOT</kompics.version>
         
         <util.version>1.9-SNAPSHOT</util.version>
-        <simulator.version>1.7-SNAPSHOT</simulator.version>
-        <croupier.version>1.9-SNAPSHOT</croupier.version>
-        <!--helper-->
+        <simulator.version>1.8-SNAPSHOT</simulator.version>
         <networkmngr.version>0.0.1-SNAPSHOT</networkmngr.version>
+        <croupier.version>2.0.1-SNAPSHOT</croupier.version>
+        <overlaymngr.version>0.0.1-SNAPSHOT</overlaymngr.version>
+        <failuredetector.version>0.0.1-SNAPSHOT</failuredetector.version>
+       
         <chunkmanager.version>1.3-SNAPSHOT</chunkmanager.version>
         
         <logger.version>1.7.5</logger.version>

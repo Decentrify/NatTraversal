@@ -19,7 +19,6 @@
 package se.sics.nat.stun.msg;
 
 import com.google.common.base.Optional;
-import java.util.Objects;
 import java.util.UUID;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
@@ -69,6 +68,10 @@ public abstract class StunEcho implements StunMsg {
         public Response answer() {
             return new Response(id, sessionId, type, Optional.absent());
         }
+        
+        public Reset reset() {
+            return new Reset(id, sessionId, type);
+        }
 
         @Override
         public String toString() {
@@ -87,6 +90,18 @@ public abstract class StunEcho implements StunMsg {
         @Override
         public String toString() {
             return "STUN_ECHO_RESP<" + type.toString() + ">";
+        }
+    }
+    
+    public static class Reset extends StunEcho {
+
+        public Reset(UUID id, UUID sessionId, Type type) {
+            super(id, sessionId, type);
+        }
+     
+        @Override
+        public String toString() {
+            return "STUN_ECHO_RESET<" + type.toString() + ">";
         }
     }
 }

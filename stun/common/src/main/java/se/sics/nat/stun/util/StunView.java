@@ -16,30 +16,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stunserver;
+package se.sics.nat.stun.util;
 
-import java.util.HashSet;
-import java.util.Set;
-import se.sics.nat.stun.server.StunServerKConfig;
-import se.sics.p2ptoolbox.util.config.KConfigLevel;
-import se.sics.p2ptoolbox.util.config.options.OpenAddressBootstrapOption;
+import com.google.common.base.Optional;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunServerHostConfig implements KConfigLevel {
-    public final static OpenAddressBootstrapOption bootstrap = new OpenAddressBootstrapOption("stun.server.bootstrap", new StunServerKConfig());
-
-    @Override
-    public Set<String> canWrite() {
-        Set<String> canWrite = new HashSet<>();
-        canWrite.add(toString());
-        return canWrite;
+public class StunView {
+    public final Optional<DecoratedAddress> partner;
+    
+    public StunView(Optional<DecoratedAddress> partner) {
+        this.partner = partner;
     }
-
-    @Override
-    public String toString() {
-        return "StunServerHostConfig";
+    
+    public static StunView empty() {
+        Optional<DecoratedAddress> p = Optional.absent();
+        return new StunView(p);
+    }
+    
+    public static StunView partner(DecoratedAddress partner) {
+        return new StunView(Optional.of(partner));
     }
 }

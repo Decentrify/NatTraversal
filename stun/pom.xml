@@ -12,9 +12,9 @@
     <name>STUN</name>
     <modules>
         <module>common</module>
-        <module>client</module>
         <module>server</module>
-        <module>upnp</module>
+<!--        <module>client</module>
+        <module>upnp</module>-->
         <module>network</module>
     </modules>
 </project>

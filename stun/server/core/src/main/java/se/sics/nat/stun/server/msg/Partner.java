@@ -16,30 +16,29 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stunserver;
+package se.sics.nat.stun.server.msg;
 
-import java.util.HashSet;
-import java.util.Set;
-import se.sics.nat.stun.server.StunServerKConfig;
-import se.sics.p2ptoolbox.util.config.KConfigLevel;
-import se.sics.p2ptoolbox.util.config.options.OpenAddressBootstrapOption;
+import se.sics.nat.stun.msg.StunMsg;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunServerHostConfig implements KConfigLevel {
-    public final static OpenAddressBootstrapOption bootstrap = new OpenAddressBootstrapOption("stun.server.bootstrap", new StunServerKConfig());
-
-    @Override
-    public Set<String> canWrite() {
-        Set<String> canWrite = new HashSet<>();
-        canWrite.add(toString());
-        return canWrite;
+public class Partner {
+    public static class Request implements StunMsg {
+        public Response accept() {
+            return new Response(true);
+        }
+        
+        public Response deny() {
+            return new Response(false);
+        }
     }
-
-    @Override
-    public String toString() {
-        return "StunServerHostConfig";
+    
+    public static class Response implements StunMsg {
+        public final boolean accept;
+        
+        public Response(boolean accept) {
+            this.accept = accept;
+        }
     }
 }

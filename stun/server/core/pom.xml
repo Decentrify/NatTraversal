@@ -1,27 +1,43 @@
 <?xml version="1.0"?>
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>se.sics.nat.stun</groupId>
-    <artifactId>server</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
-  </parent>
-  <groupId>se.sics.nat.stun.server</groupId>
-  <artifactId>core</artifactId>
-  <name>STUN Server Core</name>
-  <url>http://maven.apache.org</url>
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>se.sics.nat.stun</groupId>
+        <artifactId>server</artifactId>
+        <version>0.0.2-SNAPSHOT</version>
+    </parent>
+    <groupId>se.sics.nat.stun.server</groupId>
+    <artifactId>core</artifactId>
+    <name>STUN Server Core</name>
+    <url>http://maven.apache.org</url>
   
-  <dependencies>
-      <dependency>
-          <groupId>se.sics.nat.stun</groupId>
-          <artifactId>common</artifactId>
-          <version>${project.version}</version>
-      </dependency>
-      <dependency>
-          <groupId>se.sics.ktoolbox.networkmngr</groupId>
-          <artifactId>core</artifactId>
-          <version>${networkmngr.version}</version>
-      </dependency>
-  </dependencies>
+    <dependencies>
+        <dependency>
+            <groupId>se.sics.nat.stun</groupId>
+            <artifactId>common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.networkmngr</groupId>
+            <artifactId>core</artifactId>
+            <version>${networkmngr.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.croupier</groupId>
+            <artifactId>croupier-core</artifactId>
+            <version>${croupier.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.overlaymngr</groupId>
+            <artifactId>core</artifactId>
+            <version>${overlaymngr.version}</version>
+        </dependency>
+      
+        <dependency>
+            <groupId>se.sics.ktoolbox.fd</groupId>
+            <artifactId>api</artifactId>
+            <version>${failuredetector.version}</version>
+        </dependency>
+    </dependencies>
 </project>

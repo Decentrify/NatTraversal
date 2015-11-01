@@ -26,9 +26,11 @@ import se.sics.p2ptoolbox.util.config.KConfigOption;
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunServerConfig implements KConfigLevel {
-    public final static KConfigOption.Basic<Integer> stunServerPort1 = new KConfigOption.Basic("stun.server.address.port1", Integer.class, new StunServerConfig());
-    public final static KConfigOption.Basic<Integer> stunServerPort2 = new KConfigOption.Basic("stun.server.address.port2", Integer.class, new StunServerConfig());
+public class StunServerKConfig implements KConfigLevel {
+    public final static KConfigOption.Basic<Integer> stunServerPort1 = new KConfigOption.Basic("stun.server.port1", Integer.class, new StunServerKConfig());
+    public final static KConfigOption.Basic<Integer> stunServerPort2 = new KConfigOption.Basic("stun.server.port2", Integer.class, new StunServerKConfig());
+    public final static KConfigOption.Basic<Integer> globalCroupier = new KConfigOption.Basic("services.globalCroupier", Integer.class, new StunServerKConfig());
+    public final static KConfigOption.Basic<Integer> stunService = new KConfigOption.Basic("services.stun", Integer.class, new StunServerKConfig());
     
     @Override
     public Set<String> canWrite() {
@@ -39,6 +41,6 @@ public class StunServerConfig implements KConfigLevel {
 
     @Override
     public String toString() {
-        return "StunServerConfig";
+        return "StunServerKConfig";
     }
 }

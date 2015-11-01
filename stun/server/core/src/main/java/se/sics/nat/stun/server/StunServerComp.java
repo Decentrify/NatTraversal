@@ -18,11 +18,6 @@
  */
 package se.sics.nat.stun.server;
 
-import com.google.common.base.Optional;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
@@ -31,6 +26,7 @@ import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
+import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.network.Network;
@@ -39,17 +35,23 @@ import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.networkmngr.NetworkMngrConfig;
-import se.sics.ktoolbox.networkmngr.NetworkMngrPort;
-import se.sics.ktoolbox.networkmngr.events.Bind;
+import se.sics.ktoolbox.fd.FailureDetectorPort;
+import se.sics.ktoolbox.fd.event.FDEvent;
+import se.sics.ktoolbox.fd.event.FDEvent.Unfollow;
 import se.sics.nat.stun.msg.StunEcho;
-import se.sics.p2ptoolbox.util.config.KConfigCache;
+import se.sics.nat.stun.server.msg.Partner;
+import se.sics.nat.stun.util.StunView;
+import se.sics.p2ptoolbox.croupier.CroupierPort;
+import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
+import se.sics.p2ptoolbox.croupier.msg.CroupierUpdate;
+import se.sics.p2ptoolbox.util.Container;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.p2ptoolbox.util.update.SelfViewUpdatePort;
 
 /**
  * A partner is required to provide the stun service. Only nodes with the same
@@ -62,136 +64,53 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
  */
 public class StunServerComp extends ComponentDefinition {
 
-    private static final long CONFIG_TIMEOUT = 2000;
-
     private static final Logger LOG = LoggerFactory.getLogger(StunServerComp.class);
     private String logPrefix = "";
 
-    private final Positive<NetworkMngrPort> networkMngr = requires(NetworkMngrPort.class);
-    private final Positive<Network> network = requires(Network.class);
     private final Positive<Timer> timer = requires(Timer.class);
+    private final Positive<Network> network = requires(Network.class);
+    private final Positive<CroupierPort> croupier = requires(CroupierPort.class);
+    private final Negative<SelfViewUpdatePort> croupierView = provides(SelfViewUpdatePort.class);
+    private final Positive<FailureDetectorPort> failureDetector = requires(FailureDetectorPort.class);
 
-    private final KConfigCache config;
-    private final NetworkSetupMngr networkSetupMngr;
+    private final StunServerKCWrapper config;
 
-    private Pair<UUID, UUID> bindingSelf;
     private Pair<DecoratedAddress, DecoratedAddress> self;
-    private final List<DecoratedAddress> partners = new ArrayList<>();
 
-    private UUID configTimeoutId;
     private final EchoMngr echoMngr;
+    private final PartnerMngr partnerMngr;
 
     public StunServerComp(StunServerInit init) {
-        this.config = init.config;
-        this.logPrefix = "<" + config.getNodeId() + "> ";
+        config = init.config;
+        self = init.self;
+        logPrefix = "<" + self.getValue0().getIp().getHostAddress()
+                + ":" + self.getValue0().getPort() + ":" + self.getValue1().getPort()
+                + ":" + self.getValue0().getId() + ">";
         LOG.info("{}initiating...", logPrefix);
-        
-        this.partners.addAll(init.partners);
-        this.networkSetupMngr = new NetworkSetupMngr();
-        this.echoMngr = new EchoMngr();
+
+        echoMngr = new EchoMngr();
+        partnerMngr = new PartnerMngr();
 
         subscribe(handleStart, control);
+        subscribe(partnerMngr.handleSamples, croupier);
+        
     }
 
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
-            networkSetupMngr.start();
+            partnerMngr.start();
         }
     };
-
-    private void stunReady(Pair<DecoratedAddress, DecoratedAddress> self) {
-        this.self = self;
-        this.logPrefix = "<"+ self.getValue0().getIp().getHostAddress()
-                + ":<" + self.getValue0().getPort() + ":" + self.getValue1().getPort() + ">:"
-                + self.getValue0().getId() + ">";
-        LOG.info("{}stun server ready", logPrefix);
-        subscribe(echoMngr.handleEchoRequest, network);
-    }
-
-    private class NetworkSetupMngr {
-
-        private InetAddress ip;
-        private Pair<UUID, UUID> bindingReq;
-        private Pair<DecoratedAddress, DecoratedAddress> adr = Pair.with(null, null);
-
-        void start() {
-            subscribe(handleBind, networkMngr);
-            
-            LOG.info("{}getting ip", logPrefix);
-            Optional<String> localIp = config.read(NetworkMngrConfig.localIp);
-            if (!localIp.isPresent()) {
-                subscribe(handleConfig, timer);
-                scheduleConfigTimeout();
-            } else {
-                setIp(localIp.get());
-                bindPorts();
-            }
-        }
-
-        private void setIp(String sIp) {
-            try {
-                ip = InetAddress.getByName(sIp);
-                logPrefix = "<" + ip.getHostAddress() + ":" + config.getNodeId() + ">";
-                LOG.info("{}ip set, binding ports...", logPrefix);
-            } catch (UnknownHostException ex) {
-                LOG.error("{}ip error:{}", logPrefix, ex.getMessage());
-                throw new RuntimeException("ip error");
-            }
-        }
-
-        Handler handleConfig = new Handler<ConfigTimeout>() {
-            @Override
-            public void handle(ConfigTimeout event) {
-                Optional<String> localIp = config.read(NetworkMngrConfig.localIp);
-                if (!localIp.isPresent()) {
-                    LOG.error("{}no local ip set in config - check networkMngr", logPrefix);
-                    throw new RuntimeException("no local ip set in config - check networkMngr");
-                } else {
-                    setIp(localIp.get());
-                    bindPorts();
-                }
-            }
-        };
-
-        private void bindPorts() {
-            Optional<Integer> port1 = config.read(StunServerConfig.stunServerPort1);
-            if (!port1.isPresent()) {
-                LOG.error("{}missing stun server port1", logPrefix);
-                throw new RuntimeException("missing stun server port1");
-            }
-            Optional<Integer> port2 = config.read(StunServerConfig.stunServerPort2);
-            if (!port2.isPresent()) {
-                LOG.error("{}missing stun server port2", logPrefix);
-                throw new RuntimeException("missing stun server port2");
-            }
-            DecoratedAddress adr1 = DecoratedAddress.open(ip, port1.get(), config.getNodeId());
-            DecoratedAddress adr2 = DecoratedAddress.open(ip, port2.get(), config.getNodeId());
-            bindingSelf = Pair.with(UUID.randomUUID(), UUID.randomUUID());
-            LOG.info("{}binding:{}", logPrefix, adr1);
-            trigger(new Bind.Request(bindingSelf.getValue0(), adr1, false), networkMngr);
-            LOG.info("{}binding:{}", logPrefix, adr2);
-            trigger(new Bind.Request(bindingSelf.getValue1(), adr2, false), networkMngr);
-        }
-
-        Handler handleBind = new Handler<Bind.Response>() {
-            @Override
-            public void handle(Bind.Response resp) {
-                if (bindingSelf.getValue0().equals(resp.req.id)) {
-                    LOG.info("{}bound adr1 port:{}", logPrefix, resp.boundPort);
-                    DecoratedAddress adr1 = DecoratedAddress.open(ip, resp.boundPort, config.getNodeId());
-                    adr = Pair.with(adr1, adr.getValue1());
-                } else {
-                    LOG.info("{}bound adr2 port:{}", logPrefix, resp.boundPort);
-                    DecoratedAddress adr2 = DecoratedAddress.open(ip, resp.boundPort, config.getNodeId());
-                    adr = Pair.with(adr.getValue0(), adr2);
-                }
-                if (adr.getValue0() != null && adr.getValue1() != null) {
-                    stunReady(adr);
-                }
-            }
-        };
+    
+    private void send(Object msg, DecoratedAddress src, DecoratedAddress dst) {
+        DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(
+                src, dst, Transport.UDP), null, null);
+        ContentMsg response = new BasicContentMsg(responseHeader, msg);
+        LOG.trace("{}sending:{} from:{} to:{}", new Object[]{logPrefix, msg,
+            responseHeader.getSource().getBase(), responseHeader.getDestination().getBase()});
+        trigger(response, network);
     }
 
     //**************************************************************************
@@ -202,102 +121,167 @@ public class StunServerComp extends ComponentDefinition {
 
                     @Override
                     public void handle(StunEcho.Request content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Request> container) {
+                        if(partnerMngr.getPartner() == null) {
+                            send(content.reset(), container.getSource(), container.getDestination());
+                            return;
+                        }
                         DecoratedAddress recSelf = container.getDestination();
                         LOG.debug("{}received:{} from:{} on:{}",
                                 new Object[]{logPrefix, content, container.getSource().getBase(), recSelf.getBase()});
                         switch (content.type) {
                             case SIP_SP: {
-                                sendResponse(content.answer(container.getSource()),
-                                        container.getDestination(), container.getSource());
+                                send(content.answer(container.getSource()), container.getDestination(), container.getSource());
                             }
                             break;
                             case SIP_DP: {
-                                sendResponse(content.answer(container.getSource()),
-                                        self.getValue1(), container.getSource());
+                                send(content.answer(container.getSource()), self.getValue1(), container.getSource());
                             }
                             break;
                             case DIP_DP: {
                                 if (container.getSource().getId().equals(content.target.getId())) {
-                                    sendResponse(content, self.getValue0(), getPartner());
+                                    send(content, self.getValue0(), partnerMngr.getPartner());
                                 } else {
-                                    sendResponse(content.answer(), self.getValue1(), content.target);
+                                    send(content.answer(), self.getValue1(), content.target);
                                 }
                             }
                             break;
                         }
                     }
                 };
+    }
 
-        private void sendResponse(StunEcho echo, DecoratedAddress src, DecoratedAddress dst) {
-            DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(
-                    src, dst, Transport.UDP), null, null);
-            ContentMsg response = new BasicContentMsg(responseHeader, echo);
-            LOG.debug("{}sending:{} from:{} to:{}",
-                    new Object[]{logPrefix, echo, responseHeader.getSource().getBase(),
-                        responseHeader.getDestination().getBase()});
-            if (src.equals(self.getValue0())) {
-                trigger(response, network);
-            } else if (src.equals(self.getValue1())) {
-                trigger(response, network);
-            } else {
-                LOG.error("{}unknown self:{}", new Object[]{logPrefix, src});
-                throw new RuntimeException("unknown self:" + src);
-            }
+    private class PartnerMngr {
+
+        private DecoratedAddress partner;
+        private Pair<UUID, DecoratedAddress> pendingPartner;
+
+        void start() {
+            LOG.info("{}looking for partner", logPrefix);
+            trigger(CroupierUpdate.update(StunView.empty()), croupierView);
         }
-    }
 
-    private DecoratedAddress getPartner() {
-        return partners.get(0);
-    }
+        DecoratedAddress getPartner() {
+            return partner;
+        }
 
-    private String getPrefix(Pair<DecoratedAddress, DecoratedAddress> self) {
-        String ret = self.getValue0().getIp().toString();
-        ret += ":<" + self.getValue0().getBase().getPort() + "," + self.getValue1().getBase().getPort() + ">:";
-        ret += self.getValue0().getBase().getId() + " ";
-        return ret;
+        Handler handleSamples = new Handler<CroupierSample<StunView>>() {
+
+            @Override
+            public void handle(CroupierSample<StunView> sample) {
+                if (self.getValue0().getId() % 2 == 1) {
+                    return; // 0s search for partners actively
+                }
+                for (Container<DecoratedAddress, StunView> aux : sample.publicSample) {
+                    if (aux.getSource().getId() % 2 == 1) {
+                        pendingPartner = Pair.with(scheduleMsgTimeout(), aux.getSource());
+                        send(new Partner.Request(), self.getValue0(), pendingPartner.getValue1());
+                        break;
+                    }
+                }
+            }
+        };
+
+        ClassMatchedHandler handlePartnerRequest
+                = new ClassMatchedHandler<Partner.Request, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Partner.Request>>() {
+
+                    @Override
+                    public void handle(Partner.Request content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Partner.Request> container) {
+                        LOG.trace("{}partner request from:{}", new Object[]{logPrefix, container.getSource()});
+                        if (partner == null && pendingPartner == null) {
+                            partner = container.getSource();
+                            LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getBase()});
+                            trigger(new FDEvent.Follow(Pair.with(partner, config.stunService), 
+                                    StunServerComp.this.getComponentCore().id()), failureDetector);
+                            trigger(CroupierUpdate.update(StunView.partner(partner)), croupierView);
+                            send(content.accept(), self.getValue0(), partner);
+                        } else {
+                            send(content.deny(), self.getValue0(), partner);
+                        }
+                    }
+                };
+
+        ClassMatchedHandler handlePartnerResponse
+                = new ClassMatchedHandler<Partner.Response, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Partner.Response>>() {
+
+                    @Override
+                    public void handle(Partner.Response content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Partner.Response> container) {
+                        if (pendingPartner == null || 
+                                !pendingPartner.getValue1().getBase().equals(container.getSource().getBase())) {
+                            LOG.trace("{}late response from:{}", new Object[]{logPrefix, container.getSource().getBase()});
+                            return;
+                        }
+                        LOG.trace("{}partner response from:{}", new Object[]{logPrefix, pendingPartner.getValue1().getBase()});
+                        cancelMsgTimeout(pendingPartner.getValue0());
+                        partner = pendingPartner.getValue1();
+                        LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getBase()});
+                        pendingPartner = null;
+                        trigger(new FDEvent.Follow(Pair.with(partner, config.stunService), 
+                                StunServerComp.this.getComponentCore().id()), failureDetector);
+                        trigger(CroupierUpdate.update(StunView.partner(partner)), croupierView);
+                    }
+                };
+
+        Handler handleMsgTimeout = new Handler<MsgTimeout>() {
+            @Override
+            public void handle(MsgTimeout timeout) {
+                if (pendingPartner == null || !pendingPartner.getValue0().equals(timeout.getTimeoutId())) {
+                    LOG.trace("{}late timeout", logPrefix);
+                    return;
+                }
+                LOG.debug("{}partner:{} response is late", new Object[]{logPrefix, pendingPartner.getValue1().getBase()});
+                pendingPartner = null;
+            }
+        };
+        
+        Handler handleSuspectPartner = new Handler<FDEvent.Suspect>() {
+            @Override
+            public void handle(FDEvent.Suspect suspect) {
+                if(partner == null || !partner.getBase().equals(suspect.target.getValue0().getBase())) {
+                    LOG.warn("{}possible old partner suspected");
+                    trigger(new Unfollow(suspect.target, StunServerComp.this.getComponentCore().id()), failureDetector);
+                    return;
+                }
+                LOG.info("{}partner:{} suspected - resetting", new Object[]{logPrefix, partner.getBase()});
+                partner = null;
+                trigger(new Unfollow(suspect.target, StunServerComp.this.getComponentCore().id()), failureDetector);
+                trigger(CroupierUpdate.update(StunView.empty()), croupierView);
+            }
+        };
     }
 
     public static class StunServerInit extends Init<StunServerComp> {
 
-        public final KConfigCache config;
-        public final List<DecoratedAddress> partners;
+        public final StunServerKCWrapper config;
+        public final Pair<DecoratedAddress, DecoratedAddress> self;
 
-        public StunServerInit(KConfigCore config, List<DecoratedAddress> partners) {
-            this.config = new KConfigCache(config);
-            this.partners = partners;
+        public StunServerInit(KConfigCore config, Pair<DecoratedAddress, DecoratedAddress> self) {
+            this.config = new StunServerKCWrapper(config);
+            this.self = self;
         }
     }
 
-    private void scheduleConfigTimeout() {
-        if (configTimeoutId != null) {
-            LOG.warn("{} double starting config timeout", logPrefix);
-            return;
-        }
-        ScheduleTimeout spt = new ScheduleTimeout(CONFIG_TIMEOUT);
-        ConfigTimeout ct = new ConfigTimeout(spt);
-        spt.setTimeoutEvent(ct);
-        configTimeoutId = ct.getTimeoutId();
+    private UUID scheduleMsgTimeout() {
+        ScheduleTimeout spt = new ScheduleTimeout(config.rtt);
+        MsgTimeout sc = new MsgTimeout(spt);
+        spt.setTimeoutEvent(sc);
         trigger(spt, timer);
+        return sc.getTimeoutId();
     }
 
-    private void cancelShuffleTimeout() {
-        if (configTimeoutId == null) {
-            LOG.warn("{} double stopping config timeout", logPrefix);
-        }
-        CancelTimeout cpt = new CancelTimeout(configTimeoutId);
-        configTimeoutId = null;
+    private void cancelMsgTimeout(UUID tid) {
+        CancelTimeout cpt = new CancelTimeout(tid);
         trigger(cpt, timer);
     }
 
-    public class ConfigTimeout extends Timeout {
+    public class MsgTimeout extends Timeout {
 
-        public ConfigTimeout(ScheduleTimeout request) {
+        public MsgTimeout(ScheduleTimeout request) {
             super(request);
         }
 
         @Override
         public String toString() {
-            return "CONFIG_TIMEOUT";
+            return "STUN_MSG_TIMEOUT";
         }
     }
 }
