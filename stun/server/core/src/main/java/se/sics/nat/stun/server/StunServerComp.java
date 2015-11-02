@@ -39,7 +39,7 @@ import se.sics.ktoolbox.fd.FailureDetectorPort;
 import se.sics.ktoolbox.fd.event.FDEvent;
 import se.sics.ktoolbox.fd.event.FDEvent.Unfollow;
 import se.sics.nat.stun.msg.StunEcho;
-import se.sics.nat.stun.server.msg.Partner;
+import se.sics.nat.stun.msg.server.Partner;
 import se.sics.nat.stun.util.StunView;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
@@ -83,9 +83,7 @@ public class StunServerComp extends ComponentDefinition {
     public StunServerComp(StunServerInit init) {
         config = init.config;
         self = init.self;
-        logPrefix = "<" + self.getValue0().getIp().getHostAddress()
-                + ":" + self.getValue0().getPort() + ":" + self.getValue1().getPort()
-                + ":" + self.getValue0().getId() + ">";
+        logPrefix = "<" + self.getValue0().getId() + "> ";
         LOG.info("{}initiating...", logPrefix);
 
         echoMngr = new EchoMngr();
@@ -93,7 +91,12 @@ public class StunServerComp extends ComponentDefinition {
 
         subscribe(handleStart, control);
         subscribe(partnerMngr.handleSamples, croupier);
+        subscribe(partnerMngr.handlePartnerRequest, network);
+        subscribe(partnerMngr.handlePartnerResponse, network);
+        subscribe(partnerMngr.handleMsgTimeout, timer);
+        subscribe(partnerMngr.handleSuspectPartner, failureDetector);
         
+        subscribe(echoMngr.handleEchoRequest, network);
     }
 
     Handler handleStart = new Handler<Start>() {
@@ -168,13 +171,16 @@ public class StunServerComp extends ComponentDefinition {
 
             @Override
             public void handle(CroupierSample<StunView> sample) {
+                if(partner != null) {
+                    return;
+                }
                 if (self.getValue0().getId() % 2 == 1) {
                     return; // 0s search for partners actively
                 }
                 for (Container<DecoratedAddress, StunView> aux : sample.publicSample) {
                     if (aux.getSource().getId() % 2 == 1) {
                         pendingPartner = Pair.with(scheduleMsgTimeout(), aux.getSource());
-                        send(new Partner.Request(), self.getValue0(), pendingPartner.getValue1());
+                        send(new Partner.Request(UUID.randomUUID()), self.getValue0(), pendingPartner.getValue1());
                         break;
                     }
                 }

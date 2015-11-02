@@ -130,9 +130,7 @@ public class StunServerHostComp extends ComponentDefinition {
             if(self.getValue0() == null || self.getValue1() == null) {
                 return;
             } 
-            logPrefix = "<" + self.getValue0().getIp().getHostAddress()
-                    + ":" + self.getValue0().getPort() + ":"+ self.getValue1().getPort()
-                    + ":" + self.getValue0().getId() + ">";
+            logPrefix = "<" + self.getValue0().getId() + ">";
             LOG.info("{}bound ports", logPrefix, resp.boundPort);
             connectOverlayMngr();
             connectApp();

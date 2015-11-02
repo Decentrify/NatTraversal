@@ -31,6 +31,11 @@ public class StunView {
         this.partner = partner;
     }
     
+    @Override
+    public String toString() {
+        return "partner:" + (partner.isPresent() ? partner.get().getBase().toString() : "x");
+    }
+    
     public static StunView empty() {
         Optional<DecoratedAddress> p = Optional.absent();
         return new StunView(p);

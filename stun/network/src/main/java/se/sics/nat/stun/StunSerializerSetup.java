@@ -22,15 +22,22 @@ package se.sics.nat.stun;
 import se.sics.kompics.network.netty.serialization.Serializers;
 import se.sics.nat.stun.msg.StunEcho;
 import se.sics.nat.stun.msg.StunEchoSerializer;
+import se.sics.nat.stun.msg.StunPartnerSerializer;
+import se.sics.nat.stun.msg.StunViewSerializer;
+import se.sics.nat.stun.msg.server.Partner;
+import se.sics.nat.stun.util.StunView;
 import se.sics.p2ptoolbox.util.serializer.BasicSerializerSetup;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunSerializerSetup {
-    public static int serializerIds = 2;
+    public static int serializerIds = 5;
     
     public static enum StunSerializers {
+        StunView(StunView.class, "stunViewSerializer"),
+        StunPReqSerializer(Partner.Request.class, "stunPReqSerializer"),
+        StunPRespSerializer(Partner.Response.class, "stunPRespSerializer"),
         StunEchoRequest(StunEcho.Request.class, "stunEchoRequestSerializer"),
         StunEchoResponse(StunEcho.Response.class, "stunEchoResponseSerializer");
         
@@ -54,6 +61,18 @@ public class StunSerializerSetup {
     
     public static int registerSerializers(int startingId) {
         int currentId = startingId;
+        
+        StunViewSerializer stunViewSerializer = new StunViewSerializer(currentId++);
+        Serializers.register(stunViewSerializer, StunSerializers.StunView.serializerName);
+        Serializers.register(StunSerializers.StunView.serializedClass, StunSerializers.StunView.serializerName);
+        
+        StunPartnerSerializer.Request stunPReqSerializer = new StunPartnerSerializer.Request(currentId++);
+        Serializers.register(stunPReqSerializer, StunSerializers.StunPReqSerializer.serializerName);
+        Serializers.register(StunSerializers.StunPReqSerializer.serializedClass, StunSerializers.StunPReqSerializer.serializerName);
+        
+        StunPartnerSerializer.Response stunPRespSerializer = new StunPartnerSerializer.Response(currentId++);
+        Serializers.register(stunPRespSerializer, StunSerializers.StunPRespSerializer.serializerName);
+        Serializers.register(StunSerializers.StunPRespSerializer.serializedClass, StunSerializers.StunPRespSerializer.serializerName);
         
         StunEchoSerializer.Request stunEchoRequestSerializer = new StunEchoSerializer.Request(currentId++);
         Serializers.register(stunEchoRequestSerializer, StunSerializers.StunEchoRequest.serializerName);
