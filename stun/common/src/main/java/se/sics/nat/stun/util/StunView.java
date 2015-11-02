@@ -26,28 +26,36 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunView {
-    public final DecoratedAddress selfStunAdr1;
-    public final Optional<DecoratedAddress> partner;
+    public final Pair<DecoratedAddress, DecoratedAddress> selfStunAdr;
+    public final Optional<Pair<DecoratedAddress, DecoratedAddress>> partnerStunAdr;
     
-    public StunView(DecoratedAddress selfStunAdr1, Optional<DecoratedAddress> partner) {
-        this.selfStunAdr1 = selfStunAdr1;
-        this.partner = partner;
+    public StunView(Pair<DecoratedAddress, DecoratedAddress> selfStunAdr, 
+            Optional<Pair<DecoratedAddress, DecoratedAddress>> partnerStunAdr) {
+        this.selfStunAdr = selfStunAdr;
+        this.partnerStunAdr = partnerStunAdr;
     }
     
     @Override
     public String toString() {
-        String toS = "selfStun:<" + selfStunAdr1.getIp().getHostAddress() 
-                + ":" + selfStunAdr1.getPort() + ":" + selfStunAdr1.getId() + "> "
-                + "partner:" + (partner.isPresent() ? partner.get().getBase().toString() : "x");
+        String toS = "selfStun:" + doubleAddressToString(selfStunAdr)
+                + "partner:" + (partnerStunAdr.isPresent() ? doubleAddressToString(partnerStunAdr.get()) : "x");
         return toS;
     }
     
-    public static StunView empty(DecoratedAddress selfStunAdr1) {
-        Optional<DecoratedAddress> p = Optional.absent();
-        return new StunView(selfStunAdr1, p);
+    private String doubleAddressToString(Pair<DecoratedAddress, DecoratedAddress> adr) {
+        String toS = "<" + adr.getValue0().getIp().getHostAddress() 
+                + ":" + adr.getValue0().getPort() + ":" + adr.getValue1().getPort()
+                + adr.getValue0().getId() + "> ";
+        return toS;
     }
     
-    public static StunView partner(DecoratedAddress selfStunAdr1, DecoratedAddress partner) {
-        return new StunView(selfStunAdr1, Optional.of(partner));
+    public static StunView empty(Pair<DecoratedAddress, DecoratedAddress> selfStunAdr) {
+        Optional<Pair<DecoratedAddress, DecoratedAddress>> p = Optional.absent();
+        return new StunView(selfStunAdr, p);
+    }
+    
+    public static StunView partner(Pair<DecoratedAddress, DecoratedAddress> selfStunAdr, 
+            Pair<DecoratedAddress, DecoratedAddress> partnerStunAdr) {
+        return new StunView(selfStunAdr, Optional.of(partnerStunAdr));
     }
 }

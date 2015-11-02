@@ -21,9 +21,11 @@ package se.sics.nat.stun.msg;
 import com.google.common.base.Optional;
 import io.netty.buffer.ByteBuf;
 import java.util.UUID;
+import org.javatuples.Pair;
 import se.sics.kompics.network.netty.serialization.Serializer;
 import se.sics.kompics.network.netty.serialization.Serializers;
-import se.sics.nat.stun.msg.server.Partner;
+import se.sics.nat.stun.msg.server.StunPartner;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  *
@@ -46,14 +48,19 @@ public class StunPartnerSerializer {
 
         @Override
         public void toBinary(Object o, ByteBuf buf) {
-            Partner.Request req = (Partner.Request) o;
+            StunPartner.Request req = (StunPartner.Request) o;
             Serializers.lookupSerializer(UUID.class).toBinary(req.id, buf);
+            Serializers.lookupSerializer(DecoratedAddress.class).toBinary(req.partnerAdr.getValue0(), buf);
+            buf.writeInt(req.partnerAdr.getValue1().getPort());
         }
 
         @Override
         public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
             UUID id = (UUID) Serializers.lookupSerializer(UUID.class).fromBinary(buf, hint);
-            return new Partner.Request(id);
+            DecoratedAddress partnerAdr1 = (DecoratedAddress) Serializers.lookupSerializer(DecoratedAddress.class).fromBinary(buf, hint);
+            int partnerPort2 = buf.readInt();
+            DecoratedAddress partnerAdr2 = partnerAdr1.changePort(partnerPort2);
+            return new StunPartner.Request(id, Pair.with(partnerAdr1, partnerAdr2));
         }
     }
 
@@ -72,16 +79,27 @@ public class StunPartnerSerializer {
 
         @Override
         public void toBinary(Object o, ByteBuf buf) {
-            Partner.Response resp = (Partner.Response)o;
+            StunPartner.Response resp = (StunPartner.Response) o;
             Serializers.lookupSerializer(UUID.class).toBinary(resp.id, buf);
             buf.writeBoolean(resp.accept);
+            if (resp.accept) {
+                Serializers.lookupSerializer(DecoratedAddress.class).toBinary(resp.partnerAdr.get().getValue0(), buf);
+                buf.writeInt(resp.partnerAdr.get().getValue1().getPort());
+            }
         }
 
         @Override
         public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
-            UUID id = (UUID)Serializers.lookupSerializer(UUID.class).fromBinary(buf, hint);
+            UUID id = (UUID) Serializers.lookupSerializer(UUID.class).fromBinary(buf, hint);
             boolean accept = buf.readBoolean();
-            return new Partner.Response(id, accept);
+            if(accept) {
+                DecoratedAddress partnerAdr1 = (DecoratedAddress) Serializers.lookupSerializer(DecoratedAddress.class).fromBinary(buf, hint);
+                int partnerPort2 = buf.readInt();
+                DecoratedAddress partnerAdr2 = partnerAdr1.changePort(partnerPort2);
+                return new StunPartner.Response(id, accept, Optional.of(Pair.with(partnerAdr1, partnerAdr2)));
+            }
+            Optional<Pair<DecoratedAddress, DecoratedAddress>> partnerAdr = Optional.absent();
+            return new StunPartner.Response(id, accept, partnerAdr);
         }
     }
 }

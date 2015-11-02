@@ -60,7 +60,6 @@ import se.sics.nat.hp.server.HPServerComp;
 import se.sics.nat.pm.client.PMClientComp;
 import se.sics.nat.pm.server.PMServerComp;
 import se.sics.nat.pm.server.PMServerPort;
-import se.sics.p2ptoolbox.croupier.CroupierConfig;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.util.config.SystemConfig;
 import se.sics.p2ptoolbox.util.filters.AndFilter;
@@ -99,7 +98,6 @@ public class NatTraverserComp extends ComponentDefinition {
     private final NatTraverserConfig natConfig;
     private final SystemConfig systemConfig;
     private final int globalCroupierOverlayId;
-    private final CroupierConfig croupierConfig;
     private final List<DecoratedAddress> croupierBootstrap;
 
     private DecoratedAddress self;
@@ -115,7 +113,6 @@ public class NatTraverserComp extends ComponentDefinition {
         this.natConfig = init.natConfig;
         this.self = systemConfig.self;
         this.globalCroupierOverlayId = init.globalCroupierOverlayId;
-        this.croupierConfig = init.croupierConfig;
         this.croupierBootstrap = init.croupierBootstrap;
 
         this.logPrefix = self.getBase() + " ";
@@ -638,17 +635,15 @@ public class NatTraverserComp extends ComponentDefinition {
         public final SystemConfig systemConfig;
         public final NatTraverserConfig natConfig;
         public final int globalCroupierOverlayId;
-        public final CroupierConfig croupierConfig;
         public final List<DecoratedAddress> croupierBootstrap;
         public final SystemHookSetup systemHooks;
 
         public NatTraverserInit(InetAddress localIp, SystemConfig systemConfig, NatInitHelper nhInit,
-                CroupierConfig croupierConfig, SystemHookSetup systemHooks) {
+                SystemHookSetup systemHooks) {
             this.localIp = localIp;
             this.systemConfig = systemConfig;
             this.natConfig = nhInit.ntConfig;
             this.globalCroupierOverlayId = nhInit.globalCroupierOverlayId;
-            this.croupierConfig = croupierConfig;
             this.croupierBootstrap = nhInit.croupierBoostrap;
             this.systemHooks = systemHooks;
         }

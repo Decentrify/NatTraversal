@@ -59,5 +59,10 @@
             <artifactId>croupier-core</artifactId>
             <version>${croupier.version}</version>
         </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.overlaymngr</groupId>
+            <artifactId>api</artifactId>
+            <version>${overlaymngr.version}</version>
+        </dependency>
     </dependencies>
 </project>

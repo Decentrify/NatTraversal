@@ -43,6 +43,7 @@ import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
 import se.sics.nat.stun.server.StunServerComp.StunServerInit;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
+import se.sics.p2ptoolbox.croupier.msg.CroupierUpdate;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
@@ -109,7 +110,7 @@ public class StunServerHostComp extends ComponentDefinition {
 
             DecoratedAddress adr1 = DecoratedAddress.open(networkConfig.localIp, config.stunServerPorts.getValue0(), config.system.id);
             DecoratedAddress adr2 = DecoratedAddress.open(networkConfig.localIp, config.stunServerPorts.getValue1(), config.system.id);
-            DecoratedAddress adr3 = DecoratedAddress.open(networkConfig.localIp, config.nodePort, config.system.id);
+            DecoratedAddress adr3 = DecoratedAddress.open(networkConfig.localIp, config.system.port, config.system.id);
 
             binding = Triplet.with(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
             trigger(new Bind.Request(binding.getValue0(), adr1, config.hardBind), networkMngr.getPositive(NetworkMngrPort.class));

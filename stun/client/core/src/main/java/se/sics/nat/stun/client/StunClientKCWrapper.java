@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.server;
+package se.sics.nat.stun.client;
 
 import com.google.common.primitives.Ints;
 import org.javatuples.Pair;
@@ -25,25 +25,26 @@ import se.sics.p2ptoolbox.util.config.KConfigHelper;
 import se.sics.p2ptoolbox.util.config.impl.SystemKCWrapper;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunServerKCWrapper {
-
+public class StunClientKCWrapper {
+    
     public final KConfigCore configCore;
     public final SystemKCWrapper system;
-    public final Pair<Integer, Integer> stunServerPorts;
+    public final Pair<Integer, Integer> stunClientPorts;
     public final boolean hardBind = true;
     public final byte[] globalCroupier;
     public final byte[] stunService;
     public final long rtt = 2000;
-
-    public StunServerKCWrapper(KConfigCore configCore) {
+    public final static long CONFIG_TIMEOUT = 1000;
+    public final static long ECHO_TIMEOUT = 1000;
+    
+    public StunClientKCWrapper(KConfigCore configCore) {
         this.configCore = configCore;
-        this.system = new SystemKCWrapper(configCore);
-        this.stunServerPorts = Pair.with(KConfigHelper.read(configCore, StunServerKConfig.stunServerPort1),
-                KConfigHelper.read(configCore, StunServerKConfig.stunServerPort2));
-        this.globalCroupier = Ints.toByteArray(KConfigHelper.read(configCore, StunServerKConfig.globalCroupier));
-        this.stunService = Ints.toByteArray(KConfigHelper.read(configCore, StunServerKConfig.stunService));
+        system = new SystemKCWrapper(configCore);
+        stunClientPorts = Pair.with(KConfigHelper.read(configCore, StunClientKConfig.stunClientPort1),
+                KConfigHelper.read(configCore, StunClientKConfig.stunClientPort2));
+        globalCroupier = Ints.toByteArray(KConfigHelper.read(configCore, StunClientKConfig.globalCroupier));
+        stunService = Ints.toByteArray(KConfigHelper.read(configCore, StunClientKConfig.stunService));
     }
 }

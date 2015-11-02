@@ -22,24 +22,17 @@ import java.util.HashSet;
 import java.util.Set;
 import se.sics.p2ptoolbox.util.config.KConfigLevel;
 import se.sics.p2ptoolbox.util.config.KConfigOption;
-import se.sics.p2ptoolbox.util.config.options.OpenAddressBootstrapOption;
-import se.sics.p2ptoolbox.util.config.options.OpenAddressOption;
 
 /**
  *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunClientConfig implements KConfigLevel {
-    public final static long CONFIG_TIMEOUT = 1000;
-    public final static long ECHO_TIMEOUT = 1000;
-    public final static KConfigOption.Basic<Integer> stunClientPort1 = new KConfigOption.Basic("stun.client.address.port1", Integer.class, new StunClientConfig());
-    public final static KConfigOption.Basic<Integer> stunClientPort2 = new KConfigOption.Basic("stun.client.address.port2", Integer.class, new StunClientConfig());
-    public final static OpenAddressOption stunServer1Adr1 = new OpenAddressOption("stun.server1.address1", new StunClientConfig());
-    public final static OpenAddressOption stunServer1Adr2 = new OpenAddressOption("stun.server1.address2", new StunClientConfig());
-    public final static OpenAddressOption stunServer2Adr1 = new OpenAddressOption("stun.server2.address1", new StunClientConfig());
-    public final static OpenAddressOption stunServer2Adr2 = new OpenAddressOption("stun.server2.address2", new StunClientConfig());
+public class StunClientKConfig implements KConfigLevel {
+    public final static KConfigOption.Basic<Integer> stunClientPort1 = new KConfigOption.Basic("stun.client.address.port1", Integer.class, new StunClientKConfig());
+    public final static KConfigOption.Basic<Integer> stunClientPort2 = new KConfigOption.Basic("stun.client.address.port2", Integer.class, new StunClientKConfig());
+    public final static KConfigOption.Basic<Integer> globalCroupier = new KConfigOption.Basic("services.globalCroupier", Integer.class, new StunClientKConfig());
+    public final static KConfigOption.Basic<Integer> stunService = new KConfigOption.Basic("services.stun", Integer.class, new StunClientKConfig());
 
-    
     @Override
     public Set<String> canWrite() {
         Set<String> canWrite = new HashSet<>();
@@ -49,6 +42,6 @@ public class StunClientConfig implements KConfigLevel {
 
     @Override
     public String toString() {
-        return "StunClientConfig";
+        return "StunClientKConfig";
     }
 }

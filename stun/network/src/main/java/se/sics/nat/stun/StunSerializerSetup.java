@@ -24,7 +24,7 @@ import se.sics.nat.stun.msg.StunEcho;
 import se.sics.nat.stun.msg.StunEchoSerializer;
 import se.sics.nat.stun.msg.StunPartnerSerializer;
 import se.sics.nat.stun.msg.StunViewSerializer;
-import se.sics.nat.stun.msg.server.Partner;
+import se.sics.nat.stun.msg.server.StunPartner;
 import se.sics.nat.stun.util.StunView;
 import se.sics.p2ptoolbox.util.serializer.BasicSerializerSetup;
 
@@ -36,8 +36,8 @@ public class StunSerializerSetup {
     
     public static enum StunSerializers {
         StunView(StunView.class, "stunViewSerializer"),
-        StunPReqSerializer(Partner.Request.class, "stunPReqSerializer"),
-        StunPRespSerializer(Partner.Response.class, "stunPRespSerializer"),
+        StunPReqSerializer(StunPartner.Request.class, "stunPReqSerializer"),
+        StunPRespSerializer(StunPartner.Response.class, "stunPRespSerializer"),
         StunEchoRequest(StunEcho.Request.class, "stunEchoRequestSerializer"),
         StunEchoResponse(StunEcho.Response.class, "stunEchoResponseSerializer");
         

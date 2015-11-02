@@ -18,38 +18,46 @@
  */
 package se.sics.nat.stun.msg.server;
 
+import com.google.common.base.Optional;
 import java.util.UUID;
+import org.javatuples.Pair;
 import se.sics.nat.stun.msg.StunMsg;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class Partner {
+public class StunPartner {
 
     public static class Request implements StunMsg {
 
         public final UUID id;
+        public final Pair<DecoratedAddress, DecoratedAddress> partnerAdr;
 
-        public Request(UUID id) {
+        public Request(UUID id, Pair<DecoratedAddress, DecoratedAddress> partnerAdr) {
             this.id = id;
+            this.partnerAdr = partnerAdr;
         }
 
-        public Response accept() {
-            return new Response(id, true);
+        public Response accept(Pair<DecoratedAddress, DecoratedAddress> partnerAdr) {
+            return new Response(id, true, Optional.of(partnerAdr));
         }
 
         public Response deny() {
-            return new Response(id, false);
+            Optional<Pair<DecoratedAddress, DecoratedAddress>> noPartner = Optional.absent();
+            return new Response(id, false, noPartner);
         }
     }
 
     public static class Response implements StunMsg {
         public final UUID id;
         public final boolean accept;
+        public final Optional<Pair<DecoratedAddress, DecoratedAddress>> partnerAdr;
 
-        public Response(UUID id, boolean accept) {
+        public Response(UUID id, boolean accept, Optional<Pair<DecoratedAddress, DecoratedAddress>> partnerAdr) {
             this.id = id;
             this.accept = accept;
+            this.partnerAdr = partnerAdr;
         }
     }
 }

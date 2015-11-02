@@ -28,5 +28,15 @@
           <artifactId>core</artifactId>
           <version>${networkmngr.version}</version>
       </dependency>
+      <dependency>
+          <groupId>se.sics.ktoolbox.croupier</groupId>
+          <artifactId>croupier-core</artifactId>
+          <version>${croupier.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>se.sics.ktoolbox.fd</groupId>
+          <artifactId>api</artifactId>
+          <version>${failuredetector.version}</version>
+      </dependency>
   </dependencies>
 </project>

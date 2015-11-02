@@ -39,7 +39,7 @@ import se.sics.ktoolbox.fd.FailureDetectorPort;
 import se.sics.ktoolbox.fd.event.FDEvent;
 import se.sics.ktoolbox.fd.event.FDEvent.Unfollow;
 import se.sics.nat.stun.msg.StunEcho;
-import se.sics.nat.stun.msg.server.Partner;
+import se.sics.nat.stun.msg.server.StunPartner;
 import se.sics.nat.stun.util.StunView;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
@@ -155,16 +155,16 @@ public class StunServerComp extends ComponentDefinition {
 
     private class PartnerMngr {
 
-        private DecoratedAddress partner;
+        private Pair<DecoratedAddress, DecoratedAddress> partner;
         private Pair<UUID, DecoratedAddress> pendingPartner;
 
         void start() {
             LOG.info("{}looking for partner", logPrefix);
-            trigger(CroupierUpdate.update(StunView.empty(self.getValue0())), croupierView);
+            trigger(CroupierUpdate.update(StunView.empty(self)), croupierView);
         }
 
         DecoratedAddress getPartner() {
-            return partner;
+            return partner.getValue0();
         }
 
         Handler handleSamples = new Handler<CroupierSample<StunView>>() {
@@ -179,8 +179,8 @@ public class StunServerComp extends ComponentDefinition {
                 }
                 for (Container<DecoratedAddress, StunView> aux : sample.publicSample) {
                     if (aux.getSource().getId() % 2 == 1) {
-                        pendingPartner = Pair.with(scheduleMsgTimeout(), aux.getContent().selfStunAdr1);
-                        send(new Partner.Request(UUID.randomUUID()), self.getValue0(), pendingPartner.getValue1());
+                        pendingPartner = Pair.with(scheduleMsgTimeout(), aux.getContent().selfStunAdr.getValue0());
+                        send(new StunPartner.Request(UUID.randomUUID(), self), self.getValue0(), pendingPartner.getValue1());
                         break;
                     }
                 }
@@ -188,42 +188,46 @@ public class StunServerComp extends ComponentDefinition {
         };
 
         ClassMatchedHandler handlePartnerRequest
-                = new ClassMatchedHandler<Partner.Request, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Partner.Request>>() {
+                = new ClassMatchedHandler<StunPartner.Request, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunPartner.Request>>() {
 
                     @Override
-                    public void handle(Partner.Request content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Partner.Request> container) {
+                    public void handle(StunPartner.Request content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunPartner.Request> container) {
                         LOG.trace("{}partner request from:{}", new Object[]{logPrefix, container.getSource()});
                         if (partner == null && pendingPartner == null) {
-                            partner = container.getSource();
-                            LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getBase()});
-                            trigger(new FDEvent.Follow(Pair.with(partner, config.stunService), 
+                            partner = content.partnerAdr;
+                            LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getValue0().getBase()});
+                            trigger(new FDEvent.Follow(Pair.with(partner.getValue0(), config.stunService), 
                                     StunServerComp.this.getComponentCore().id()), failureDetector);
-                            trigger(CroupierUpdate.update(StunView.partner(self.getValue0(), partner)), croupierView);
-                            send(content.accept(), self.getValue0(), partner);
+                            trigger(CroupierUpdate.update(StunView.partner(self, partner)), croupierView);
+                            send(content.accept(self), self.getValue0(), partner.getValue0());
                         } else {
-                            send(content.deny(), self.getValue0(), partner);
+                            send(content.deny(), self.getValue0(), partner.getValue0());
                         }
                     }
                 };
 
         ClassMatchedHandler handlePartnerResponse
-                = new ClassMatchedHandler<Partner.Response, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Partner.Response>>() {
+                = new ClassMatchedHandler<StunPartner.Response, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunPartner.Response>>() {
 
                     @Override
-                    public void handle(Partner.Response content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Partner.Response> container) {
+                    public void handle(StunPartner.Response content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunPartner.Response> container) {
                         if (pendingPartner == null || 
                                 !pendingPartner.getValue1().getBase().equals(container.getSource().getBase())) {
                             LOG.trace("{}late response from:{}", new Object[]{logPrefix, container.getSource().getBase()});
                             return;
                         }
-                        LOG.trace("{}partner response from:{}", new Object[]{logPrefix, pendingPartner.getValue1().getBase()});
+                        LOG.trace("{}partner response:{} from:{}", new Object[]{logPrefix, content.accept, 
+                            container.getSource().getBase()});
                         cancelMsgTimeout(pendingPartner.getValue0());
-                        partner = pendingPartner.getValue1();
-                        LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getBase()});
                         pendingPartner = null;
-                        trigger(new FDEvent.Follow(Pair.with(partner, config.stunService), 
+                        if(!content.accept) {
+                            return;
+                        }
+                        partner = content.partnerAdr.get();
+                        LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getValue0().getBase()});
+                        trigger(new FDEvent.Follow(Pair.with(partner.getValue0(), config.stunService), 
                                 StunServerComp.this.getComponentCore().id()), failureDetector);
-                        trigger(CroupierUpdate.update(StunView.partner(self.getValue0(), partner)), croupierView);
+                        trigger(CroupierUpdate.update(StunView.partner(self, partner)), croupierView);
                     }
                 };
 
@@ -242,15 +246,15 @@ public class StunServerComp extends ComponentDefinition {
         Handler handleSuspectPartner = new Handler<FDEvent.Suspect>() {
             @Override
             public void handle(FDEvent.Suspect suspect) {
-                if(partner == null || !partner.getBase().equals(suspect.target.getValue0().getBase())) {
+                if(partner == null || !partner.getValue0().getBase().equals(suspect.target.getValue0().getBase())) {
                     LOG.warn("{}possible old partner suspected");
                     trigger(new Unfollow(suspect.target, StunServerComp.this.getComponentCore().id()), failureDetector);
                     return;
                 }
-                LOG.info("{}partner:{} suspected - resetting", new Object[]{logPrefix, partner.getBase()});
+                LOG.info("{}partner:{} suspected - resetting", new Object[]{logPrefix, partner.getValue0().getBase()});
                 partner = null;
                 trigger(new Unfollow(suspect.target, StunServerComp.this.getComponentCore().id()), failureDetector);
-                trigger(CroupierUpdate.update(StunView.empty(self.getValue0())), croupierView);
+                trigger(CroupierUpdate.update(StunView.empty(self)), croupierView);
             }
         };
     }
