@@ -33,6 +33,7 @@ public class StunServerKCWrapper {
     public final KConfigCore configCore;
     public final SystemKCWrapper system;
     public final Pair<Integer, Integer> stunServerPorts;
+    public final int nodePort;
     public final boolean hardBind = true;
     public final byte[] globalCroupier;
     public final byte[] stunService;
@@ -43,8 +44,8 @@ public class StunServerKCWrapper {
         this.system = new SystemKCWrapper(configCore);
         this.stunServerPorts = Pair.with(KConfigHelper.read(configCore, StunServerKConfig.stunServerPort1),
                 KConfigHelper.read(configCore, StunServerKConfig.stunServerPort2));
+        this.nodePort = KConfigHelper.read(configCore, StunServerKConfig.nodePort);
         this.globalCroupier = Ints.toByteArray(KConfigHelper.read(configCore, StunServerKConfig.globalCroupier));
         this.stunService = Ints.toByteArray(KConfigHelper.read(configCore, StunServerKConfig.stunService));
     }
-
 }

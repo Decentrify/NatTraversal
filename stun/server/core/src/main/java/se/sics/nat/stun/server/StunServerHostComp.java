@@ -20,6 +20,7 @@ package se.sics.nat.stun.server;
 
 import java.util.UUID;
 import org.javatuples.Pair;
+import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.Component;
@@ -60,14 +61,15 @@ public class StunServerHostComp extends ComponentDefinition {
     private final StunServerKCWrapper config;
     private final SystemHookSetup systemHooks;
     private NetworkKCWrapper networkConfig;
-    private Pair<DecoratedAddress, DecoratedAddress> self = Pair.with(null, null);
+    private Pair<DecoratedAddress, DecoratedAddress> stunAdr = Pair.with(null, null);
+    private DecoratedAddress nodeAdr = null;
 
     private Component networkMngr;
     private Component overlayMngr;
     private Component failureDetector; //TODO Alex - create and connect failure detetcor
     private Component stunServer;
 
-    private Pair<UUID, UUID> binding;
+    private Triplet<UUID, UUID, UUID> binding;
 
     public StunServerHostComp(StunServerHostInit init) {
         this.config = init.config;
@@ -107,10 +109,12 @@ public class StunServerHostComp extends ComponentDefinition {
 
             DecoratedAddress adr1 = DecoratedAddress.open(networkConfig.localIp, config.stunServerPorts.getValue0(), config.system.id);
             DecoratedAddress adr2 = DecoratedAddress.open(networkConfig.localIp, config.stunServerPorts.getValue1(), config.system.id);
+            DecoratedAddress adr3 = DecoratedAddress.open(networkConfig.localIp, config.nodePort, config.system.id);
 
-            binding = Pair.with(UUID.randomUUID(), UUID.randomUUID());
+            binding = Triplet.with(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
             trigger(new Bind.Request(binding.getValue0(), adr1, config.hardBind), networkMngr.getPositive(NetworkMngrPort.class));
             trigger(new Bind.Request(binding.getValue1(), adr2, config.hardBind), networkMngr.getPositive(NetworkMngrPort.class));
+            trigger(new Bind.Request(binding.getValue2(), adr3, config.hardBind), networkMngr.getPositive(NetworkMngrPort.class));
             LOG.info("{}waiting for network binding", logPrefix);
         }
     };
@@ -118,20 +122,21 @@ public class StunServerHostComp extends ComponentDefinition {
     Handler handleBindPort = new Handler<Bind.Response>() {
         @Override
         public void handle(Bind.Response resp) {
-            if (binding.getValue0().equals(resp.req.id))  {
-                self = Pair.with(DecoratedAddress.open(networkConfig.localIp, resp.boundPort, config.system.id),
-                        self.getValue1());
-            } else if(binding.getValue1().equals(resp.req.id)) {
-                self = Pair.with(self.getValue0(),
-                        DecoratedAddress.open(networkConfig.localIp, resp.boundPort, config.system.id));
+            if (binding.getValue0().equals(resp.req.id)) {
+                stunAdr = stunAdr.setAt0(DecoratedAddress.open(networkConfig.localIp, resp.boundPort, config.system.id));
+            } else if (binding.getValue1().equals(resp.req.id)) {
+                stunAdr = stunAdr.setAt1(DecoratedAddress.open(networkConfig.localIp, resp.boundPort, config.system.id));
+            } else if (binding.getValue2().equals(resp.req.id)) {
+                nodeAdr = DecoratedAddress.open(networkConfig.localIp, resp.boundPort, config.system.id);
             } else {
                 throw new RuntimeException("logic error in network manager");
             }
-            if(self.getValue0() == null || self.getValue1() == null) {
+            if (stunAdr.getValue0() == null || stunAdr.getValue1() == null || nodeAdr == null) {
                 return;
-            } 
-            logPrefix = "<" + self.getValue0().getId() + ">";
-            LOG.info("{}bound ports", logPrefix, resp.boundPort);
+            }
+            logPrefix = "<" + stunAdr.getValue0().getId() + ">";
+            LOG.info("{}bound ports stun1:{} stun2:{} node:{}", new Object[]{logPrefix, stunAdr.getValue0().getPort(),
+                stunAdr.getValue1().getPort(), nodeAdr.getPort()});
             connectOverlayMngr();
             connectApp();
             setupAppCroupier();
@@ -139,7 +144,7 @@ public class StunServerHostComp extends ComponentDefinition {
     };
 
     private void connectOverlayMngr() {
-        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrInit(config.configCore, self.getValue0()));
+        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrInit(config.configCore, nodeAdr));
         connect(overlayMngr.getNegative(Timer.class), timer);
         connect(overlayMngr.getNegative(Network.class), networkMngr.getPositive(Network.class));
 
@@ -147,7 +152,7 @@ public class StunServerHostComp extends ComponentDefinition {
     }
 
     private void connectApp() {
-        stunServer = create(StunServerComp.class, new StunServerInit(config.configCore, self));
+        stunServer = create(StunServerComp.class, new StunServerInit(config.configCore, stunAdr));
         connect(stunServer.getNegative(Timer.class), timer);
         connect(stunServer.getNegative(Network.class), networkMngr.getPositive(Network.class));
     }

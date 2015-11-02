@@ -29,6 +29,7 @@ import se.sics.p2ptoolbox.util.config.KConfigOption;
 public class StunServerKConfig implements KConfigLevel {
     public final static KConfigOption.Basic<Integer> stunServerPort1 = new KConfigOption.Basic("stun.server.port1", Integer.class, new StunServerKConfig());
     public final static KConfigOption.Basic<Integer> stunServerPort2 = new KConfigOption.Basic("stun.server.port2", Integer.class, new StunServerKConfig());
+    public final static KConfigOption.Basic<Integer> nodePort = new KConfigOption.Basic("node.port", Integer.class, new StunServerKConfig());
     public final static KConfigOption.Basic<Integer> globalCroupier = new KConfigOption.Basic("services.globalCroupier", Integer.class, new StunServerKConfig());
     public final static KConfigOption.Basic<Integer> stunService = new KConfigOption.Basic("services.stun", Integer.class, new StunServerKConfig());
     

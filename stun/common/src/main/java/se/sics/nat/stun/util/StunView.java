@@ -19,29 +19,35 @@
 package se.sics.nat.stun.util;
 
 import com.google.common.base.Optional;
+import org.javatuples.Pair;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunView {
+    public final DecoratedAddress selfStunAdr1;
     public final Optional<DecoratedAddress> partner;
     
-    public StunView(Optional<DecoratedAddress> partner) {
+    public StunView(DecoratedAddress selfStunAdr1, Optional<DecoratedAddress> partner) {
+        this.selfStunAdr1 = selfStunAdr1;
         this.partner = partner;
     }
     
     @Override
     public String toString() {
-        return "partner:" + (partner.isPresent() ? partner.get().getBase().toString() : "x");
+        String toS = "selfStun:<" + selfStunAdr1.getIp().getHostAddress() 
+                + ":" + selfStunAdr1.getPort() + ":" + selfStunAdr1.getId() + "> "
+                + "partner:" + (partner.isPresent() ? partner.get().getBase().toString() : "x");
+        return toS;
     }
     
-    public static StunView empty() {
+    public static StunView empty(DecoratedAddress selfStunAdr1) {
         Optional<DecoratedAddress> p = Optional.absent();
-        return new StunView(p);
+        return new StunView(selfStunAdr1, p);
     }
     
-    public static StunView partner(DecoratedAddress partner) {
-        return new StunView(Optional.of(partner));
+    public static StunView partner(DecoratedAddress selfStunAdr1, DecoratedAddress partner) {
+        return new StunView(selfStunAdr1, Optional.of(partner));
     }
 }

@@ -43,6 +43,7 @@ public class StunViewSerializer implements Serializer {
     @Override
     public void toBinary(Object o, ByteBuf buf) {
         StunView sv = (StunView)o;
+        Serializers.lookupSerializer(DecoratedAddress.class).toBinary(sv.selfStunAdr1, buf);
         buf.writeBoolean(sv.partner.isPresent());
         if(sv.partner.isPresent()) {
             Serializers.lookupSerializer(DecoratedAddress.class).toBinary(sv.partner.get(), buf);
@@ -51,13 +52,13 @@ public class StunViewSerializer implements Serializer {
 
     @Override
     public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
+        DecoratedAddress selfStunAdr1 = (DecoratedAddress)Serializers.lookupSerializer(DecoratedAddress.class).fromBinary(buf, hint);
         boolean withPartner = buf.readBoolean();
         if(withPartner) {
             DecoratedAddress partner = (DecoratedAddress)Serializers.lookupSerializer(DecoratedAddress.class).fromBinary(buf, hint);
-            return StunView.partner(partner);
+            return StunView.partner(selfStunAdr1, partner);
         } else {
-            return StunView.empty();
+            return StunView.empty(selfStunAdr1);
         }
     }
-    
 }
