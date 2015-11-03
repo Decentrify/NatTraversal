@@ -10,11 +10,11 @@
         <module>common</module>
         <module>nat-emulator</module>
         <module>stun</module>
-        <!--<module>parent-maker</module>-->
-<!--        <module>hp</module>
+        <module>parent-maker</module>
+        <module>hp</module>
         <module>core</module>
         <module>network</module>
-        <module>helper</module>
+<!--        <module>helper</module>
         <module>example</module>-->
     </modules>
   

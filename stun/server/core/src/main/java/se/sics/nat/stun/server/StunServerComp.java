@@ -83,7 +83,7 @@ public class StunServerComp extends ComponentDefinition {
     public StunServerComp(StunServerInit init) {
         config = init.config;
         self = init.self;
-        logPrefix = "<" + self.getValue0().getId() + "> ";
+        logPrefix = "<nid:" + self.getValue0().getId() + "> ";
         LOG.info("{}initiating...", logPrefix);
 
         echoMngr = new EchoMngr();

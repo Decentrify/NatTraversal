@@ -125,12 +125,14 @@ public class StunClientComp extends ComponentDefinition {
     public StunClientComp(StunClientInit init) {
         this.config = init.config;
         this.selfAdr = init.selfAdr;
-        this.logPrefix = "<" + config.system.id + "> ";
+        this.logPrefix = "<nid:" + config.system.id + "> ";
         LOG.info("{}initiating...", logPrefix);
 
         stunServersMngr = new StunServerMngr();
 
         subscribe(handleStart, control);
+        subscribe(stunServersMngr.handleStunSample, croupier);
+        subscribe(stunServersMngr.handleSuspect, failureDetector);
     }
 
     Handler handleStart = new Handler<Start>() {

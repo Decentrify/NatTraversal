@@ -75,7 +75,7 @@ public class StunServerHostComp extends ComponentDefinition {
     public StunServerHostComp(StunServerHostInit init) {
         this.config = init.config;
         this.systemHooks = init.systemHooks;
-        this.logPrefix = "<" + config.system.id + "> ";
+        this.logPrefix = "<nid:" + config.system.id + "> ";
         LOG.info("{}initializing with seed:{}", logPrefix, config.system.seed);
 
         subscribe(handleStart, control);
