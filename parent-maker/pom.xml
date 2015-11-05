@@ -15,7 +15,7 @@
         <module>client</module>
         <module>server-api</module>
         <module>server</module>
-        <module>example</module>
-    <module>network</module>
-  </modules>
+<!--        <module>example</module>-->
+        <module>network</module>
+    </modules>
 </project>

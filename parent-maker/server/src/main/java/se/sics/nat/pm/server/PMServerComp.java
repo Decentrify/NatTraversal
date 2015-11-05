@@ -18,12 +18,10 @@
  */
 package se.sics.nat.pm.server;
 
-import com.google.common.collect.Sets;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
+import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.ClassMatchedHandler;
@@ -33,22 +31,28 @@ import se.sics.kompics.Init;
 import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.nat.common.NatTraverserConfig;
-import se.sics.nat.pm.common.PMMsg;
+import se.sics.ktoolbox.fd.FailureDetectorPort;
+import se.sics.ktoolbox.fd.event.FDEvent;
+import se.sics.nat.pm.PMMsg;
+import se.sics.nat.pm.ParentMakerKCWrapper;
 import se.sics.nat.pm.server.msg.Update;
+import se.sics.nat.pm.util.ParentMakerView;
+import se.sics.p2ptoolbox.croupier.CroupierPort;
+import se.sics.p2ptoolbox.croupier.msg.CroupierUpdate;
+import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.p2ptoolbox.util.update.SelfViewUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -58,65 +62,47 @@ public class PMServerComp extends ComponentDefinition {
     private final static Logger LOG = LoggerFactory.getLogger(PMServerComp.class);
     private final String logPrefix;
 
-    private Negative<PMServerPort> parentMaker = provides(PMServerPort.class);
-    private Positive<Network> network = requires(Network.class);
-    private Positive<Timer> timer = requires(Timer.class);
+    private final Negative<PMServerPort> parentMaker = provides(PMServerPort.class);
+    private final Positive<Network> network = requires(Network.class);
+    private final Positive<Timer> timer = requires(Timer.class);
+    private final Positive<CroupierPort> pmCroupier = requires(CroupierPort.class);
+    private final Negative<SelfViewUpdatePort> pmViewUpdate = provides(SelfViewUpdatePort.class);
+    private final Positive<FailureDetectorPort> fd = requires(FailureDetectorPort.class);
 
-    private final NatTraverserConfig config;
+    private final ParentMakerKCWrapper config;
     private DecoratedAddress self;
-    private boolean changed;
-    private final Map<BasicAddress, DecoratedAddress> children;
-    private final Set<BasicAddress> heartbeats; //TODO Alex - check timeouts and rtts
+
+    private final Map<BasicAddress, DecoratedAddress> children = new HashMap<>();
 
     private UUID internalStateCheckId;
-    private UUID heartbeatId;
-    private UUID heartbeatCheckId;
 
     public PMServerComp(PMServerInit init) {
+        this.config = init.config;
         this.self = init.self;
-        this.logPrefix = self.getBase() + " ";
+        this.logPrefix = "<nid:" + self.getId() + "> ";
         LOG.info("{}initiating...", logPrefix);
 
-        this.config = init.config;
-        this.changed = false;
-        this.children = new HashMap<BasicAddress, DecoratedAddress>();
-        this.heartbeats = new HashSet<BasicAddress>();
-
         subscribe(handleStart, control);
-        subscribe(handleStop, control);
         subscribe(handleInternalStateCheck, timer);
         subscribe(handleRegisterReq, network);
         subscribe(handleUnRegister, network);
-        subscribe(handleHeartbeat, network);
-        subscribe(handleHeartbeatTimeout, timer);
-        subscribe(handleHeartbeatCheckTimeout, timer);
+        subscribe(handleSuspectChild, fd);
     }
 
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
+            trigger(CroupierUpdate.update(new ParentMakerView()), pmViewUpdate);
             scheduleInternalStateCheck();
-            scheduleHeartbeat();
-            scheduleHeartbeatCheck();
-        }
-    };
-
-    Handler handleStop = new Handler<Stop>() {
-        @Override
-        public void handle(Stop event) {
-            LOG.info("{}stopping...", logPrefix);
-            cancelInternalStateCheck();
-            cancelHeartbeat();
-            cancelHeartbeatCheck();
         }
     };
 
     Handler handleInternalStateCheck = new Handler<PeriodicInternalStateCheck>() {
         @Override
         public void handle(PeriodicInternalStateCheck event) {
-            LOG.info("{}internal state check - children:{}, heartbeats:{}",
-                    new Object[]{logPrefix, children.size(), heartbeats.size()});
+            LOG.info("{}internal state check - children:{}",
+                    new Object[]{logPrefix, children.size()});
         }
     };
 
@@ -127,8 +113,7 @@ public class PMServerComp extends ComponentDefinition {
                     LOG.info("{}register request from:{}", logPrefix, container.getSource());
                     PMMsg.RegisterResp respContent;
                     if (children.size() < config.nrChildren) {
-                        children.put(container.getSource().getBase(), container.getSource());
-                        changed = true;
+                        addChild(container.getSource());
                         respContent = new PMMsg.RegisterResp(PMMsg.RegisterStatus.ACCEPTED);
                     } else {
                         respContent = new PMMsg.RegisterResp(PMMsg.RegisterStatus.DENIED);
@@ -147,63 +132,52 @@ public class PMServerComp extends ComponentDefinition {
                 public void handle(PMMsg.UnRegister content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister> container) {
                     LOG.info("{}unregister from:{}", logPrefix, container.getSource());
                     if (children.containsKey(container.getSource().getBase())) {
-                        children.remove(container.getSource().getBase());
-                        changed = true;
+                        removeChild(container.getSource());
                     }
                 }
             };
 
-    ClassMatchedHandler handleHeartbeat
-            = new ClassMatchedHandler<PMMsg.Heartbeat, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.Heartbeat>>() {
-                @Override
-                public void handle(PMMsg.Heartbeat content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.Heartbeat> container) {
-                    LOG.debug("{}heartbeat from:{}", logPrefix, container.getSource());
-                    heartbeats.add(container.getSource().getBase());
-                    if(children.containsKey(container.getSource().getBase())) {
-                        children.put(container.getSource().getBase(), container.getSource());
-                    }
-                }
-            };
-
-    Handler handleHeartbeatTimeout = new Handler<PeriodicHeartbeat>() {
+    Handler handleSuspectChild = new Handler<FDEvent.Suspect>() {
         @Override
-        public void handle(PeriodicHeartbeat event) {
-            LOG.debug("{}periodic heartbeat", logPrefix);
-            for (DecoratedAddress parent : children.values()) {
-                LOG.debug("{}heartbeating to child:{}", logPrefix, parent.getBase());
-                DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(self, parent, Transport.UDP), null, null);
-                ContentMsg request = new BasicContentMsg(requestHeader, new PMMsg.Heartbeat());
-                trigger(request, network);
+        public void handle(FDEvent.Suspect event) {
+            if (!children.containsKey(event.target.getValue0().getBase())) {
+                LOG.info("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, event.target.getValue0()});
+                return;
             }
+            LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target.getValue0()});
+            removeChild(event.target.getValue0());
+            DecoratedHeader<DecoratedAddress> msgHeader = new DecoratedHeader(
+                    new BasicHeader(self, event.target.getValue0(), Transport.UDP), null, null);
+            ContentMsg msg = new BasicContentMsg(msgHeader, new PMMsg.UnRegister());
+            trigger(msg, network);
         }
     };
 
-    Handler handleHeartbeatCheckTimeout = new Handler<PeriodicHeartbeatCheck>() {
-        @Override
-        public void handle(PeriodicHeartbeatCheck event) {
-            LOG.debug("{}periodic heartbeat check", logPrefix);
-            Set<BasicAddress> suspected = Sets.difference(children.keySet(), heartbeats);
-            if (!suspected.isEmpty()) {
-                LOG.info("{}removing suspected children:{}", logPrefix, suspected);
-                for (BasicAddress suspectChild : suspected) {
-                    children.remove(suspectChild);
-                }
-                changed = true;
-            }
-            if (changed) {
-                trigger(new Update(new HashMap(children)), parentMaker);
-                changed = false;
-            }
+    private void addChild(DecoratedAddress child) {
+        children.put(child.getBase(), child);
+        trigger(new FDEvent.Follow(Pair.with(child, config.natParentService),
+                PMServerComp.this.getComponentCore().id()), fd);
+        if (children.size() == config.nrChildren) {
+            trigger(CroupierUpdate.observer(), pmViewUpdate);
         }
-    };
+        trigger(new Update(new HashMap(children)), parentMaker);
+    }
+
+    private void removeChild(DecoratedAddress child) {
+        children.remove(child.getBase());
+        trigger(new FDEvent.Unfollow(Pair.with(child, config.natParentService),
+                PMServerComp.this.getComponentCore().id()), fd);
+        trigger(CroupierUpdate.update(new ParentMakerView()), pmViewUpdate);
+        trigger(new Update(new HashMap(children)), parentMaker);
+    }
 
     public static class PMServerInit extends Init<PMServerComp> {
 
-        public final NatTraverserConfig config;
+        public final ParentMakerKCWrapper config;
         public final DecoratedAddress self;
 
-        public PMServerInit(NatTraverserConfig config, DecoratedAddress self) {
-            this.config = config;
+        public PMServerInit(KConfigCore configCore, DecoratedAddress self) {
+            this.config = new ParentMakerKCWrapper(configCore);
             this.self = self;
         }
     }
@@ -231,69 +205,9 @@ public class PMServerComp extends ComponentDefinition {
 
     }
 
-    public static class PeriodicInternalStateCheck extends Timeout {
+    private static class PeriodicInternalStateCheck extends Timeout {
 
         public PeriodicInternalStateCheck(SchedulePeriodicTimeout spt) {
-            super(spt);
-        }
-    }
-
-    private void scheduleHeartbeat() {
-        if (heartbeatId != null) {
-            LOG.warn("{}double starting heartbeat timeout", logPrefix);
-            return;
-        }
-        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(config.heartbeat, config.heartbeat);
-        PeriodicHeartbeat sc = new PeriodicHeartbeat(spt);
-        spt.setTimeoutEvent(sc);
-        heartbeatId = sc.getTimeoutId();
-        trigger(spt, timer);
-    }
-
-    private void cancelHeartbeat() {
-        if (heartbeatId == null) {
-            LOG.warn("{}double stopping heartbeat timeout", logPrefix);
-            return;
-        }
-        CancelPeriodicTimeout cpt = new CancelPeriodicTimeout(heartbeatId);
-        heartbeatId = null;
-        trigger(cpt, timer);
-
-    }
-
-    public static class PeriodicHeartbeat extends Timeout {
-
-        public PeriodicHeartbeat(SchedulePeriodicTimeout spt) {
-            super(spt);
-        }
-    }
-
-    private void scheduleHeartbeatCheck() {
-        if (heartbeatCheckId != null) {
-            LOG.warn("{}double starting heartbeat check timeout", logPrefix);
-            return;
-        }
-        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(2 * config.heartbeat, 2 * config.heartbeat);
-        PeriodicHeartbeatCheck sc = new PeriodicHeartbeatCheck(spt);
-        spt.setTimeoutEvent(sc);
-        heartbeatCheckId = sc.getTimeoutId();
-        trigger(spt, timer);
-    }
-
-    private void cancelHeartbeatCheck() {
-        if (heartbeatCheckId == null) {
-            LOG.warn("{}double stopping heartbeat check timeout", logPrefix);
-            return;
-        }
-        CancelPeriodicTimeout cpt = new CancelPeriodicTimeout(heartbeatCheckId);
-        heartbeatCheckId = null;
-        trigger(cpt, timer);
-
-    }
-
-    public static class PeriodicHeartbeatCheck extends Timeout {
-
-        public PeriodicHeartbeatCheck(SchedulePeriodicTimeout spt) {
             super(spt);
         }
     }

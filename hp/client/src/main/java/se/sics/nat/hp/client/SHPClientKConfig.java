@@ -16,34 +16,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.pm.common;
+package se.sics.nat.hp.client;
 
-import se.sics.kompics.KompicsEvent;
-import se.sics.nat.common.NatMsg;
+import java.util.HashSet;
+import java.util.Set;
+import se.sics.p2ptoolbox.util.config.KConfigLevel;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public interface PMMsg extends KompicsEvent, NatMsg {
-
-    public static class RegisterReq implements PMMsg {
+public class SHPClientKConfig implements KConfigLevel {
+     @Override
+    public Set<String> canWrite() {
+        Set<String> canWrite = new HashSet<>();
+        canWrite.add(toString());
+        return canWrite;
     }
 
-    public static class RegisterResp implements PMMsg {
-        public final RegisterStatus status;
-        
-        public RegisterResp(RegisterStatus status) {
-            this.status = status;
-        }
-    }
-
-    public static class UnRegister implements PMMsg {
-    }
-
-    public static class Heartbeat implements PMMsg {
-    }
-    
-    public static enum RegisterStatus {
-        ACCEPTED, DENIED
+    @Override
+    public String toString() {
+        return "SHPClientKConfig";
     }
 }

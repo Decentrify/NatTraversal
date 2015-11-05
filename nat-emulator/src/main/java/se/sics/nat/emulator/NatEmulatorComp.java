@@ -74,7 +74,7 @@ public class NatEmulatorComp extends ComponentDefinition {
 
     public NatEmulatorComp(NatEmulatorInit init) {
         this.natType = init.natType;
-        this.selfIp = init.selfIp;
+        this.selfIp = init.publicIp;
         this.selfId = init.selfId;
         logPrefix = selfIp.toString() + "<" + natType.toString() + "> ";
         LOG.info("{}initiating", logPrefix);
@@ -216,22 +216,31 @@ public class NatEmulatorComp extends ComponentDefinition {
         }
 
         if (filterPolicy.allow(target, portMappings.getPortActiveConn(publicPort))) {
+           Pair<InetAddress, Integer> mapping = portMappings.getPrivateAddress(publicPort);
+           if(mapping == null) {
+               LOG.warn("{}no mapping for public port:{}, don't know where to forward, dropping", 
+                       new Object[]{logPrefix, publicPort});
+               return Optional.absent();
+           }
             return Optional.of(addresses.get(portMappings.getPrivateAddress(publicPort)));
+        } else {
+            LOG.warn("{}filter policy:{} does not allow this target:{} through public port:{}",
+                    new Object[]{logPrefix, filterPolicy.policy, target, publicPort});
+            return Optional.absent();
         }
-        return Optional.absent();
     }
 
     public static class NatEmulatorInit extends Init<NatEmulatorComp> {
 
         public final long seed;
         public final int selfId;
-        public final InetAddress selfIp;
+        public final InetAddress publicIp;
         public final NatedTrait natType;
 
-        public NatEmulatorInit(long seed, NatedTrait natType, InetAddress selfIp, int selfId) {
+        public NatEmulatorInit(long seed, NatedTrait natType, InetAddress publicIp, int selfId) {
             this.seed = seed;
             this.selfId = selfId;
-            this.selfIp = selfIp;
+            this.publicIp = publicIp;
             this.natType = natType;
         }
     }

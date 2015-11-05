@@ -23,5 +23,15 @@
           <artifactId>common</artifactId>
           <version>${project.version}</version>
       </dependency>
+      <dependency>
+          <groupId>se.sics.ktoolbox.croupier</groupId>
+          <artifactId>croupier-api</artifactId>
+          <version>${croupier.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>se.sics.ktoolbox.fd</groupId>
+          <artifactId>api</artifactId>
+          <version>${failuredetector.version}</version>
+      </dependency>
   </dependencies>
 </project>

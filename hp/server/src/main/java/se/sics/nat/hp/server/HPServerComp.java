@@ -37,9 +37,9 @@ import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.nat.hp.msg.SimpleHolePunching;
-import se.sics.nat.common.NatTraverserConfig;
 import se.sics.nat.pm.server.PMServerPort;
 import se.sics.nat.pm.server.msg.Update;
+import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
@@ -59,8 +59,9 @@ public class HPServerComp extends ComponentDefinition {
     private final Positive<Timer> timer = requires(Timer.class);
     private final Positive<PMServerPort> parentMaker = requires(PMServerPort.class);
 
-    private final NatTraverserConfig config;
+    private final HPServerKCWrapper config;
     private final DecoratedAddress self;
+    
     private Map<BasicAddress, DecoratedAddress> children;
 
     private UUID internalStateCheckId;
@@ -68,7 +69,7 @@ public class HPServerComp extends ComponentDefinition {
     public HPServerComp(HPServerInit init) {
         this.config = init.config;
         this.self = init.self;
-        this.logPrefix = self.getBase() + " ";
+        this.logPrefix = "<nid:" + self.getId() + "> ";
         LOG.info("{}initiating...", logPrefix);
         this.children = new HashMap<BasicAddress, DecoratedAddress>();
 
@@ -131,11 +132,11 @@ public class HPServerComp extends ComponentDefinition {
 
     public static class HPServerInit extends Init<HPServerComp> {
 
-        public final NatTraverserConfig config;
+        public final HPServerKCWrapper config;
         public final DecoratedAddress self;
 
-        public HPServerInit(NatTraverserConfig config, DecoratedAddress self) {
-            this.config = config;
+        public HPServerInit(KConfigCore configCore, DecoratedAddress self) {
+            this.config = new HPServerKCWrapper(configCore);
             this.self = self;
         }
     }
@@ -145,7 +146,7 @@ public class HPServerComp extends ComponentDefinition {
             LOG.warn("{}double starting internal state check timeout", logPrefix);
             return;
         }
-        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(config.internalStateCheck, config.internalStateCheck);
+        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(config.stateCheckTimeout, config.stateCheckTimeout);
         PeriodicInternalStateCheck sc = new PeriodicInternalStateCheck(spt);
         spt.setTimeoutEvent(sc);
         internalStateCheckId = sc.getTimeoutId();

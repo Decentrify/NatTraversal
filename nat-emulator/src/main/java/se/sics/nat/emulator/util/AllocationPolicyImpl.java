@@ -26,7 +26,7 @@ import se.sics.p2ptoolbox.util.nat.Nat;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public abstract class AllocationPolicyImpl {
-
+    
     static int MIN_PORT = 10000;
     static int MAX_PORT = 65000;
 
@@ -46,11 +46,14 @@ public abstract class AllocationPolicyImpl {
                 throw new RuntimeException("unhandled allocation policy:" + allocationPolicy);
         }
     }
+    //**************************************************************************
+    public final Nat.AllocationPolicy policy;
+    public AllocationPolicyImpl(Nat.AllocationPolicy policy) {
+        this.policy = policy;
+    }
 
     //***************************INTERFACE**************************************
     public abstract Integer allocatePort(int privatePort, Set<Integer> allocatedPorts) throws PortAllocationException;
-    //**************************************************************************
-
     public static class PortAllocationException extends Exception {
 
         public PortAllocationException(String msg) {
@@ -58,8 +61,13 @@ public abstract class AllocationPolicyImpl {
         }
     }
 
+    //**************************************************************************
     public static class PortPreservation extends AllocationPolicyImpl {
-
+        
+        public PortPreservation() {
+            super(Nat.AllocationPolicy.PORT_PRESERVATION);
+        }
+       
         @Override
         public Integer allocatePort(int privatePort, Set<Integer> allocatedPorts) throws PortAllocationException {
             if (allocatedPorts.contains(privatePort)) {
@@ -73,6 +81,10 @@ public abstract class AllocationPolicyImpl {
 
         private int nextPort = MIN_PORT;
 
+        public PortContiguity() {
+            super(Nat.AllocationPolicy.PORT_CONTIGUITY);
+        }
+        
         @Override
         public Integer allocatePort(int privatePort, Set<Integer> allocatedPorts) throws PortAllocationException {
             if (allocatedPorts.size() >= maxPorts()) {
@@ -94,6 +106,7 @@ public abstract class AllocationPolicyImpl {
         private Random rand;
 
         public PortRandom(long seed) {
+            super(Nat.AllocationPolicy.RANDOM);
             this.rand = new Random(seed);
         }
 

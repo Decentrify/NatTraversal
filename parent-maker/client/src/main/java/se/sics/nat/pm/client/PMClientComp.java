@@ -18,12 +18,13 @@
  */
 package se.sics.nat.pm.client;
 
-import com.google.common.collect.Sets;
+import se.sics.nat.pm.ParentMakerKCWrapper;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
+import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.ClassMatchedHandler;
@@ -33,20 +34,24 @@ import se.sics.kompics.Init;
 import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.nat.common.NatTraverserConfig;
-import se.sics.nat.pm.common.PMMsg;
+import se.sics.ktoolbox.fd.FailureDetectorPort;
+import se.sics.ktoolbox.fd.event.FDEvent;
+import se.sics.nat.pm.PMMsg;
+import se.sics.nat.pm.util.ParentMakerView;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.croupier.msg.CroupierSample;
+import se.sics.p2ptoolbox.croupier.msg.CroupierUpdate;
 import se.sics.p2ptoolbox.util.Container;
+import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
+import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
@@ -54,6 +59,7 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
 import se.sics.p2ptoolbox.util.update.SelfAddress;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
+import se.sics.p2ptoolbox.util.update.SelfViewUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -63,60 +69,42 @@ public class PMClientComp extends ComponentDefinition {
     private final static Logger LOG = LoggerFactory.getLogger(PMClientComp.class);
     private final String logPrefix;
 
-    private Negative<SelfAddressUpdatePort> parentMaker = provides(SelfAddressUpdatePort.class);
-    private Positive<Network> network = requires(Network.class);
-    private Positive<Timer> timer = requires(Timer.class);
-    private Positive<CroupierPort> croupier = requires(CroupierPort.class);
+    private final Positive<Network> network = requires(Network.class);
+    private final Positive<Timer> timer = requires(Timer.class);
+    private final Positive<CroupierPort> pmCroupier = requires(CroupierPort.class);
+    private final Negative<SelfViewUpdatePort> pmViewUpdate = provides(SelfViewUpdatePort.class); 
+    private final Positive<FailureDetectorPort> fd = requires(FailureDetectorPort.class);
+    private final Negative<SelfAddressUpdatePort> addressUpdate = provides(SelfAddressUpdatePort.class);
+    
 
-    private final NatTraverserConfig config;
+    private final ParentMakerKCWrapper config;
     private DecoratedAddress self;
-    private boolean changed;
-    private final Set<DecoratedAddress> parents;
-    private final Set<DecoratedAddress> heartbeats; //TODO Alex - check timeouts and rtts
+    
+    private final Map<BasicAddress, DecoratedAddress> parents = new HashMap<>();
 
     private UUID insternalStateCheckId;
-    private UUID heartbeatId;
-    private UUID heartbeatCheckId;
 
     public PMClientComp(PMClientInit init) {
+        this.config = init.config;
         this.self = init.self;
-        this.logPrefix = self.getBase() + " ";
+        this.logPrefix = "<nid:" + self.getId() + "> ";
         LOG.info("{}initiating with self:{}", logPrefix, self);
 
-        this.config = init.config;
-        this.changed = true;
-        this.parents = new HashSet<DecoratedAddress>();
-        this.heartbeats = new HashSet<DecoratedAddress>();
-
         subscribe(handleStart, control);
-        subscribe(handleStop, control);
-        subscribe(handleSelfAddressRequest, parentMaker);
+        subscribe(handleSelfAddressRequest, addressUpdate);
         subscribe(handleInternalStateCheck, timer);
-        subscribe(handleCroupierSample, croupier);
+        subscribe(handleParentsSample, pmCroupier);
         subscribe(handleRegisterResp, network);
         subscribe(handleUnRegister, network);
-        subscribe(handleHeartbeat, network);
-        subscribe(handleHeartbeatTimeout, timer);
-        subscribe(handleHeartbeatCheckTimeout, timer);
+        subscribe(handleSuspectParent, fd);
     }
 
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
+            trigger(CroupierUpdate.observer(), pmViewUpdate);
             scheduleInternalStateCheck();
-            scheduleHeartbeat();
-            scheduleHeartbeatCheck();
-        }
-    };
-
-    Handler handleStop = new Handler<Stop>() {
-        @Override
-        public void handle(Stop event) {
-            LOG.info("{}stopping...", logPrefix);
-            cancelInternalStateCheck();
-            cancelHeartbeat();
-            cancelHeartbeatCheck();
         }
     };
 
@@ -131,22 +119,22 @@ public class PMClientComp extends ComponentDefinition {
     Handler handleInternalStateCheck = new Handler<PeriodicInternalStateCheck>() {
         @Override
         public void handle(PeriodicInternalStateCheck event) {
-            LOG.info("{}internal state check - parents:{}, heartbeats:{}",
-                    new Object[]{logPrefix, parents.size(), heartbeats.size()});
+            LOG.info("{}internal state check - parents:{}",
+                    new Object[]{logPrefix, parents.size()});
         }
     };
 
-    Handler handleCroupierSample = new Handler<CroupierSample>() {
+    Handler handleParentsSample = new Handler<CroupierSample<ParentMakerView>>() {
         @Override
-        public void handle(CroupierSample sample) {
-            LOG.debug("{}received sample - \n public:{}",
+        public void handle(CroupierSample<ParentMakerView> sample) {
+            LOG.debug("{}received sample - public:{}",
                     new Object[]{logPrefix, sample.publicSample});
             if (parents.size() < config.nrParents) {
-                int nextParents = 2 * config.nrParents - parents.size();
-                Iterator<Container<DecoratedAddress, Object>> it = sample.publicSample.iterator();
+                int nextParents = config.nrParents - parents.size();
+                Iterator<Container<DecoratedAddress, ParentMakerView>> it = sample.publicSample.iterator();
                 while (it.hasNext() && nextParents > 0) {
                     DecoratedAddress nextParent = it.next().getSource();
-                    if (!parents.contains(nextParent)) {
+                    if (!parents.containsKey(nextParent.getBase())) {
                         LOG.info("{}connecting to parent:{}", logPrefix, nextParent.getBase());
                         DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(self, nextParent, Transport.UDP), null, null);
                         ContentMsg request = new BasicContentMsg(requestHeader, new PMMsg.RegisterReq());
@@ -165,8 +153,7 @@ public class PMClientComp extends ComponentDefinition {
                     if (content.status.equals(PMMsg.RegisterStatus.ACCEPTED)) {
                         if (parents.size() < config.nrParents) {
                             LOG.info("{}register parent:{}", logPrefix, container.getSource());
-                            parents.add(container.getSource());
-                            changed = true;
+                            addParent(container.getSource());
                         }
                     }
                 }
@@ -177,66 +164,55 @@ public class PMClientComp extends ComponentDefinition {
                 @Override
                 public void handle(PMMsg.UnRegister content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister> container) {
                     LOG.info("{}unregister from:{}", logPrefix, container.getSource());
-                    if (parents.contains(container.getSource())) {
-                        parents.remove(container.getSource());
-                        changed = true;
+                    if (parents.containsKey(container.getSource().getBase())) {
+                        removeParent(container.getSource());
                     }
                 }
             };
 
-    ClassMatchedHandler handleHeartbeat
-            = new ClassMatchedHandler<PMMsg.Heartbeat, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.Heartbeat>>() {
-                @Override
-                public void handle(PMMsg.Heartbeat content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.Heartbeat> container) {
-                    LOG.debug("{}heartbeat from:{}", logPrefix, container.getSource());
-                    heartbeats.add(container.getSource());
-                }
-            };
-
-    Handler handleHeartbeatTimeout = new Handler<PeriodicHeartbeat>() {
+    Handler handleSuspectParent = new Handler<FDEvent.Suspect>() {
         @Override
-        public void handle(PeriodicHeartbeat event) {
-            LOG.debug("{}periodic heartbeat", logPrefix);
-            for (DecoratedAddress parent : parents) {
-                LOG.debug("{}heartbeating to parent:{}", logPrefix, parent.getBase());
-                DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(self, parent, Transport.UDP), null, null);
-                ContentMsg request = new BasicContentMsg(requestHeader, new PMMsg.Heartbeat());
-                trigger(request, network);
+        public void handle(FDEvent.Suspect event) {
+            if (!parents.containsKey(event.target.getValue0().getBase())) {
+                LOG.info("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, event.target.getValue0()});
+                return;
             }
+            LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target.getValue0()});
+            removeParent(event.target.getValue0());
+            DecoratedHeader<DecoratedAddress> msgHeader = new DecoratedHeader(
+                    new BasicHeader(self, event.target.getValue0(), Transport.UDP), null, null);
+            ContentMsg msg = new BasicContentMsg(msgHeader, new PMMsg.UnRegister());
+            trigger(msg, network);
         }
     };
 
-    Handler handleHeartbeatCheckTimeout = new Handler<PeriodicHeartbeatCheck>() {
-        @Override
-        public void handle(PeriodicHeartbeatCheck event) {
-            LOG.debug("{}periodic heartbeat check", logPrefix);
-            Set<DecoratedAddress> suspected = Sets.difference(parents, heartbeats);
-            if (!suspected.isEmpty()) {
-                LOG.info("{}removing suspected parents:{}", logPrefix, suspected);
-                parents.removeAll(suspected);
-                changed = true;
-            }
-            if (changed) {
-                updateSelf();
-                LOG.info("{}update self:{}", logPrefix, self);
-                trigger(new SelfAddressUpdate(self), parentMaker);
-            }
-        }
-    };
+    private void addParent(DecoratedAddress child) {
+        parents.put(child.getBase(), child);
+        trigger(new FDEvent.Follow(Pair.with(child, config.natParentService),
+                PMClientComp.this.getComponentCore().id()), fd);
+        updateSelf();
+    }
 
+    private void removeParent(DecoratedAddress child) {
+        parents.remove(child.getBase());
+        trigger(new FDEvent.Unfollow(Pair.with(child, config.natParentService),
+                PMClientComp.this.getComponentCore().id()), fd);
+        updateSelf();
+    }
+    
     private void updateSelf() {
-        NatedTrait nat = self.getTrait(NatedTrait.class).changeParents(new ArrayList<>(parents));
+        NatedTrait nat = self.getTrait(NatedTrait.class).changeParents(new ArrayList<>(parents.values()));
         self = new DecoratedAddress(self.getBase());
         self.addTrait(nat);
-        changed = false;
+        trigger(new SelfAddressUpdate(self), addressUpdate);
     }
     public static class PMClientInit extends Init<PMClientComp> {
 
-        public final NatTraverserConfig config;
+        public final ParentMakerKCWrapper config;
         public final DecoratedAddress self;
 
-        public PMClientInit(NatTraverserConfig config, DecoratedAddress self) {
-            this.config = config;
+        public PMClientInit(KConfigCore configCore, DecoratedAddress self) {
+            this.config = new ParentMakerKCWrapper(configCore);
             this.self = self;
         }
     }
@@ -266,64 +242,6 @@ public class PMClientComp extends ComponentDefinition {
     public static class PeriodicInternalStateCheck extends Timeout {
 
         public PeriodicInternalStateCheck(SchedulePeriodicTimeout spt) {
-            super(spt);
-        }
-    }
-
-    private void scheduleHeartbeat() {
-        if (heartbeatId != null) {
-            LOG.warn("{}double starting heartbeat timeout", logPrefix);
-            return;
-        }
-        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(config.heartbeat, config.heartbeat);
-        PeriodicHeartbeat sc = new PeriodicHeartbeat(spt);
-        spt.setTimeoutEvent(sc);
-        heartbeatId = sc.getTimeoutId();
-        trigger(spt, timer);
-    }
-
-    private void cancelHeartbeat() {
-        if (heartbeatId == null) {
-            LOG.warn("{}double stopping heartbeat timeout", logPrefix);
-            return;
-        }
-        CancelPeriodicTimeout cpt = new CancelPeriodicTimeout(heartbeatId);
-        heartbeatId = null;
-        trigger(cpt, timer);
-    }
-
-    public static class PeriodicHeartbeat extends Timeout {
-
-        public PeriodicHeartbeat(SchedulePeriodicTimeout spt) {
-            super(spt);
-        }
-    }
-
-    private void scheduleHeartbeatCheck() {
-        if (heartbeatCheckId != null) {
-            LOG.warn("{}double starting heartbeat check timeout", logPrefix);
-            return;
-        }
-        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(2 * config.heartbeat, 2 * config.heartbeat);
-        PeriodicHeartbeatCheck sc = new PeriodicHeartbeatCheck(spt);
-        spt.setTimeoutEvent(sc);
-        heartbeatCheckId = sc.getTimeoutId();
-        trigger(spt, timer);
-    }
-
-    private void cancelHeartbeatCheck() {
-        if (heartbeatCheckId == null) {
-            LOG.warn("{}double stopping heartbeat check timeout", logPrefix);
-            return;
-        }
-        CancelPeriodicTimeout cpt = new CancelPeriodicTimeout(heartbeatCheckId);
-        heartbeatCheckId = null;
-        trigger(cpt, timer);
-    }
-
-    public static class PeriodicHeartbeatCheck extends Timeout {
-
-        public PeriodicHeartbeatCheck(SchedulePeriodicTimeout spt) {
             super(spt);
         }
     }
