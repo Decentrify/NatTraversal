@@ -50,18 +50,13 @@
         </dependency>
         
         <dependency>
-            <groupId>se.sics.ktoolbox.networkmngr</groupId>
-            <artifactId>core</artifactId>
-            <version>${networkmngr.version}</version>
-        </dependency>
-        <dependency>
             <groupId>se.sics.ktoolbox.croupier</groupId>
             <artifactId>croupier-core</artifactId>
             <version>${croupier.version}</version>
         </dependency>
         <dependency>
             <groupId>se.sics.ktoolbox.overlaymngr</groupId>
-            <artifactId>api</artifactId>
+            <artifactId>core</artifactId>
             <version>${overlaymngr.version}</version>
         </dependency>
     </dependencies>

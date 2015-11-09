@@ -33,3 +33,6 @@
 /hp/network/target/
 /helper/target/
 /example/lib/
+/network-mngr/api/target/
+/network-mngr/core/target/
+/network-mngr/example/target/

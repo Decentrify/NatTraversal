@@ -196,7 +196,7 @@ public class StunServerComp extends ComponentDefinition {
                         if (partner == null && pendingPartner == null) {
                             partner = content.partnerAdr;
                             LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getValue0().getBase()});
-                            trigger(new FDEvent.Follow(Pair.with(partner.getValue0(), config.stunService), 
+                            trigger(new FDEvent.Follow(partner.getValue0(), config.stunService, 
                                     StunServerComp.this.getComponentCore().id()), failureDetector);
                             trigger(CroupierUpdate.update(StunView.partner(self, partner)), croupierView);
                             send(content.accept(self), self.getValue0(), partner.getValue0());
@@ -225,7 +225,7 @@ public class StunServerComp extends ComponentDefinition {
                         }
                         partner = content.partnerAdr.get();
                         LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getValue0().getBase()});
-                        trigger(new FDEvent.Follow(Pair.with(partner.getValue0(), config.stunService), 
+                        trigger(new FDEvent.Follow(partner.getValue0(), config.stunService, 
                                 StunServerComp.this.getComponentCore().id()), failureDetector);
                         trigger(CroupierUpdate.update(StunView.partner(self, partner)), croupierView);
                     }
@@ -246,14 +246,16 @@ public class StunServerComp extends ComponentDefinition {
         Handler handleSuspectPartner = new Handler<FDEvent.Suspect>() {
             @Override
             public void handle(FDEvent.Suspect suspect) {
-                if(partner == null || !partner.getValue0().getBase().equals(suspect.target.getValue0().getBase())) {
+                if(partner == null || !partner.getValue0().getBase().equals(suspect.target.getBase())) {
                     LOG.warn("{}possible old partner suspected");
-                    trigger(new Unfollow(suspect.target, StunServerComp.this.getComponentCore().id()), failureDetector);
+                    trigger(new Unfollow(suspect.target, config.stunService,
+                            StunServerComp.this.getComponentCore().id()), failureDetector);
                     return;
                 }
                 LOG.info("{}partner:{} suspected - resetting", new Object[]{logPrefix, partner.getValue0().getBase()});
                 partner = null;
-                trigger(new Unfollow(suspect.target, StunServerComp.this.getComponentCore().id()), failureDetector);
+                trigger(new Unfollow(suspect.target, config.stunService,
+                        StunServerComp.this.getComponentCore().id()), failureDetector);
                 trigger(CroupierUpdate.update(StunView.empty(self)), croupierView);
             }
         };

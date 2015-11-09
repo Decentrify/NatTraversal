@@ -2,7 +2,7 @@
  * Copyright (C) 2009 Swedish Institute of Computer Science (SICS) Copyright (C)
  * 2009 Royal Institute of Technology (KTH)
  *
- * NatTraverser is free software; you can redistribute it and/or
+ * KompicsToolbox is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
@@ -16,10 +16,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat;
+package se.sics.nat.network;
 
-import com.google.common.primitives.Ints;
-import se.sics.nat.pm.ParentMakerKCWrapper;
+import com.google.common.base.Optional;
+import java.net.InetAddress;
+import java.util.List;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.config.KConfigHelper;
 import se.sics.p2ptoolbox.util.config.impl.SystemKCWrapper;
@@ -27,18 +28,28 @@ import se.sics.p2ptoolbox.util.config.impl.SystemKCWrapper;
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatTraverserKCWrapper {
+public class NetworkMngrKCWrapper {
     public final KConfigCore configCore;
     public final SystemKCWrapper system;
-    public final ParentMakerKCWrapper parentMaker;
-    public final byte[] natTraverserService;
-    public final long heartbeatTimeout = 2000;
-    public final long stateCheckTimeout = 30000;
-
-    public NatTraverserKCWrapper(KConfigCore configCore) {
-        this.configCore = configCore;
-        system = new SystemKCWrapper(configCore);
-        parentMaker = new ParentMakerKCWrapper(configCore);
-        natTraverserService = Ints.toByteArray(KConfigHelper.read(configCore, NatTraverserKConfig.natTraverserService));
+    public final Optional<String> rPrefferedInterface;
+    public final List rPrefferedInterfaces;
+    public InetAddress localIp;
+    public InetAddress publicIp;
+    
+    public NetworkMngrKCWrapper(KConfigCore config) {
+        this.configCore = config;
+        this.system = new SystemKCWrapper(config);
+        this.rPrefferedInterface = config.readValue(NetworkMngrKConfig.prefferedInterface);
+        this.rPrefferedInterfaces = KConfigHelper.read(config, NetworkMngrKConfig.prefferedMasks);
+    }
+    
+    public void setLocalIp(InetAddress localIp) {
+        this.localIp = localIp;
+        configCore.writeValue(NetworkKConfig.localIp, localIp);
+    }
+    
+    public void setPublicIp(InetAddress publicIp) {
+        this.publicIp = publicIp;
+        configCore.writeValue(NetworkKConfig.publicIp, publicIp);
     }
 }

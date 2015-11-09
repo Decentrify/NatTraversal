@@ -21,7 +21,6 @@ package se.sics.nat.pm.server;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.ClassMatchedHandler;
@@ -140,14 +139,14 @@ public class PMServerComp extends ComponentDefinition {
     Handler handleSuspectChild = new Handler<FDEvent.Suspect>() {
         @Override
         public void handle(FDEvent.Suspect event) {
-            if (!children.containsKey(event.target.getValue0().getBase())) {
-                LOG.info("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, event.target.getValue0()});
+            if (!children.containsKey(event.target.getBase())) {
+                LOG.info("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, event.target});
                 return;
             }
-            LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target.getValue0()});
-            removeChild(event.target.getValue0());
+            LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target});
+            removeChild(event.target);
             DecoratedHeader<DecoratedAddress> msgHeader = new DecoratedHeader(
-                    new BasicHeader(self, event.target.getValue0(), Transport.UDP), null, null);
+                    new BasicHeader(self, event.target, Transport.UDP), null, null);
             ContentMsg msg = new BasicContentMsg(msgHeader, new PMMsg.UnRegister());
             trigger(msg, network);
         }
@@ -155,8 +154,7 @@ public class PMServerComp extends ComponentDefinition {
 
     private void addChild(DecoratedAddress child) {
         children.put(child.getBase(), child);
-        trigger(new FDEvent.Follow(Pair.with(child, config.natParentService),
-                PMServerComp.this.getComponentCore().id()), fd);
+        trigger(new FDEvent.Follow(child, config.natParentService, PMServerComp.this.getComponentCore().id()), fd);
         if (children.size() == config.nrChildren) {
             trigger(CroupierUpdate.observer(), pmViewUpdate);
         }
@@ -165,8 +163,7 @@ public class PMServerComp extends ComponentDefinition {
 
     private void removeChild(DecoratedAddress child) {
         children.remove(child.getBase());
-        trigger(new FDEvent.Unfollow(Pair.with(child, config.natParentService),
-                PMServerComp.this.getComponentCore().id()), fd);
+        trigger(new FDEvent.Unfollow(child, config.natParentService, PMServerComp.this.getComponentCore().id()), fd);
         trigger(CroupierUpdate.update(new ParentMakerView()), pmViewUpdate);
         trigger(new Update(new HashMap(children)), parentMaker);
     }

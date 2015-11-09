@@ -19,6 +19,7 @@
 package se.sics.nat.stun.server;
 
 import com.google.common.primitives.Ints;
+import java.nio.ByteBuffer;
 import org.javatuples.Pair;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.config.KConfigHelper;
@@ -34,8 +35,8 @@ public class StunServerKCWrapper {
     public final SystemKCWrapper system;
     public final Pair<Integer, Integer> stunServerPorts;
     public final boolean hardBind = true;
-    public final byte[] globalCroupier;
-    public final byte[] stunService;
+    public final ByteBuffer globalCroupier;
+    public final ByteBuffer stunService;
     public final long rtt = 2000;
 
     public StunServerKCWrapper(KConfigCore configCore) {
@@ -43,7 +44,7 @@ public class StunServerKCWrapper {
         this.system = new SystemKCWrapper(configCore);
         this.stunServerPorts = Pair.with(KConfigHelper.read(configCore, StunServerKConfig.stunServerPort1),
                 KConfigHelper.read(configCore, StunServerKConfig.stunServerPort2));
-        this.globalCroupier = Ints.toByteArray(KConfigHelper.read(configCore, StunServerKConfig.globalCroupier));
-        this.stunService = Ints.toByteArray(KConfigHelper.read(configCore, StunServerKConfig.stunService));
+        this.globalCroupier = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, StunServerKConfig.globalCroupier)));
+        this.stunService = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, StunServerKConfig.stunService)));
     }
 }

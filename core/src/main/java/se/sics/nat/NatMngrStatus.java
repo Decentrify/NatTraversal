@@ -16,29 +16,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.pm;
+package se.sics.nat;
 
-import com.google.common.primitives.Ints;
-import java.nio.ByteBuffer;
-import se.sics.p2ptoolbox.util.config.KConfigCore;
-import se.sics.p2ptoolbox.util.config.KConfigHelper;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class ParentMakerKCWrapper {
+public class NatMngrStatus {
 
-    public final KConfigCore configCore;
-    public final ByteBuffer globalCroupier;
-    public final ByteBuffer natParentService;
-    public final long heartbeatTimeout = 2000;
-    public final long internalStateCheck = 30000;
-    public final int nrParents = 2;
-    public final int nrChildren = 5;
+    public static class Phase1 {
 
-    public ParentMakerKCWrapper(KConfigCore configCore) {
-        this.configCore = configCore;
-        this.globalCroupier = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, ParentMakerKConfig.globalCroupier)));
-        this.natParentService = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, ParentMakerKConfig.natParentService)));
+        public final DecoratedAddress systemAdr;
+
+        public Phase1(DecoratedAddress systemAdr) {
+            this.systemAdr = systemAdr;
+        }
+    }
+
+    public static class Phase2 {
+
     }
 }

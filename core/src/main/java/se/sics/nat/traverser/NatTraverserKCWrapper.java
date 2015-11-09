@@ -16,29 +16,30 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.pm;
+package se.sics.nat.traverser;
 
 import com.google.common.primitives.Ints;
 import java.nio.ByteBuffer;
+import se.sics.nat.pm.ParentMakerKCWrapper;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.config.KConfigHelper;
+import se.sics.p2ptoolbox.util.config.impl.SystemKCWrapper;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class ParentMakerKCWrapper {
-
+public class NatTraverserKCWrapper {
     public final KConfigCore configCore;
-    public final ByteBuffer globalCroupier;
-    public final ByteBuffer natParentService;
+    public final SystemKCWrapper system;
+    public final ParentMakerKCWrapper parentMaker;
+    public final ByteBuffer natTraverserService;
     public final long heartbeatTimeout = 2000;
-    public final long internalStateCheck = 30000;
-    public final int nrParents = 2;
-    public final int nrChildren = 5;
+    public final long stateCheckTimeout = 30000;
 
-    public ParentMakerKCWrapper(KConfigCore configCore) {
+    public NatTraverserKCWrapper(KConfigCore configCore) {
         this.configCore = configCore;
-        this.globalCroupier = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, ParentMakerKConfig.globalCroupier)));
-        this.natParentService = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, ParentMakerKConfig.natParentService)));
+        system = new SystemKCWrapper(configCore);
+        parentMaker = new ParentMakerKCWrapper(configCore);
+        natTraverserService = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, NatTraverserKConfig.natTraverserService)));
     }
 }

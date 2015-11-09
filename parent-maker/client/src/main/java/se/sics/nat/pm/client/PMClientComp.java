@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
-import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.ClassMatchedHandler;
@@ -111,7 +110,7 @@ public class PMClientComp extends ComponentDefinition {
     Handler handleSelfAddressRequest = new Handler<SelfAddress.Request>() {
         @Override
         public void handle(SelfAddress.Request req) {
-            LOG.debug("{}self request", logPrefix);
+            LOG.trace("{}self request", logPrefix);
             answer(req, req.answer(self));
         }
     };
@@ -135,7 +134,7 @@ public class PMClientComp extends ComponentDefinition {
                 while (it.hasNext() && nextParents > 0) {
                     DecoratedAddress nextParent = it.next().getSource();
                     if (!parents.containsKey(nextParent.getBase())) {
-                        LOG.info("{}connecting to parent:{}", logPrefix, nextParent.getBase());
+                        LOG.debug("{}connecting to parent:{}", logPrefix, nextParent.getBase());
                         DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(self, nextParent, Transport.UDP), null, null);
                         ContentMsg request = new BasicContentMsg(requestHeader, new PMMsg.RegisterReq());
                         trigger(request, network);
@@ -149,7 +148,7 @@ public class PMClientComp extends ComponentDefinition {
             = new ClassMatchedHandler<PMMsg.RegisterResp, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.RegisterResp>>() {
                 @Override
                 public void handle(PMMsg.RegisterResp content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.RegisterResp> container) {
-                    LOG.info("{}register response:{}", logPrefix, content.status);
+                    LOG.debug("{}register response:{}", logPrefix, content.status);
                     if (content.status.equals(PMMsg.RegisterStatus.ACCEPTED)) {
                         if (parents.size() < config.nrParents) {
                             LOG.info("{}register parent:{}", logPrefix, container.getSource());
@@ -163,7 +162,7 @@ public class PMClientComp extends ComponentDefinition {
             = new ClassMatchedHandler<PMMsg.UnRegister, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister>>() {
                 @Override
                 public void handle(PMMsg.UnRegister content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, PMMsg.UnRegister> container) {
-                    LOG.info("{}unregister from:{}", logPrefix, container.getSource());
+                    LOG.debug("{}unregister from:{}", logPrefix, container.getSource());
                     if (parents.containsKey(container.getSource().getBase())) {
                         removeParent(container.getSource());
                     }
@@ -173,14 +172,14 @@ public class PMClientComp extends ComponentDefinition {
     Handler handleSuspectParent = new Handler<FDEvent.Suspect>() {
         @Override
         public void handle(FDEvent.Suspect event) {
-            if (!parents.containsKey(event.target.getValue0().getBase())) {
-                LOG.info("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, event.target.getValue0()});
+            if (!parents.containsKey(event.target.getBase())) {
+                LOG.debug("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, event.target.getBase()});
                 return;
             }
-            LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target.getValue0()});
-            removeParent(event.target.getValue0());
+            LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target.getBase()});
+            removeParent(event.target);
             DecoratedHeader<DecoratedAddress> msgHeader = new DecoratedHeader(
-                    new BasicHeader(self, event.target.getValue0(), Transport.UDP), null, null);
+                    new BasicHeader(self, event.target, Transport.UDP), null, null);
             ContentMsg msg = new BasicContentMsg(msgHeader, new PMMsg.UnRegister());
             trigger(msg, network);
         }
@@ -188,15 +187,13 @@ public class PMClientComp extends ComponentDefinition {
 
     private void addParent(DecoratedAddress child) {
         parents.put(child.getBase(), child);
-        trigger(new FDEvent.Follow(Pair.with(child, config.natParentService),
-                PMClientComp.this.getComponentCore().id()), fd);
+        trigger(new FDEvent.Follow(child, config.natParentService, PMClientComp.this.getComponentCore().id()), fd);
         updateSelf();
     }
 
     private void removeParent(DecoratedAddress child) {
         parents.remove(child.getBase());
-        trigger(new FDEvent.Unfollow(Pair.with(child, config.natParentService),
-                PMClientComp.this.getComponentCore().id()), fd);
+        trigger(new FDEvent.Unfollow(child, config.natParentService, PMClientComp.this.getComponentCore().id()), fd);
         updateSelf();
     }
     
@@ -204,7 +201,9 @@ public class PMClientComp extends ComponentDefinition {
         NatedTrait nat = self.getTrait(NatedTrait.class).changeParents(new ArrayList<>(parents.values()));
         self = new DecoratedAddress(self.getBase());
         self.addTrait(nat);
-        trigger(new SelfAddressUpdate(self), addressUpdate);
+        SelfAddressUpdate event = new SelfAddressUpdate(UUID.randomUUID(), self);
+        LOG.trace("{}sending self address update:{}", logPrefix, event.id);
+        trigger(event, addressUpdate);
     }
     public static class PMClientInit extends Init<PMClientComp> {
 

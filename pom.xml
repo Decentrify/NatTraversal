@@ -27,7 +27,7 @@
         
         <util.version>1.9-SNAPSHOT</util.version>
         <simulator.version>1.8-SNAPSHOT</simulator.version>
-        <networkmngr.version>0.0.1-SNAPSHOT</networkmngr.version>
+        <ipsolver.version>1.1-SNAPSHOT</ipsolver.version>
         <croupier.version>2.0.1-SNAPSHOT</croupier.version>
         <overlaymngr.version>0.0.1-SNAPSHOT</overlaymngr.version>
         <failuredetector.version>0.0.1-SNAPSHOT</failuredetector.version>

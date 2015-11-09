@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat;
+package se.sics.nat.traverser;
 
 import se.sics.nat.filters.NatTrafficFilter;
 import com.google.common.base.Optional;
@@ -48,6 +48,7 @@ import se.sics.ktoolbox.fd.FailureDetectorPort;
 import se.sics.ktoolbox.fd.event.FDEvent;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
+import se.sics.nat.detection.NatStatus;
 import se.sics.nat.hp.client.SHPClientPort;
 import se.sics.nat.hp.client.msg.OpenConnection;
 import se.sics.nat.filters.NatInternalFilter;
@@ -58,7 +59,6 @@ import se.sics.nat.hp.server.HPServerComp;
 import se.sics.nat.pm.client.PMClientComp;
 import se.sics.nat.pm.server.PMServerComp;
 import se.sics.nat.pm.server.PMServerPort;
-import se.sics.nat.util.NatStatus;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.filters.AndFilter;
@@ -71,7 +71,7 @@ import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
 import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
-import se.sics.p2ptoolbox.util.status.Ready;
+import se.sics.p2ptoolbox.util.status.Status;
 import se.sics.p2ptoolbox.util.status.StatusPort;
 import se.sics.p2ptoolbox.util.update.SelfAddress;
 import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
@@ -150,7 +150,7 @@ public class NatTraverserComp extends ComponentDefinition {
         subscribe(trafficTracker.handleLocal, providedNetwork);
         subscribe(trafficTracker.handleNetwork, network);
         
-        trigger(new Ready(new NatStatus()), status);
+        trigger(new Status.Internal(new NatStatus()), status);
     }
 
     @Override
@@ -244,7 +244,7 @@ public class NatTraverserComp extends ComponentDefinition {
         private void setupPMServerCroupier() {
             natParentServiceReq = UUID.randomUUID();
             OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(natParentServiceReq);
-            reqBuilder.setIdentifiers(config.parentMaker.globalCroupier, config.parentMaker.natParentService);
+            reqBuilder.setIdentifiers(config.parentMaker.globalCroupier.array(), config.parentMaker.natParentService.array());
             reqBuilder.setupCroupier(false);
             reqBuilder.connectTo(pmServerComp.getNegative(CroupierPort.class), pmServerComp.getPositive(SelfViewUpdatePort.class));
             LOG.info("{}waiting for croupier app...", logPrefix);
@@ -254,7 +254,7 @@ public class NatTraverserComp extends ComponentDefinition {
         private void setupPMClientCroupier() {
             natParentServiceReq = UUID.randomUUID();
             OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(natParentServiceReq);
-            reqBuilder.setIdentifiers(config.parentMaker.globalCroupier, config.parentMaker.natParentService);
+            reqBuilder.setIdentifiers(config.parentMaker.globalCroupier.array(), config.parentMaker.natParentService.array());
             reqBuilder.setupCroupier(true);
             reqBuilder.connectTo(pmClientComp.getNegative(CroupierPort.class), pmClientComp.getPositive(SelfViewUpdatePort.class));
             LOG.info("{}waiting for croupier app...", logPrefix);
@@ -280,10 +280,9 @@ public class NatTraverserComp extends ComponentDefinition {
         Handler handleSelfAddressUpdate = new Handler<SelfAddressUpdate>() {
             @Override
             public void handle(SelfAddressUpdate update) {
-                LOG.info("{}updating self from:{} to:{}",
-                        new Object[]{logPrefix, selfAdr, update.self});
+                LOG.trace("{}received self update address:{}", logPrefix, update.id);
                 selfAdr = update.self;
-                trigger(update, providedSAUpdate);
+                LOG.info("{}updating self address:{}", logPrefix, selfAdr);
             }
         };
 
@@ -315,7 +314,7 @@ public class NatTraverserComp extends ComponentDefinition {
                      * is not set or not working properly and I am processing
                      * more msgs than necessary
                      */
-                    LOG.info("{}forwarding outgoing:{}", new Object[]{logPrefix, msg});
+                    LOG.debug("{}bad config - forwarding outgoing:{}", new Object[]{logPrefix, msg});
                     trigger(msg, network);
                     return;
                 }
@@ -324,7 +323,7 @@ public class NatTraverserComp extends ComponentDefinition {
 
                 DecoratedAddress destination = contentMsg.getDestination();
                 if (NatTraverserFeasibility.direct(selfAdr, destination)) {
-                    LOG.debug("{}forwarding msg:{} local to network", logPrefix, contentMsg.getContent());
+                    LOG.trace("{}forwarding msg:{} local to network", logPrefix, contentMsg.getContent());
                     trigger(msg, network);
                     return;
                 }
@@ -342,7 +341,7 @@ public class NatTraverserComp extends ComponentDefinition {
                     BasicHeader basicHeader = new BasicHeader(connSelf, connTarget, Transport.UDP);
                     DecoratedHeader<DecoratedAddress> forwardHeader = contentMsg.getHeader().changeBasicHeader(basicHeader);
                     ContentMsg forwardMsg = new BasicContentMsg(forwardHeader, contentMsg.getContent());
-                    LOG.debug("{}forwarding msg:{} local to network", logPrefix, forwardMsg);
+                    LOG.trace("{}forwarding msg:{} local to network", logPrefix, forwardMsg);
                     trigger(forwardMsg, network);
                     return;
                 }
@@ -374,7 +373,7 @@ public class NatTraverserComp extends ComponentDefinition {
                      * is not set or not working properly and I am processing
                      * more msgs than necessary
                      */
-                    LOG.info("{}forwarding incoming:{}", new Object[]{logPrefix, msg});
+                    LOG.debug("{}bad config - forwarding incoming:{}", new Object[]{logPrefix, msg});
                     trigger(msg, providedNetwork);
                     return;
                 }
@@ -484,7 +483,7 @@ public class NatTraverserComp extends ComponentDefinition {
 
         public void newConnection(Pair<BasicAddress, DecoratedAddress> connection) {
             openConnections.put(connection.getValue1().getBase(), connection);
-            trigger(new FDEvent.Follow(Pair.with(connection.getValue1(), config.natTraverserService), 
+            trigger(new FDEvent.Follow(connection.getValue1(), config.natTraverserService, 
                 NatTraverserComp.this.getComponentCore().id()), fd);
         }
 
@@ -504,8 +503,8 @@ public class NatTraverserComp extends ComponentDefinition {
         Handler handleSuspectConnectionEnd = new Handler<FDEvent.Suspect>() {
             @Override
             public void handle(FDEvent.Suspect event) {
-                LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target.getValue0()});
-                cleanConnection(event.target.getValue0().getBase());
+                LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target});
+                cleanConnection(event.target.getBase());
             }
         };
 
@@ -516,7 +515,7 @@ public class NatTraverserComp extends ComponentDefinition {
                 //TODO Alex what to do here
                 return;
             }
-            trigger(new FDEvent.Unfollow(Pair.with(connection.getValue1(), config.natTraverserService), 
+            trigger(new FDEvent.Unfollow(connection.getValue1(), config.natTraverserService, 
                 NatTraverserComp.this.getComponentCore().id()), fd);
             
             //TODO Alex - any other cleanup to do here?

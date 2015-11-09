@@ -16,10 +16,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.util;
+
+package se.sics.nat.detection;
+
+import se.sics.nat.stun.upnp.hooks.UpnpHook;
+import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatStatus {
+public class NatDetectionHooks {
+    public static final Class<UpnpHook.Definition> UPNP_HOOK = UpnpHook.Definition.class;
+    
+    public static enum RequiredHooks {
+        UPNP("NAT_UPNP", UPNP_HOOK);
+        
+        public final String hookName;
+        public final Class<? extends Hook.Definition> hookType;
+
+        RequiredHooks(String name, Class<? extends Hook.Definition> hookType) {
+            this.hookName = name;
+            this.hookType = hookType;
+        }
+    }
 }

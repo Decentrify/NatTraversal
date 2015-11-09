@@ -16,18 +16,39 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.nat.detection;
 
-package se.sics.nat;
-
-import se.sics.kompics.PortType;
-import se.sics.nat.stun.NatDetected;
+import com.google.common.base.Optional;
+import java.net.InetAddress;
+import org.javatuples.Pair;
+import se.sics.p2ptoolbox.util.nat.NatedTrait;
+import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatDetectionPort extends PortType {
-    {
-        indication(NatDetected.class);
+public class NatDetectionStatus {
+
+    public static class Phase1 {
+        public final DecoratedAddress auxAdr;
+        
+        public Phase1(DecoratedAddress auxAdr) {
+            this.auxAdr = auxAdr;
+        }
+    }
+
+    public static class Phase2 {
+
+        public NatedTrait nat;
+        public Optional<InetAddress> publicIp;
+
+        /**
+         * @param nat
+         * @param publicIp - optional - missing only if nat - udpBlocked
+         */
+        public Phase2(Pair<NatedTrait, Optional<InetAddress>> result) {
+            this.nat = result.getValue0();
+            this.publicIp = result.getValue1();
+        }
     }
 }

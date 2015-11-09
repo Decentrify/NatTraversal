@@ -16,30 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat;
-
-import java.util.HashSet;
-import java.util.Set;
-import se.sics.nat.pm.ParentMakerKConfig;
-import se.sics.p2ptoolbox.util.config.KConfigLevel;
-import se.sics.p2ptoolbox.util.config.KConfigOption;
+package se.sics.nat.detection;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatTraverserKConfig implements KConfigLevel {
-
-    public final static KConfigOption.Basic<Integer> natTraverserService = new KConfigOption.Basic("services.natTraverser", Integer.class, new NatTraverserKConfig());
-
-    @Override
-    public Set<String> canWrite() {
-        Set<String> canWrite = new HashSet<>();
-        canWrite.add(toString());
-        return canWrite;
-    }
-
-    @Override
-    public String toString() {
-        return "NatTraverserKConfig";
-    }
+public class NatStatus {
 }

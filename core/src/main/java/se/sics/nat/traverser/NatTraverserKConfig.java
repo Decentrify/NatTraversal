@@ -16,29 +16,30 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.pm;
+package se.sics.nat.traverser;
 
-import com.google.common.primitives.Ints;
-import java.nio.ByteBuffer;
-import se.sics.p2ptoolbox.util.config.KConfigCore;
-import se.sics.p2ptoolbox.util.config.KConfigHelper;
+import java.util.HashSet;
+import java.util.Set;
+import se.sics.nat.pm.ParentMakerKConfig;
+import se.sics.p2ptoolbox.util.config.KConfigLevel;
+import se.sics.p2ptoolbox.util.config.KConfigOption;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class ParentMakerKCWrapper {
+public class NatTraverserKConfig implements KConfigLevel {
 
-    public final KConfigCore configCore;
-    public final ByteBuffer globalCroupier;
-    public final ByteBuffer natParentService;
-    public final long heartbeatTimeout = 2000;
-    public final long internalStateCheck = 30000;
-    public final int nrParents = 2;
-    public final int nrChildren = 5;
+    public final static KConfigOption.Basic<Integer> natTraverserService = new KConfigOption.Basic("services.natTraverser", Integer.class, new NatTraverserKConfig());
 
-    public ParentMakerKCWrapper(KConfigCore configCore) {
-        this.configCore = configCore;
-        this.globalCroupier = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, ParentMakerKConfig.globalCroupier)));
-        this.natParentService = ByteBuffer.wrap(Ints.toByteArray(KConfigHelper.read(configCore, ParentMakerKConfig.natParentService)));
+    @Override
+    public Set<String> canWrite() {
+        Set<String> canWrite = new HashSet<>();
+        canWrite.add(toString());
+        return canWrite;
+    }
+
+    @Override
+    public String toString() {
+        return "NatTraverserKConfig";
     }
 }

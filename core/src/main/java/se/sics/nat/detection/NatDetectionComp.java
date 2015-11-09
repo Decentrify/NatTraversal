@@ -16,12 +16,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat;
+package se.sics.nat.detection;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
 import java.util.UUID;
 import org.javatuples.Pair;
+import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.Channel;
@@ -42,26 +43,31 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.networkmngr.NetworkKCWrapper;
-import se.sics.ktoolbox.networkmngr.NetworkMngrPort;
-import se.sics.ktoolbox.networkmngr.events.Bind;
+import se.sics.p2ptoolbox.util.network.hooks.NetworkHook;
+import se.sics.p2ptoolbox.util.network.hooks.NetworkResult;
+import se.sics.p2ptoolbox.util.network.hooks.PortBindingHook;
+import se.sics.ktoolbox.overlaymngr.OverlayMngrComp;
+import se.sics.ktoolbox.overlaymngr.OverlayMngrComp.OverlayMngrInit;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
+import se.sics.nat.hooks.BaseHooks;
 import se.sics.nat.common.util.NatDetectionResult;
+import se.sics.p2ptoolbox.util.network.hooks.PortBindingResult;
 import se.sics.nat.stun.upnp.hooks.UpnpHook;
 import se.sics.nat.stun.NatDetected;
 import se.sics.nat.stun.StunClientPort;
 import se.sics.nat.stun.client.StunClientComp;
 import se.sics.nat.stun.client.StunClientKCWrapper;
-import se.sics.nat.stun.upnp.UpnpPort;
 import se.sics.nat.stun.upnp.msg.UpnpReady;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
-import se.sics.p2ptoolbox.util.nat.Nat;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
+import se.sics.p2ptoolbox.util.config.impl.SystemKCWrapper;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
 import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
+import se.sics.p2ptoolbox.util.status.Status;
+import se.sics.p2ptoolbox.util.status.StatusPort;
+import se.sics.p2ptoolbox.util.truefilters.SourcePortFilter;
 import se.sics.p2ptoolbox.util.update.SelfViewUpdatePort;
 
 /**
@@ -72,38 +78,37 @@ public class NatDetectionComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(NatDetectionComp.class);
     private String logPrefix = "";
 
+    private final Negative<StatusPort> status = provides(StatusPort.class);
     private final Positive<Timer> timer = requires(Timer.class);
-    private final Positive<Network> network = requires(Network.class);
-    private final Positive<NetworkMngrPort> networkMngr = requires(NetworkMngrPort.class);
+    
+    private final Negative<Network> network = provides(Network.class);
     private final Positive<OverlayMngrPort> overlayMngr = requires(OverlayMngrPort.class);
-    private final Negative<NatDetectionPort> natDetection = provides(NatDetectionPort.class);
-    private final Negative<UpnpPort> upnp = provides(UpnpPort.class);
 
-    private final StunClientKCWrapper config;
-    private final NetworkKCWrapper networkConfig;
+    private final SystemKCWrapper systemConfig;
+    private final StunClientKCWrapper stunConfig;
     private final SystemHookSetup systemHooks;
+    private final InetAddress localIp;
 
-    private Component stunClient;
+    //NAT Detection
     private NatUpnpParent upnpParent;
+    private Triplet<NetworkParent, NetworkParent, NetworkParent> networkParents;
+    private Component natDetection;
+    private Component stunClient;
+
     private NatDetectionResult natDetectionResult;
 
-    private final Pair<UUID, UUID> pendingStunBindings = Pair.with(UUID.randomUUID(), UUID.randomUUID());
-    private Pair<DecoratedAddress, DecoratedAddress> stunAdr = Pair.with(null, null);
-
     public NatDetectionComp(NatDetectionInit init) {
-        this.config = init.config;
-        networkConfig = new NetworkKCWrapper(config.configCore);
+        systemConfig = new SystemKCWrapper(init.configCore);
+        stunConfig = new StunClientKCWrapper(init.configCore);
         systemHooks = init.systemHooks;
-        logPrefix = "<nid:" + config.system.id + "> ";
+        localIp = init.localIp;
+        logPrefix = "<nid:" + systemConfig.id + "> ";
         LOG.info("{}initiating...", logPrefix);
+
+        subscribe(handleStart, control);
 
         upnpParent = new NatUpnpParent();
         natDetectionResult = new NatDetectionResult();
-
-        subscribe(handleStart, control);
-        subscribe(handleBindPort, networkMngr);
-
-        upnpParent.connectUpnp();
     }
 
     //**************************CONTROL*****************************************
@@ -111,8 +116,9 @@ public class NatDetectionComp extends ComponentDefinition {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
+            upnpParent.connectUpnp();
             upnpParent.startUpnp(true);
-            bindStunPorts();
+            setupNetwork(true);
         }
     };
 
@@ -123,96 +129,19 @@ public class NatDetectionComp extends ComponentDefinition {
     }
 
     private void finish() {
-        Pair<NatedTrait, Optional<InetAddress>> result = natDetectionResult.getResult();
-        trigger(new NatDetected(result.getValue0(), result.getValue1()), natDetection);
-        if (!result.getValue0().type.equals(Nat.Type.UPNP)) {
-            upnpParent.stopUpnp();
-        }
+        trigger(new Status.Internal(new NatDetectionStatus.Phase2(natDetectionResult.getResult())), status);
     }
 
-    //*****************************STUN_CLIENT***************************************
-    private void bindStunPorts() {
-        DecoratedAddress adr1 = DecoratedAddress.open(networkConfig.localIp, config.stunClientPorts.getValue0(), config.system.id);
-        DecoratedAddress adr2 = DecoratedAddress.open(networkConfig.localIp, config.stunClientPorts.getValue1(), config.system.id);
-
-        Bind.Request req1 = new Bind.Request(pendingStunBindings.getValue0(), adr1, config.hardBind);
-        LOG.trace("{}bind request:{} adr:{}", new Object[]{logPrefix, req1.id, req1.self.getBase()});
-        trigger(req1, networkMngr);
-        Bind.Request req2 = new Bind.Request(pendingStunBindings.getValue1(), adr2, config.hardBind);
-        LOG.trace("{}bind request:{} adr:{}", new Object[]{logPrefix, req2.id, req2.self.getBase()});
-        trigger(req2, networkMngr);
-        LOG.info("{}waiting for network binding...", logPrefix);
+    //*****************STEP_1 - NETWORK, UPNP****************
+    private void setupNetwork(boolean started) {
+        networkParents = Triplet.with(new NetworkParent(UUID.randomUUID(), systemConfig.port + 1, true),
+                new NetworkParent(UUID.randomUUID(), stunConfig.stunClientPorts.getValue0(), true),
+                new NetworkParent(UUID.randomUUID(), stunConfig.stunClientPorts.getValue1(), true));
+        networkParents.getValue0().bindPort(started);
+        networkParents.getValue1().bindPort(started);
+        networkParents.getValue2().bindPort(started);
     }
-
-    Handler handleBindPort = new Handler<Bind.Response>() {
-        @Override
-        public void handle(Bind.Response resp) {
-            LOG.trace("{}bind response:{} adr:{} port:{}", new Object[]{logPrefix, resp.req.id,
-                    resp.req.self.getBase(), resp.boundPort});
-            if (pendingStunBindings.getValue0().equals(resp.req.id)) {
-                stunAdr = stunAdr.setAt0(DecoratedAddress.open(networkConfig.localIp, resp.boundPort, config.system.id));
-            } else if (pendingStunBindings.getValue1().equals(resp.req.id)) {
-                stunAdr = stunAdr.setAt1(DecoratedAddress.open(networkConfig.localIp, resp.boundPort, config.system.id));
-            } else {
-                LOG.error("{}unexpected bind response:{} adr:{} port:{}", new Object[]{logPrefix, resp.req.id,
-                    resp.req.self.getBase(), resp.boundPort});
-                throw new RuntimeException("logic error in network manager");
-            }
-            if (stunAdr.getValue0() == null || stunAdr.getValue1() == null) {
-                return;
-            }
-            LOG.info("{}bound ports stun1:{} stun2:{}", new Object[]{logPrefix, stunAdr.getValue0().getPort(),
-                stunAdr.getValue1().getPort()});
-
-            connectStunClient(false);
-            setupStunCroupier();
-        }
-    };
-
-    private void connectStunClient(boolean started) {
-        stunClient = create(StunClientComp.class, new StunClientComp.StunClientInit(config.configCore, stunAdr));
-        connect(stunClient.getNegative(Timer.class), timer);
-        connect(stunClient.getNegative(Network.class), network);
-        //TODO Alex - connect failure detector port
-        subscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
-    }
-
-    private void setupStunCroupier() {
-        subscribe(handleStunCroupierReady, overlayMngr);
-
-        OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(UUID.randomUUID());
-        reqBuilder.setIdentifiers(config.globalCroupier, config.stunService);
-        reqBuilder.setupCroupier(false);
-        reqBuilder.connectTo(stunClient.getNegative(CroupierPort.class), stunClient.getPositive(SelfViewUpdatePort.class));
-        LOG.info("{}waiting for stun croupier...", logPrefix);
-        trigger(reqBuilder.build(), overlayMngr);
-    }
-
-    Handler handleStunCroupierReady = new Handler<OMngrCroupier.ConnectResponse>() {
-        @Override
-        public void handle(OMngrCroupier.ConnectResponse resp) {
-            LOG.info("{}stun croupier ready", logPrefix);
-            startStunClient();
-        }
-    };
-
-    private void startStunClient() {
-        trigger(Start.event, stunClient.control());
-    }
-
-    private Handler handleNatReady = new Handler<NatDetected>() {
-        @Override
-        public void handle(NatDetected ready) {
-            String printIp = (ready.publicIp.isPresent() ? ready.publicIp.get().getHostAddress().toString() : "x");
-            LOG.info("{}nat detected:{} public ip:{}",
-                    new Object[]{logPrefix, ready.nat, printIp});
-            natDetectionResult.setNatReady(ready.nat, ready.publicIp);
-            if (natDetectionResult.isReady()) {
-                finish();
-            }
-        }
-    };
-
+    
     public class NatUpnpParent implements UpnpHook.Parent {
 
         private UpnpHook.SetupResult upnpSetup;
@@ -243,6 +172,122 @@ public class NatDetectionComp extends ComponentDefinition {
             if (natDetectionResult.isReady()) {
                 finish();
             }
+        }
+    }
+
+    private class NetworkParent implements NetworkHook.Parent, PortBindingHook.Parent {
+
+        final UUID id;
+        final int tryPort;
+        final boolean forcePort;
+        int boundPort;
+        DecoratedAddress adr;
+
+        PortBindingHook.SetupResult portBindingSetup;
+        NetworkHook.SetupResult networkSetup;
+        NetworkResult networkResult;
+
+        public NetworkParent(UUID id, int port, boolean forcePort) {
+            this.id = id;
+            this.tryPort = port;
+            this.forcePort = forcePort;
+        }
+
+        void bindPort(boolean started) {
+            PortBindingHook.Definition portBindingHook = systemHooks.getHook(BaseHooks.RequiredHooks.PORT_BINDING.hookName, BaseHooks.PORT_BINDING_HOOK);
+            portBindingSetup = portBindingHook.setup(new NatDetectionProxy(), this,
+                    new PortBindingHook.SetupInit());
+            portBindingHook.start(new NatDetectionProxy(), this, portBindingSetup,
+                    new PortBindingHook.StartInit(started, localIp, tryPort, forcePort));
+        }
+
+        @Override
+        public void onResult(PortBindingResult result) {
+            boundPort = result.boundPort;
+            setNetwork(false);
+        }
+
+        void setNetwork(boolean started) {
+            NetworkHook.Definition networkHook = systemHooks.getHook(BaseHooks.RequiredHooks.NETWORK.hookName, BaseHooks.NETWORK_HOOK);
+            adr = DecoratedAddress.open(localIp, boundPort, stunConfig.system.id);
+            networkSetup = networkHook.setup(new NatDetectionProxy(), this,
+                    new NetworkHook.SetupInit(adr, Optional.of(localIp)));
+            networkHook.start(new NatDetectionProxy(), this, networkSetup, new NetworkHook.StartInit(started));
+        }
+
+        @Override
+        public void onResult(NetworkResult result) {
+            this.networkResult = result;
+            checkNetworkSetupComplete();
+        }
+    }
+
+    private void checkNetworkSetupComplete() {
+        if (networkParents.getValue0().networkResult != null && networkParents.getValue1().networkResult != null
+                && networkParents.getValue2().networkResult != null) {
+            connectStunClient();
+            setupStunCroupier();
+            connect(network, networkParents.getValue0().networkResult.getNetwork());
+            trigger(new Status.Internal(new NatDetectionStatus.Phase1(networkParents.getValue0().adr)),status);
+        }
+    }
+    
+
+    //******************STEP_2 - TEMPORARY OVERLAY MNGR AND STUN****************
+    private void connectStunClient() {
+        stunClient = create(StunClientComp.class, new StunClientComp.StunClientInit(stunConfig.configCore, 
+                Pair.with(networkParents.getValue1().adr, networkParents.getValue2().adr)));
+        connect(stunClient.getNegative(Timer.class), timer);
+        connect(stunClient.getNegative(Network.class), networkParents.getValue1().networkResult.getNetwork(),
+                new SourcePortFilter(networkParents.getValue1().boundPort, false));
+        connect(stunClient.getNegative(Network.class), networkParents.getValue2().networkResult.getNetwork(), 
+                new SourcePortFilter(networkParents.getValue2().boundPort, false));
+        //TODO Alex - connect failure detector port
+        subscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
+    }
+
+    private void setupStunCroupier() {
+        subscribe(handleStunCroupierReady, overlayMngr);
+
+        OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(UUID.randomUUID());
+        reqBuilder.setIdentifiers(stunConfig.globalCroupier, stunConfig.stunService);
+        reqBuilder.setupCroupier(false);
+        reqBuilder.connectTo(stunClient.getNegative(CroupierPort.class), stunClient.getPositive(SelfViewUpdatePort.class));
+        LOG.info("{}waiting for croupier app...", logPrefix);
+        trigger(reqBuilder.build(), overlayMngr);
+    }
+
+    Handler handleStunCroupierReady = new Handler<OMngrCroupier.ConnectResponse>() {
+        @Override
+        public void handle(OMngrCroupier.ConnectResponse resp) {
+            LOG.info("{}stun croupier ready", logPrefix);
+            trigger(Start.event, stunClient.control());
+        }
+    };
+
+    private Handler handleNatReady = new Handler<NatDetected>() {
+        @Override
+        public void handle(NatDetected ready) {
+            String printIp = (ready.publicIp.isPresent() ? ready.publicIp.get().getHostAddress().toString() : "x");
+            LOG.info("{}nat detected:{} public ip:{}",
+                    new Object[]{logPrefix, ready.nat, printIp});
+            natDetectionResult.setNatReady(ready.nat, ready.publicIp);
+            if (natDetectionResult.isReady()) {
+                finish();
+            }
+        }
+    };
+
+    public static class NatDetectionInit extends Init<NatDetectionComp> {
+
+        public final KConfigCore configCore;
+        public final SystemHookSetup systemHooks;
+        public final InetAddress localIp;
+
+        public NatDetectionInit(KConfigCore configCore, SystemHookSetup systemHooks, InetAddress localIp) {
+            this.configCore = configCore;
+            this.systemHooks = systemHooks;
+            this.localIp = localIp;
         }
     }
 
@@ -311,17 +356,6 @@ public class NatDetectionComp extends ComponentDefinition {
         @Override
         public <E extends KompicsEvent, P extends PortType> void subscribe(Handler<E> handler, Port<P> port) throws ConfigurationException {
             NatDetectionComp.this.subscribe(handler, port);
-        }
-    }
-
-    public static class NatDetectionInit extends Init<NatDetectionComp> {
-
-        public final StunClientKCWrapper config;
-        public final SystemHookSetup systemHooks;
-
-        public NatDetectionInit(KConfigCore configCore, SystemHookSetup systemHooks) {
-            this.config = new StunClientKCWrapper(configCore);
-            this.systemHooks = systemHooks;
         }
     }
 }

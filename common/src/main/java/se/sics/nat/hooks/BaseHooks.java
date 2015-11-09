@@ -2,7 +2,7 @@
  * Copyright (C) 2009 Swedish Institute of Computer Science (SICS) Copyright (C)
  * 2009 Royal Institute of Technology (KTH)
  *
- * NatTraverser is free software; you can redistribute it and/or
+ * KompicsToolbox is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
@@ -16,21 +16,28 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+package se.sics.nat.hooks;
 
-package se.sics.nat;
-
-import se.sics.nat.stun.upnp.hooks.UpnpHook;
+import se.sics.ktoolbox.ipsolver.hooks.IpSolverHook;
+import se.sics.p2ptoolbox.util.network.hooks.NetworkHook;
+import se.sics.p2ptoolbox.util.network.hooks.PortBindingHook;
 import se.sics.p2ptoolbox.util.proxy.Hook;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatDetectionHooks {
-    public static final Class<UpnpHook.Definition> UPNP_HOOK = UpnpHook.Definition.class;
+public class BaseHooks {
+
+    public static final Class<IpSolverHook.Definition> IP_SOLVER_HOOK = IpSolverHook.Definition.class;
+    public static final Class<PortBindingHook.Definition> PORT_BINDING_HOOK = PortBindingHook.Definition.class;
+    public static final Class<NetworkHook.Definition> NETWORK_HOOK = NetworkHook.Definition.class;
     
     public static enum RequiredHooks {
-        UPNP("NAT_UPNP", UPNP_HOOK);
-        
+
+        IP_SOLVER("NET_MNGR_IP_SOLVER", IP_SOLVER_HOOK),
+        PORT_BINDING("NET_MNGR_PORT_BINDING", PORT_BINDING_HOOK),
+        NETWORK("NET_MNGR_NETWORK", NETWORK_HOOK);
+
         public final String hookName;
         public final Class<? extends Hook.Definition> hookType;
 
