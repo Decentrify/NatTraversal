@@ -70,6 +70,7 @@ import se.sics.p2ptoolbox.util.network.hooks.PortBindingHook;
 import se.sics.p2ptoolbox.util.network.hooks.PortBindingResult;
 import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.p2ptoolbox.util.other.ComponentHelper;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
 import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
 import se.sics.p2ptoolbox.util.status.Status;
@@ -90,6 +91,10 @@ public class NatManagerComp extends ComponentDefinition {
 
     private final Positive<Timer> timer = requires(Timer.class);
     private final Negative<StatusPort> status = provides(StatusPort.class);
+    //indirectly provided by children
+    private final Negative<Network> networkPort = provides(Network.class);
+    private final Negative<OverlayMngrPort> overlayMngrPort = provides(OverlayMngrPort.class);
+    private final Negative<SelfAddressUpdatePort> addressUpdate = provides(SelfAddressUpdatePort.class);
 
     private final SystemKCWrapper systemConfig;
     private final SystemHookSetup systemHooks;
@@ -168,7 +173,7 @@ public class NatManagerComp extends ComponentDefinition {
         };
         auxNetwork = Triplet.with(
                 new NetworkParent(UUID.randomUUID(), callback,
-                        DecoratedAddress.open(networkConfig.localIp, systemConfig.port + 1, systemConfig.id), true),
+                        DecoratedAddress.open(networkConfig.localIp, systemConfig.port, systemConfig.id), true),
                 new NetworkParent(UUID.randomUUID(), callback,
                         DecoratedAddress.open(networkConfig.localIp, stunConfig.stunClientPorts.getValue0(), systemConfig.id), true),
                 new NetworkParent(UUID.randomUUID(), callback,
@@ -269,6 +274,7 @@ public class NatManagerComp extends ComponentDefinition {
             public void networkSetupComplete() {
                 if (network.networkPort != null) {
                     systemAdr = network.boundAdr;
+                    LOG.info("{}system network ready:{}", logPrefix, systemAdr);
                     step5();
                 }
             }
@@ -300,10 +306,13 @@ public class NatManagerComp extends ComponentDefinition {
                 new NatTraverserComp.NatTraverserInit(systemConfig.configCore, systemHooks, systemAdr));
         connect(natTraverser.getNegative(Timer.class), timer);
         connect(natTraverser.getNegative(Network.class), network.networkPort);
+        connect(natTraverser.getPositive(Network.class), networkPort);
+        connect(natTraverser.getPositive(SelfAddressUpdatePort.class), addressUpdate);
         connect(natTraverser.getNegative(OverlayMngrPort.class), overlayMngr.getPositive(OverlayMngrPort.class));
         //TODO Alex connect fd
 
-        connect(overlayMngr.getNegative(Network.class), network.networkPort);
+        connect(overlayMngr.getNegative(Network.class), networkPort.getPair());
+        connect(overlayMngr.getPositive(OverlayMngrPort.class), overlayMngrPort);
         
         subscribe(handleNatTraverserReady, natTraverser.getPositive(StatusPort.class));
         subscribe(handleSelfAddressUpdate, natTraverser.getPositive(SelfAddressUpdatePort.class));
@@ -316,6 +325,9 @@ public class NatManagerComp extends ComponentDefinition {
         @Override
         public void handle(Status.Internal<NatStatus> event) {
             LOG.info("{}nat traverser ready", logPrefix);
+            
+            
+            trigger(new Status.Internal(new NatManagerReady(systemAdr)), status);
         }
     };
     

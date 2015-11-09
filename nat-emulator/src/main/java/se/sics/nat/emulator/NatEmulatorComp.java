@@ -174,7 +174,7 @@ public class NatEmulatorComp extends ComponentDefinition {
                 LOG.debug("{}changing ip and port", logPrefix);
                 sendingAddress = new DecoratedAddress(new BasicAddress(selfIp, publicPort, selfId));
             }
-            
+
             DecoratedHeader<DecoratedAddress> fHeader = container.getHeader().changeBasicHeader(new BasicHeader(sendingAddress, container.getDestination(), Transport.UDP));
             ContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> fMsg
                     = new BasicContentMsg(fHeader, container.getContent());
@@ -216,12 +216,12 @@ public class NatEmulatorComp extends ComponentDefinition {
         }
 
         if (filterPolicy.allow(target, portMappings.getPortActiveConn(publicPort))) {
-           Pair<InetAddress, Integer> mapping = portMappings.getPrivateAddress(publicPort);
+            Pair<InetAddress, Integer> mapping = portMappings.getPrivateAddress(publicPort);
            if(mapping == null) {
-               LOG.warn("{}no mapping for public port:{}, don't know where to forward, dropping", 
-                       new Object[]{logPrefix, publicPort});
-               return Optional.absent();
-           }
+                LOG.warn("{}no mapping for public port:{}, don't know where to forward, dropping",
+                        new Object[]{logPrefix, publicPort});
+                return Optional.absent();
+            }
             return Optional.of(addresses.get(portMappings.getPrivateAddress(publicPort)));
         } else {
             LOG.warn("{}filter policy:{} does not allow this target:{} through public port:{}",

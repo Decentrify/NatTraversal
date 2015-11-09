@@ -44,8 +44,8 @@ public class StunView {
     
     private String doubleAddressToString(Pair<DecoratedAddress, DecoratedAddress> adr) {
         String toS = "<" + adr.getValue0().getIp().getHostAddress() 
-                + ":" + adr.getValue0().getPort() + ":" + adr.getValue1().getPort()
-                + adr.getValue0().getId() + "> ";
+                + ": [" + adr.getValue0().getPort() + "," + adr.getValue1().getPort()
+                + "] :" + adr.getValue0().getId() + "> ";
         return toS;
     }
     

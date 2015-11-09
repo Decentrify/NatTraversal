@@ -115,7 +115,7 @@ public class NatTraverserComp extends ComponentDefinition {
         this.systemHooks = init.systemHooks;
         this.selfAdr = init.selfAdr;
 
-        this.logPrefix = "<nid" + selfAdr.getId() + "> ";
+        this.logPrefix = "<nid:" + selfAdr.getId() + "> ";
         LOG.info("{}initiating...", logPrefix);
 
         this.connectionTracker = new ConnectionTracker();
@@ -307,7 +307,9 @@ public class NatTraverserComp extends ComponentDefinition {
         Handler handleLocal = new Handler<Msg>() {
             @Override
             public void handle(Msg msg) {
-                LOG.trace("{}received outgoing:{}", logPrefix, msg);
+                BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> contentMsg
+                        = (BasicContentMsg) msg;
+                LOG.trace("{}received outgoing:{}", logPrefix, contentMsg.getContent());
                 if (!handleTraffic.getValue(msg)) {
                     /**
                      * should not get here. If I get here - the NatTrafficFilter
@@ -318,12 +320,11 @@ public class NatTraverserComp extends ComponentDefinition {
                     trigger(msg, network);
                     return;
                 }
-                BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> contentMsg
-                        = (BasicContentMsg) msg;
+                
 
                 DecoratedAddress destination = contentMsg.getDestination();
                 if (NatTraverserFeasibility.direct(selfAdr, destination)) {
-                    LOG.trace("{}forwarding msg:{} local to network", logPrefix, contentMsg.getContent());
+                    LOG.debug("{}forwarding msg:{} local to network", logPrefix, contentMsg.getContent());
                     trigger(msg, network);
                     return;
                 }
@@ -341,7 +342,7 @@ public class NatTraverserComp extends ComponentDefinition {
                     BasicHeader basicHeader = new BasicHeader(connSelf, connTarget, Transport.UDP);
                     DecoratedHeader<DecoratedAddress> forwardHeader = contentMsg.getHeader().changeBasicHeader(basicHeader);
                     ContentMsg forwardMsg = new BasicContentMsg(forwardHeader, contentMsg.getContent());
-                    LOG.trace("{}forwarding msg:{} local to network", logPrefix, forwardMsg);
+                    LOG.debug("{}forwarding msg:{} local to network", logPrefix, forwardMsg);
                     trigger(forwardMsg, network);
                     return;
                 }
@@ -367,6 +368,9 @@ public class NatTraverserComp extends ComponentDefinition {
         Handler handleNetwork = new Handler<Msg>() {
             @Override
             public void handle(Msg msg) {
+                BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> contentMsg
+                        = (BasicContentMsg) msg;
+                LOG.trace("{}received outgoing:{}", logPrefix, contentMsg.getContent());
                 if (!handleTraffic.getValue(msg)) {
                     /**
                      * should not get here. If I get here - the NatTrafficFilter
@@ -377,9 +381,7 @@ public class NatTraverserComp extends ComponentDefinition {
                     trigger(msg, providedNetwork);
                     return;
                 }
-                BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> contentMsg
-                        = (BasicContentMsg) msg;
-                LOG.trace("{}forwarding msg:{} network to local", logPrefix, contentMsg.getContent());
+                LOG.debug("{}forwarding msg:{} network to local", logPrefix, contentMsg.getContent());
                 trigger(msg, providedNetwork);
             }
         };
