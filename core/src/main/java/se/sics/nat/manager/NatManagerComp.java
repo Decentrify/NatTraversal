@@ -206,7 +206,7 @@ public class NatManagerComp extends ComponentDefinition {
     }
 
     private void setupTempOverlays() {
-        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrComp.OverlayMngrInit(systemConfig.configCore, auxNetwork.getValue0().boundAdr));
+        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrComp.OverlayMngrInit(systemConfig.configCore, auxNetwork.getValue0().boundAdr, true));
 
         connect(overlayMngr.getNegative(Timer.class), timer);
         connect(overlayMngr.getNegative(Network.class), auxNetwork.getValue0().networkPort);
@@ -218,14 +218,14 @@ public class NatManagerComp extends ComponentDefinition {
         reqBuilder.setIdentifiers(stunConfig.globalCroupier, stunConfig.stunService);
         reqBuilder.setupCroupier(false);
         reqBuilder.connectTo(stunClient.getNegative(CroupierPort.class), stunClient.getPositive(SelfViewUpdatePort.class));
-        LOG.info("{}waiting for croupier app...", logPrefix);
+        LOG.info("{}waiting for stun croupier...", logPrefix);
         trigger(reqBuilder.build(), overlayMngr.getPositive(OverlayMngrPort.class));
     }
 
     Handler handleStunCroupierReady = new Handler<OMngrCroupier.ConnectResponse>() {
         @Override
         public void handle(OMngrCroupier.ConnectResponse resp) {
-            LOG.info("{}app croupier ready", logPrefix);
+            LOG.info("{}stun croupier ready", logPrefix);
             subscribe(handleNatReady, stunClient.getPositive(StunClientPort.class));
             trigger(Start.event, stunClient.control());
         }
@@ -234,9 +234,7 @@ public class NatManagerComp extends ComponentDefinition {
     private Handler handleNatReady = new Handler<NatDetected>() {
         @Override
         public void handle(NatDetected ready) {
-            String printIp = (ready.publicIp.isPresent() ? ready.publicIp.get().getHostAddress().toString() : "x");
-            LOG.info("{}nat detected:{} public ip:{}",
-                    new Object[]{logPrefix, ready.nat, printIp});
+            LOG.info("{}nat detection ready", logPrefix);
             natDetectionResult.setNatReady(ready.nat, ready.publicIp);
             if (natDetectionResult.isReady()) {
                 step4();
@@ -245,15 +243,19 @@ public class NatManagerComp extends ComponentDefinition {
     };
 
     private void step4() {
-        LOG.info("{}nat detection ready", logPrefix);
         Pair<NatedTrait, Optional<InetAddress>> result = natDetectionResult.getResult();
         if (result.getValue0().type.equals(Nat.Type.OPEN)) {
-            LOG.info("{}open node", logPrefix);
+            LOG.info("{}open node ip:{}", logPrefix, result.getValue1().get());
             networkConfig.setPublicIp(result.getValue1().get());
             systemAdr = DecoratedAddress.open(result.getValue1().get(), systemConfig.port, systemConfig.id);
         } else if (result.getValue0().type.equals(Nat.Type.NAT)) {
             LOG.info("{}detected nat:{} public ip:{}",
-                    new Object[]{logPrefix, result.getValue0().type, result.getValue1().get().getHostAddress()});
+                    new Object[]{logPrefix, result.getValue0().toString(), result.getValue1().get().getHostAddress()});
+            if(!result.getValue0().mappingPolicy.equals(Nat.MappingPolicy.ENDPOINT_INDEPENDENT)) {
+                LOG.info("{}nat:{} not supported yet", logPrefix, result.getValue0().toString());
+                System.exit(1);
+                return;
+            }
             systemAdr = new DecoratedAddress(new BasicAddress(result.getValue1().get(), systemConfig.port, systemConfig.id));
             systemAdr.addTrait(result.getValue0());
             networkConfig.setPublicIp(result.getValue1().get());
@@ -299,7 +301,7 @@ public class NatManagerComp extends ComponentDefinition {
     }
 
     private void setupOverlaysNNatTraverser() {
-        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrComp.OverlayMngrInit(systemConfig.configCore, network.boundAdr));
+        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrComp.OverlayMngrInit(systemConfig.configCore, network.boundAdr, false));
         connect(overlayMngr.getNegative(Timer.class), timer);
         
         natTraverser = create(NatTraverserComp.class,

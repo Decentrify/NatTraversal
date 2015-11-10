@@ -51,7 +51,7 @@ public abstract class FilterPolicyImpl {
 
     //******************************INTERFACE***********************************
 
-    public abstract boolean allow(BasicAddress target, Map<InetAddress, Set<Integer>> allowed);
+    public abstract boolean allow(BasicAddress outAdr, Set<BasicAddress> activeOut);
     //**************************************************************************
 
     public static class EIFilter extends FilterPolicyImpl {
@@ -60,7 +60,7 @@ public abstract class FilterPolicyImpl {
         }
 
         @Override
-        public boolean allow(BasicAddress target, Map<InetAddress, Set<Integer>> allowed) {
+        public boolean allow(BasicAddress outAdr, Set<BasicAddress> activeOut) {
             return true;
         }
     }
@@ -71,8 +71,13 @@ public abstract class FilterPolicyImpl {
         }
         
         @Override
-        public boolean allow(BasicAddress target, Map<InetAddress, Set<Integer>> allowed) {
-            return allowed.containsKey(target.getIp());
+        public boolean allow(BasicAddress outAdr, Set<BasicAddress> activeOut) {
+            for(BasicAddress adr : activeOut) {
+                if(adr.getIp().equals(outAdr.getIp())) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
@@ -83,12 +88,8 @@ public abstract class FilterPolicyImpl {
         }
         
         @Override
-        public boolean allow(BasicAddress target, Map<InetAddress, Set<Integer>> allowed) {
-            Set<Integer> allowedPorts = allowed.get(target.getIp());
-            if (allowedPorts == null) {
-                return false;
-            }
-            return allowedPorts.contains(target.getPort());
+        public boolean allow(BasicAddress outAdr, Set<BasicAddress> activeOut) {
+            return activeOut.contains(outAdr);
         }
     }
 }

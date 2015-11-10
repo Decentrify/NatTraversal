@@ -35,13 +35,13 @@ public abstract class MappingPolicyImpl {
         }
     }
     //************************INTERFACE*****************************************
-    public abstract Optional<Integer> usePort(BasicAddress src, BasicAddress dst, PortMappings portMappings);
+    public abstract Optional<Integer> usePort(BasicAddress inAdr, BasicAddress outAdr, PortMappings portMappings);
     //**************************************************************************
 
     public static class EIPolicy extends MappingPolicyImpl {
         @Override
-        public Optional<Integer> usePort(BasicAddress src, BasicAddress dst, PortMappings portMappings) {
-            return portMappings.getPublicPort(Pair.with(src.getIp(), src.getPort()));
+        public Optional<Integer> usePort(BasicAddress inAdr, BasicAddress outAdr, PortMappings portMappings) {
+            return portMappings.getNatPort(inAdr);
         }
     }
 }

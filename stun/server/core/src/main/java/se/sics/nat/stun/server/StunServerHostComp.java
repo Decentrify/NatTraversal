@@ -204,7 +204,7 @@ public class StunServerHostComp extends ComponentDefinition {
     //******************STEP_3 - OMNGR, STUN_CROUPIER, STUNS_SERVER*************
 
     private void connectOverlayMngr() {
-        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrInit(stunConfig.configCore, network.getValue0().adr));
+        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrInit(stunConfig.configCore, network.getValue0().adr, false));
         connect(overlayMngr.getNegative(Timer.class), timer);
         connect(overlayMngr.getNegative(Network.class), network.getValue0().networkResult.getNetwork());
 
