@@ -173,7 +173,7 @@ public class NatManagerComp extends ComponentDefinition {
         };
         auxNetwork = Triplet.with(
                 new NetworkParent(UUID.randomUUID(), callback,
-                        DecoratedAddress.open(networkConfig.localIp, systemConfig.port, systemConfig.id), true),
+                        DecoratedAddress.open(networkConfig.localIp, systemConfig.port + 1, systemConfig.id), true),
                 new NetworkParent(UUID.randomUUID(), callback,
                         DecoratedAddress.open(networkConfig.localIp, stunConfig.stunClientPorts.getValue0(), systemConfig.id), true),
                 new NetworkParent(UUID.randomUUID(), callback,
@@ -244,6 +244,10 @@ public class NatManagerComp extends ComponentDefinition {
 
     private void step4() {
         Pair<NatedTrait, Optional<InetAddress>> result = natDetectionResult.getResult();
+        LOG.info("{}detected type:{} ip:{}", new Object[]{logPrefix, result.getValue0(), 
+            (result.getValue1().isPresent() ? result.getValue1().get() : "x")});
+        System.exit(1);
+        
         if (result.getValue0().type.equals(Nat.Type.OPEN)) {
             LOG.info("{}open node ip:{}", logPrefix, result.getValue1().get());
             networkConfig.setPublicIp(result.getValue1().get());
