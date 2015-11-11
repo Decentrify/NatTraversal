@@ -121,7 +121,8 @@ public class StunServerHostComp extends ComponentDefinition {
             IpSolverHook.Definition ipSolver = systemHooks.getHook(BaseHooks.RequiredHooks.IP_SOLVER.hookName,
                     BaseHooks.IP_SOLVER_HOOK);
             ipSolverSetup = ipSolver.setup(new StunServerHostProxy(), this, new IpSolverHook.SetupInit());
-            ipSolver.start(new StunServerHostProxy(), this, ipSolverSetup, new IpSolverHook.StartInit(started, networkConfig.rPrefferedInterface, networkConfig.rPrefferedInterfaces));
+            ipSolver.start(new StunServerHostProxy(), this, ipSolverSetup, new IpSolverHook.StartInit(started, 
+                    networkConfig.rPrefferedInterface, networkConfig.rPrefferedInterfaces));
         }
 
         @Override
@@ -135,6 +136,7 @@ public class StunServerHostComp extends ComponentDefinition {
     }
 
     private void setupNetwork(InetAddress localIp) {
+        LOG.info("{}solved local ip:{}", logPrefix, localIp.getHostAddress());
         networkConfig.setLocalIp(localIp);
         network = Triplet.with(new NetworkParent(UUID.randomUUID(), systemConfig.port, true),
                 new NetworkParent(UUID.randomUUID(), stunConfig.stunServerPorts.getValue0(), true),
@@ -144,7 +146,6 @@ public class StunServerHostComp extends ComponentDefinition {
         network.getValue2().bindPort(false);
     }
     //************************STEP_2 - NETWORK**********************************
-
     private class NetworkParent implements NetworkHook.Parent, PortBindingHook.Parent {
 
         final UUID id;
