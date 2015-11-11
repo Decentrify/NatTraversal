@@ -44,23 +44,25 @@ public class StunViewSerializer implements Serializer {
     @Override
     public void toBinary(Object o, ByteBuf buf) {
         StunView sv = (StunView)o;
-        Serializers.lookupSerializer(DecoratedAddress.class).toBinary(sv.selfStunAdr.getValue0(), buf);
+        Serializer decoratedAdrS = Serializers.lookupSerializer(DecoratedAddress.class);
+        decoratedAdrS.toBinary(sv.selfStunAdr.getValue0(), buf);
         buf.writeInt(sv.selfStunAdr.getValue1().getPort());
         buf.writeBoolean(sv.partnerStunAdr.isPresent());
         if(sv.partnerStunAdr.isPresent()) {
-            Serializers.lookupSerializer(DecoratedAddress.class).toBinary(sv.partnerStunAdr.get(), buf);
+            decoratedAdrS.toBinary(sv.partnerStunAdr.get().getValue0(), buf);
             buf.writeInt(sv.partnerStunAdr.get().getValue1().getPort());
         }
     }
 
     @Override
     public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
-        DecoratedAddress selfStunAdr1 = (DecoratedAddress)Serializers.lookupSerializer(DecoratedAddress.class).fromBinary(buf, hint);
+        Serializer decoratedAdrS = Serializers.lookupSerializer(DecoratedAddress.class);
+        DecoratedAddress selfStunAdr1 = (DecoratedAddress)decoratedAdrS.fromBinary(buf, hint);
         int selfStunPort2 = buf.readInt();
         DecoratedAddress selfStunAdr2 = selfStunAdr1.changePort(selfStunPort2);
         boolean withPartner = buf.readBoolean();
         if(withPartner) {
-            DecoratedAddress partnerStunAdr1 = (DecoratedAddress)Serializers.lookupSerializer(DecoratedAddress.class).fromBinary(buf, hint);
+            DecoratedAddress partnerStunAdr1 = (DecoratedAddress)decoratedAdrS.fromBinary(buf, hint);
             int partnerStunPort2 = buf.readInt();
             DecoratedAddress partnerStunAdr2 = partnerStunAdr1.changePort(partnerStunPort2);
             return StunView.partner(Pair.with(selfStunAdr1, selfStunAdr2), Pair.with(partnerStunAdr1, partnerStunAdr2));
