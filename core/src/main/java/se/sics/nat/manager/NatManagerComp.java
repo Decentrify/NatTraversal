@@ -249,28 +249,23 @@ public class NatManagerComp extends ComponentDefinition {
             LOG.info("{}open node ip:{}", logPrefix, result.getValue1().get());
             networkConfig.setPublicIp(result.getValue1().get());
             systemAdr = DecoratedAddress.open(result.getValue1().get(), systemConfig.port, systemConfig.id);
-        } else {
-            //TODO Alex fix
-            LOG.info("{}detected type:{} ip:{}", new Object[]{logPrefix, result.getValue0(),
-                (result.getValue1().isPresent() ? result.getValue1().get() : "x")});
-            System.exit(1);
-            if (result.getValue0().type.equals(Nat.Type.NAT)) {
-                LOG.info("{}detected nat:{} public ip:{}",
-                        new Object[]{logPrefix, result.getValue0().toString(), result.getValue1().get().getHostAddress()});
-                if (!result.getValue0().mappingPolicy.equals(Nat.MappingPolicy.ENDPOINT_INDEPENDENT)) {
-                    LOG.info("{}nat:{} not supported yet", logPrefix, result.getValue0().toString());
-                    System.exit(1);
-                    return;
-                }
-                systemAdr = new DecoratedAddress(new BasicAddress(result.getValue1().get(), systemConfig.port, systemConfig.id));
-                systemAdr.addTrait(result.getValue0());
-                networkConfig.setPublicIp(result.getValue1().get());
-            } else {
-                LOG.error("{}not yet handling nat result:{}", logPrefix, result.getValue0());
-                throw new RuntimeException("not yet handling nat result:" + result.getValue0());
+        } else if (result.getValue0().type.equals(Nat.Type.NAT)) {
+            LOG.info("{}detected nat:{} public ip:{}",
+                    new Object[]{logPrefix, result.getValue0().toString(), result.getValue1().get().getHostAddress()});
+            if (!(result.getValue0().allocationPolicy.equals(Nat.AllocationPolicy.PORT_PRESERVATION)
+                    && result.getValue0().mappingPolicy.equals(Nat.MappingPolicy.ENDPOINT_INDEPENDENT)
+                    && result.getValue0().filteringPolicy.equals(Nat.FilteringPolicy.ENDPOINT_INDEPENDENT))) {
+                LOG.info("{}nat:{} not supported yet", logPrefix, result.getValue0().toString());
+                System.exit(1);
+                return;
             }
+            systemAdr = new DecoratedAddress(new BasicAddress(result.getValue1().get(), systemConfig.port, systemConfig.id));
+            systemAdr.addTrait(result.getValue0());
+            networkConfig.setPublicIp(result.getValue1().get());
+        } else {
+            LOG.error("{}not yet handling nat result:{}", logPrefix, result.getValue0());
+            throw new RuntimeException("not yet handling nat result:" + result.getValue0());
         }
-        cleanNatDetection();
         setupSystemNetwork();
     }
 
@@ -289,6 +284,7 @@ public class NatManagerComp extends ComponentDefinition {
         };
         network = new NetworkParent(UUID.randomUUID(), callback, systemAdr, true);
         network.bindPort();
+        LOG.info("{}waiting on system network", logPrefix);
     }
 
     private void step5() {
@@ -298,11 +294,15 @@ public class NatManagerComp extends ComponentDefinition {
 
     private void cleanNatDetection() {
         trigger(Kill.event, overlayMngr.control());
+        overlayMngr = null;
         trigger(Kill.event, stunClient.control());
+        stunClient = null;
         upnp.kill();
+        upnp = null;
         auxNetwork.getValue0().kill();
         auxNetwork.getValue1().kill();
         auxNetwork.getValue2().kill();
+        auxNetwork = null;
     }
 
     private void setupOverlaysNNatTraverser() {
