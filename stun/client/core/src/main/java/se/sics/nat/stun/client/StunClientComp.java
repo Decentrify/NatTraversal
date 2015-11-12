@@ -40,8 +40,8 @@ import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.fd.FailureDetectorPort;
-import se.sics.ktoolbox.fd.event.FDEvent;
+import se.sics.ktoolbox.fd.EPFDPort;
+import se.sics.ktoolbox.fd.event.EPFDSuspect;
 import se.sics.nat.stun.NatDetected;
 import se.sics.nat.stun.StunClientPort;
 import se.sics.nat.stun.client.util.StunSession;
@@ -114,7 +114,7 @@ public class StunClientComp extends ComponentDefinition {
     private final Positive<Network> network = requires(Network.class);
     private final Positive<CroupierPort> croupier = requires(CroupierPort.class);
     private final Negative<SelfViewUpdatePort> croupierView = provides(SelfViewUpdatePort.class);
-    private final Positive<FailureDetectorPort> failureDetector = requires(FailureDetectorPort.class);
+    private final Positive<EPFDPort> failureDetector = requires(EPFDPort.class);
 
     private final StunClientKCWrapper config;
     private final Pair<DecoratedAddress, DecoratedAddress> selfAdr;
@@ -176,9 +176,9 @@ public class StunClientComp extends ComponentDefinition {
             }
         };
 
-        Handler handleSuspect = new Handler<FDEvent.Suspect>() {
+        Handler handleSuspect = new Handler<EPFDSuspect>() {
             @Override
-            public void handle(FDEvent.Suspect event) {
+            public void handle(EPFDSuspect event) {
                 //TODO Alex fix me
                 LOG.error("{}stun server suspected - no logic defined - shutting down");
                 throw new RuntimeException("stun server suspected - no logic defined - shutting down");

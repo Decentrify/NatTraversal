@@ -161,7 +161,7 @@ public class NatManagerComp extends ComponentDefinition {
         boolean started = false;
 
         LOG.info("{}setting up stun networks", logPrefix);
-        
+
         NetworkSetupCallback callback = new NetworkSetupCallback() {
             @Override
             public void networkSetupComplete() {
@@ -185,7 +185,7 @@ public class NatManagerComp extends ComponentDefinition {
 
     //step3 nat detection upnp + stun + overlay
     private void step3() {
-        LOG.info("{}stun networks aux:{} stun1:{} stun2:{}", new Object[]{logPrefix, auxNetwork.getValue0().boundAdr.getPort(), 
+        LOG.info("{}stun networks aux:{} stun1:{} stun2:{}", new Object[]{logPrefix, auxNetwork.getValue0().boundAdr.getPort(),
             auxNetwork.getValue1().boundAdr.getPort(), auxNetwork.getValue2().boundAdr.getPort()});
         natDetectionResult = new NatDetectionResult();
         upnp = new NatUpnpParent();
@@ -244,31 +244,33 @@ public class NatManagerComp extends ComponentDefinition {
 
     private void step4() {
         Pair<NatedTrait, Optional<InetAddress>> result = natDetectionResult.getResult();
-        LOG.info("{}detected type:{} ip:{}", new Object[]{logPrefix, result.getValue0(), 
-            (result.getValue1().isPresent() ? result.getValue1().get() : "x")});
-        System.exit(1);
-        
+
         if (result.getValue0().type.equals(Nat.Type.OPEN)) {
             LOG.info("{}open node ip:{}", logPrefix, result.getValue1().get());
             networkConfig.setPublicIp(result.getValue1().get());
             systemAdr = DecoratedAddress.open(result.getValue1().get(), systemConfig.port, systemConfig.id);
-        } else if (result.getValue0().type.equals(Nat.Type.NAT)) {
-            LOG.info("{}detected nat:{} public ip:{}",
-                    new Object[]{logPrefix, result.getValue0().toString(), result.getValue1().get().getHostAddress()});
-            if(!result.getValue0().mappingPolicy.equals(Nat.MappingPolicy.ENDPOINT_INDEPENDENT)) {
-                LOG.info("{}nat:{} not supported yet", logPrefix, result.getValue0().toString());
-                System.exit(1);
-                return;
-            }
-            systemAdr = new DecoratedAddress(new BasicAddress(result.getValue1().get(), systemConfig.port, systemConfig.id));
-            systemAdr.addTrait(result.getValue0());
-            networkConfig.setPublicIp(result.getValue1().get());
         } else {
-            LOG.error("{}not yet handling nat result:{}", logPrefix, result.getValue0());
-            throw new RuntimeException("not yet handling nat result:" + result.getValue0());
+            //TODO Alex fix
+            LOG.info("{}detected type:{} ip:{}", new Object[]{logPrefix, result.getValue0(),
+                (result.getValue1().isPresent() ? result.getValue1().get() : "x")});
+            System.exit(1);
+            if (result.getValue0().type.equals(Nat.Type.NAT)) {
+                LOG.info("{}detected nat:{} public ip:{}",
+                        new Object[]{logPrefix, result.getValue0().toString(), result.getValue1().get().getHostAddress()});
+                if (!result.getValue0().mappingPolicy.equals(Nat.MappingPolicy.ENDPOINT_INDEPENDENT)) {
+                    LOG.info("{}nat:{} not supported yet", logPrefix, result.getValue0().toString());
+                    System.exit(1);
+                    return;
+                }
+                systemAdr = new DecoratedAddress(new BasicAddress(result.getValue1().get(), systemConfig.port, systemConfig.id));
+                systemAdr.addTrait(result.getValue0());
+                networkConfig.setPublicIp(result.getValue1().get());
+            } else {
+                LOG.error("{}not yet handling nat result:{}", logPrefix, result.getValue0());
+                throw new RuntimeException("not yet handling nat result:" + result.getValue0());
+            }
         }
         cleanNatDetection();
-
         setupSystemNetwork();
     }
 
@@ -294,7 +296,6 @@ public class NatManagerComp extends ComponentDefinition {
         setupOverlaysNNatTraverser();
     }
 
-
     private void cleanNatDetection() {
         trigger(Kill.event, overlayMngr.control());
         trigger(Kill.event, stunClient.control());
@@ -307,7 +308,7 @@ public class NatManagerComp extends ComponentDefinition {
     private void setupOverlaysNNatTraverser() {
         overlayMngr = create(OverlayMngrComp.class, new OverlayMngrComp.OverlayMngrInit(systemConfig.configCore, network.boundAdr, false));
         connect(overlayMngr.getNegative(Timer.class), timer);
-        
+
         natTraverser = create(NatTraverserComp.class,
                 new NatTraverserComp.NatTraverserInit(systemConfig.configCore, systemHooks, systemAdr));
         connect(natTraverser.getNegative(Timer.class), timer);
@@ -319,24 +320,23 @@ public class NatManagerComp extends ComponentDefinition {
 
         connect(overlayMngr.getNegative(Network.class), networkPort.getPair());
         connect(overlayMngr.getPositive(OverlayMngrPort.class), overlayMngrPort);
-        
+
         subscribe(handleNatTraverserReady, natTraverser.getPositive(StatusPort.class));
         subscribe(handleSelfAddressUpdate, natTraverser.getPositive(SelfAddressUpdatePort.class));
-        
+
         trigger(Start.event, natTraverser.control());
         trigger(Start.event, overlayMngr.control());
     }
-    
+
     Handler handleNatTraverserReady = new Handler<Status.Internal<NatStatus>>() {
         @Override
         public void handle(Status.Internal<NatStatus> event) {
             LOG.info("{}nat traverser ready", logPrefix);
-            
-            
+
             trigger(new Status.Internal(new NatManagerReady(systemAdr)), status);
         }
     };
-    
+
     Handler handleSelfAddressUpdate = new Handler<SelfAddressUpdate>() {
         @Override
         public void handle(SelfAddressUpdate event) {

@@ -35,9 +35,10 @@ import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.fd.FailureDetectorPort;
-import se.sics.ktoolbox.fd.event.FDEvent;
-import se.sics.ktoolbox.fd.event.FDEvent.Unfollow;
+import se.sics.ktoolbox.fd.EPFDPort;
+import se.sics.ktoolbox.fd.event.EPFDFollow;
+import se.sics.ktoolbox.fd.event.EPFDSuspect;
+import se.sics.ktoolbox.fd.event.EPFDUnfollow;
 import se.sics.nat.stun.msg.StunEcho;
 import se.sics.nat.stun.msg.server.StunPartner;
 import se.sics.nat.stun.util.StunView;
@@ -71,7 +72,7 @@ public class StunServerComp extends ComponentDefinition {
     private final Positive<Network> network = requires(Network.class);
     private final Positive<CroupierPort> croupier = requires(CroupierPort.class);
     private final Negative<SelfViewUpdatePort> croupierView = provides(SelfViewUpdatePort.class);
-    private final Positive<FailureDetectorPort> failureDetector = requires(FailureDetectorPort.class);
+    private final Positive<EPFDPort> failureDetector = requires(EPFDPort.class);
 
     private final StunServerKCWrapper config;
 
@@ -196,7 +197,7 @@ public class StunServerComp extends ComponentDefinition {
                         if (partner == null && pendingPartner == null) {
                             partner = content.partnerAdr;
                             LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getValue0().getBase()});
-                            trigger(new FDEvent.Follow(partner.getValue0(), config.stunService, 
+                            trigger(new EPFDFollow(partner.getValue0(), config.stunService, 
                                     StunServerComp.this.getComponentCore().id()), failureDetector);
                             trigger(CroupierUpdate.update(StunView.partner(self, partner)), croupierView);
                             send(content.accept(self), self.getValue0(), partner.getValue0());
@@ -225,7 +226,7 @@ public class StunServerComp extends ComponentDefinition {
                         }
                         partner = content.partnerAdr.get();
                         LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getValue0().getBase()});
-                        trigger(new FDEvent.Follow(partner.getValue0(), config.stunService, 
+                        trigger(new EPFDFollow(partner.getValue0(), config.stunService, 
                                 StunServerComp.this.getComponentCore().id()), failureDetector);
                         trigger(CroupierUpdate.update(StunView.partner(self, partner)), croupierView);
                     }
@@ -243,19 +244,17 @@ public class StunServerComp extends ComponentDefinition {
             }
         };
         
-        Handler handleSuspectPartner = new Handler<FDEvent.Suspect>() {
+        Handler handleSuspectPartner = new Handler<EPFDSuspect>() {
             @Override
-            public void handle(FDEvent.Suspect suspect) {
-                if(partner == null || !partner.getValue0().getBase().equals(suspect.target.getBase())) {
+            public void handle(EPFDSuspect suspect) {
+                if(partner == null || !partner.getValue0().getBase().equals(suspect.req.target.getBase())) {
                     LOG.warn("{}possible old partner suspected");
-                    trigger(new Unfollow(suspect.target, config.stunService,
-                            StunServerComp.this.getComponentCore().id()), failureDetector);
+                    trigger(new EPFDUnfollow(suspect.req), failureDetector);
                     return;
                 }
                 LOG.info("{}partner:{} suspected - resetting", new Object[]{logPrefix, partner.getValue0().getBase()});
                 partner = null;
-                trigger(new Unfollow(suspect.target, config.stunService,
-                        StunServerComp.this.getComponentCore().id()), failureDetector);
+                trigger(new EPFDUnfollow(suspect.req), failureDetector);
                 trigger(CroupierUpdate.update(StunView.empty(self)), croupierView);
             }
         };

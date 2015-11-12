@@ -39,8 +39,10 @@ import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.fd.FailureDetectorPort;
-import se.sics.ktoolbox.fd.event.FDEvent;
+import se.sics.ktoolbox.fd.EPFDPort;
+import se.sics.ktoolbox.fd.event.EPFDFollow;
+import se.sics.ktoolbox.fd.event.EPFDSuspect;
+import se.sics.ktoolbox.fd.event.EPFDUnfollow;
 import se.sics.nat.pm.PMMsg;
 import se.sics.nat.pm.util.ParentMakerView;
 import se.sics.p2ptoolbox.croupier.CroupierPort;
@@ -72,7 +74,7 @@ public class PMClientComp extends ComponentDefinition {
     private final Positive<Timer> timer = requires(Timer.class);
     private final Positive<CroupierPort> pmCroupier = requires(CroupierPort.class);
     private final Negative<SelfViewUpdatePort> pmViewUpdate = provides(SelfViewUpdatePort.class); 
-    private final Positive<FailureDetectorPort> fd = requires(FailureDetectorPort.class);
+    private final Positive<EPFDPort> epfd = requires(EPFDPort.class);
     private final Negative<SelfAddressUpdatePort> addressUpdate = provides(SelfAddressUpdatePort.class);
     
 
@@ -95,7 +97,7 @@ public class PMClientComp extends ComponentDefinition {
         subscribe(handleParentsSample, pmCroupier);
         subscribe(handleRegisterResp, network);
         subscribe(handleUnRegister, network);
-        subscribe(handleSuspectParent, fd);
+        subscribe(handleSuspectParent, epfd);
     }
 
     Handler handleStart = new Handler<Start>() {
@@ -169,31 +171,34 @@ public class PMClientComp extends ComponentDefinition {
                 }
             };
 
-    Handler handleSuspectParent = new Handler<FDEvent.Suspect>() {
+    Handler handleSuspectParent = new Handler<EPFDSuspect>() {
         @Override
-        public void handle(FDEvent.Suspect event) {
-            if (!parents.containsKey(event.target.getBase())) {
-                LOG.debug("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, event.target.getBase()});
+        public void handle(EPFDSuspect event) {
+            DecoratedAddress parent = event.req.target;
+            if (!parents.containsKey(parent.getBase())) {
+                LOG.debug("{}possibly old parent:{} - obsolete suspect", new Object[]{logPrefix, parent.getBase()});
                 return;
             }
-            LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target.getBase()});
-            removeParent(event.target);
+            LOG.info("{}suspect:{}", new Object[]{logPrefix, parent.getBase()});
+            removeParent(parent);
             DecoratedHeader<DecoratedAddress> msgHeader = new DecoratedHeader(
-                    new BasicHeader(self, event.target, Transport.UDP), null, null);
+                    new BasicHeader(self, parent, Transport.UDP), null, null);
             ContentMsg msg = new BasicContentMsg(msgHeader, new PMMsg.UnRegister());
             trigger(msg, network);
         }
     };
 
-    private void addParent(DecoratedAddress child) {
-        parents.put(child.getBase(), child);
-        trigger(new FDEvent.Follow(child, config.natParentService, PMClientComp.this.getComponentCore().id()), fd);
+    private void addParent(DecoratedAddress parent) {
+        parents.put(parent.getBase(), parent);
+        EPFDFollow req = new EPFDFollow(parent, config.natParentService, PMClientComp.this.getComponentCore().id());
+        trigger(req, epfd);
         updateSelf();
     }
 
-    private void removeParent(DecoratedAddress child) {
-        parents.remove(child.getBase());
-        trigger(new FDEvent.Unfollow(child, config.natParentService, PMClientComp.this.getComponentCore().id()), fd);
+    private void removeParent(DecoratedAddress parent) {
+        parents.remove(parent.getBase());
+        EPFDFollow req = new EPFDFollow(parent, config.natParentService, this.getComponentCore().id());
+        trigger(new EPFDUnfollow(req), epfd);
         updateSelf();
     }
     

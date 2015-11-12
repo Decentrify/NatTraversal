@@ -44,8 +44,10 @@ import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.fd.FailureDetectorPort;
-import se.sics.ktoolbox.fd.event.FDEvent;
+import se.sics.ktoolbox.fd.EPFDPort;
+import se.sics.ktoolbox.fd.event.EPFDFollow;
+import se.sics.ktoolbox.fd.event.EPFDSuspect;
+import se.sics.ktoolbox.fd.event.EPFDUnfollow;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
 import se.sics.nat.detection.NatStatus;
@@ -92,7 +94,7 @@ public class NatTraverserComp extends ComponentDefinition {
     private final Positive<Network> network = requires(Network.class);
     private final Positive<Timer> timer = requires(Timer.class);
     private final Positive<OverlayMngrPort> overlayMngr = requires(OverlayMngrPort.class);
-    private final Positive<FailureDetectorPort> fd = requires(FailureDetectorPort.class);
+    private final Positive<EPFDPort> epfd = requires(EPFDPort.class);
 
     private Positive<SHPClientPort> hpClient;
 
@@ -140,7 +142,7 @@ public class NatTraverserComp extends ComponentDefinition {
     private void ready() {
         //connection tracker
         subscribe(connectionTracker.handleNetCloseConnection, network);
-        subscribe(connectionTracker.handleSuspectConnectionEnd, fd);
+        subscribe(connectionTracker.handleSuspectConnectionEnd, epfd);
 
         //connection maker
         subscribe(connectionMaker.handleOpenConnectionSuccess, hpClient);
@@ -485,8 +487,8 @@ public class NatTraverserComp extends ComponentDefinition {
 
         public void newConnection(Pair<BasicAddress, DecoratedAddress> connection) {
             openConnections.put(connection.getValue1().getBase(), connection);
-            trigger(new FDEvent.Follow(connection.getValue1(), config.natTraverserService, 
-                NatTraverserComp.this.getComponentCore().id()), fd);
+            trigger(new EPFDFollow(connection.getValue1(), config.natTraverserService, 
+                NatTraverserComp.this.getComponentCore().id()), epfd);
         }
 
         public Optional<Pair<BasicAddress, DecoratedAddress>> connected(BasicAddress target) {
@@ -502,11 +504,11 @@ public class NatTraverserComp extends ComponentDefinition {
                     }
                 };
         
-        Handler handleSuspectConnectionEnd = new Handler<FDEvent.Suspect>() {
+        Handler handleSuspectConnectionEnd = new Handler<EPFDSuspect>() {
             @Override
-            public void handle(FDEvent.Suspect event) {
-                LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target});
-                cleanConnection(event.target.getBase());
+            public void handle(EPFDSuspect event) {
+                LOG.info("{}suspect:{}", new Object[]{logPrefix, event.req.target});
+                cleanConnection(event.req.target.getBase());
             }
         };
 
@@ -517,8 +519,9 @@ public class NatTraverserComp extends ComponentDefinition {
                 //TODO Alex what to do here
                 return;
             }
-            trigger(new FDEvent.Unfollow(connection.getValue1(), config.natTraverserService, 
-                NatTraverserComp.this.getComponentCore().id()), fd);
+            EPFDFollow req = new EPFDFollow(connection.getValue1(), config.natTraverserService, 
+                NatTraverserComp.this.getComponentCore().id());
+            trigger(new EPFDUnfollow(req), epfd);
             
             //TODO Alex - any other cleanup to do here?
         }

@@ -36,8 +36,10 @@ import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.ktoolbox.fd.FailureDetectorPort;
-import se.sics.ktoolbox.fd.event.FDEvent;
+import se.sics.ktoolbox.fd.EPFDPort;
+import se.sics.ktoolbox.fd.event.EPFDFollow;
+import se.sics.ktoolbox.fd.event.EPFDSuspect;
+import se.sics.ktoolbox.fd.event.EPFDUnfollow;
 import se.sics.nat.pm.PMMsg;
 import se.sics.nat.pm.ParentMakerKCWrapper;
 import se.sics.nat.pm.server.msg.Update;
@@ -66,7 +68,7 @@ public class PMServerComp extends ComponentDefinition {
     private final Positive<Timer> timer = requires(Timer.class);
     private final Positive<CroupierPort> pmCroupier = requires(CroupierPort.class);
     private final Negative<SelfViewUpdatePort> pmViewUpdate = provides(SelfViewUpdatePort.class);
-    private final Positive<FailureDetectorPort> fd = requires(FailureDetectorPort.class);
+    private final Positive<EPFDPort> epfd = requires(EPFDPort.class);
 
     private final ParentMakerKCWrapper config;
     private DecoratedAddress self;
@@ -85,7 +87,7 @@ public class PMServerComp extends ComponentDefinition {
         subscribe(handleInternalStateCheck, timer);
         subscribe(handleRegisterReq, network);
         subscribe(handleUnRegister, network);
-        subscribe(handleSuspectChild, fd);
+        subscribe(handleSuspectChild, epfd);
     }
 
     Handler handleStart = new Handler<Start>() {
@@ -136,17 +138,18 @@ public class PMServerComp extends ComponentDefinition {
                 }
             };
 
-    Handler handleSuspectChild = new Handler<FDEvent.Suspect>() {
+    Handler handleSuspectChild = new Handler<EPFDSuspect>() {
         @Override
-        public void handle(FDEvent.Suspect event) {
-            if (!children.containsKey(event.target.getBase())) {
-                LOG.info("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, event.target});
+        public void handle(EPFDSuspect event) {
+            DecoratedAddress child = event.req.target;
+            if (!children.containsKey(child.getBase())) {
+                LOG.info("{}possibly old child:{} - obsolete suspect", new Object[]{logPrefix, child.getBase()});
                 return;
             }
-            LOG.info("{}suspect:{}", new Object[]{logPrefix, event.target});
-            removeChild(event.target);
+            LOG.info("{}suspect:{}", new Object[]{logPrefix, child.getBase()});
+            removeChild(child);
             DecoratedHeader<DecoratedAddress> msgHeader = new DecoratedHeader(
-                    new BasicHeader(self, event.target, Transport.UDP), null, null);
+                    new BasicHeader(self, child, Transport.UDP), null, null);
             ContentMsg msg = new BasicContentMsg(msgHeader, new PMMsg.UnRegister());
             trigger(msg, network);
         }
@@ -154,7 +157,8 @@ public class PMServerComp extends ComponentDefinition {
 
     private void addChild(DecoratedAddress child) {
         children.put(child.getBase(), child);
-        trigger(new FDEvent.Follow(child, config.natParentService, PMServerComp.this.getComponentCore().id()), fd);
+        EPFDFollow req = new EPFDFollow(child, config.natParentService, PMServerComp.this.getComponentCore().id());
+        trigger(req, epfd);
         if (children.size() == config.nrChildren) {
             trigger(CroupierUpdate.observer(), pmViewUpdate);
         }
@@ -163,7 +167,8 @@ public class PMServerComp extends ComponentDefinition {
 
     private void removeChild(DecoratedAddress child) {
         children.remove(child.getBase());
-        trigger(new FDEvent.Unfollow(child, config.natParentService, PMServerComp.this.getComponentCore().id()), fd);
+        EPFDFollow req = new EPFDFollow(child, config.natParentService, PMServerComp.this.getComponentCore().id());
+        trigger(new EPFDUnfollow(req), epfd);
         trigger(CroupierUpdate.update(new ParentMakerView()), pmViewUpdate);
         trigger(new Update(new HashMap(children)), parentMaker);
     }
