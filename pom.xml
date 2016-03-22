@@ -3,17 +3,17 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>se.sics</groupId>
     <artifactId>nat</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>0.0.3-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>NAT Traversal</name>
     <modules>
         <module>common</module>
-        <module>nat-emulator</module>
+        <!--<module>nat-emulator</module>-->
         <module>stun</module>
-        <module>parent-maker</module>
+<!--        <module>parent-maker</module>
         <module>hp</module>
         <module>core</module>
-        <module>network</module>
+        <module>network</module>-->
 <!--        <module>helper</module>
         <module>example</module>-->
     </modules>
@@ -23,16 +23,8 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kompics.version>0.8.3-SNAPSHOT</kompics.version>
-        
-        <util.version>1.9-SNAPSHOT</util.version>
-        <simulator.version>1.8-SNAPSHOT</simulator.version>
-        <ipsolver.version>1.1-SNAPSHOT</ipsolver.version>
-        <croupier.version>2.0.1-SNAPSHOT</croupier.version>
-        <overlaymngr.version>0.0.1-SNAPSHOT</overlaymngr.version>
-        <failuredetector.version>0.0.1-SNAPSHOT</failuredetector.version>
-       
-        <chunkmanager.version>1.3-SNAPSHOT</chunkmanager.version>
+        <kompics.version>0.9.1-SNAPSHOT</kompics.version>
+        <ktoolbox.version>2.0.1-SNAPSHOT</ktoolbox.version>
         
         <logger.version>1.7.5</logger.version>
         <tuples.version>1.2</tuples.version>
@@ -58,8 +50,13 @@
         </dependency>
         <dependency>
             <groupId>se.sics.ktoolbox.util</groupId>
-            <artifactId>kompics-basic</artifactId>
-            <version>${util.version}</version>
+            <artifactId>core</artifactId>
+            <version>${ktoolbox.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.util</groupId>
+            <artifactId>kcore</artifactId>
+            <version>${ktoolbox.version}</version>
         </dependency>
         
         <dependency>

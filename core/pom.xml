@@ -5,7 +5,7 @@
     <parent>
         <groupId>se.sics</groupId>
         <artifactId>nat</artifactId>
-        <version>0.0.2-SNAPSHOT</version>
+        <version>0.0.3-SNAPSHOT</version>
     </parent>
     <groupId>se.sics.nat</groupId>
     <artifactId>core</artifactId>
@@ -51,13 +51,13 @@
         
         <dependency>
             <groupId>se.sics.ktoolbox.croupier</groupId>
-            <artifactId>croupier-core</artifactId>
-            <version>${croupier.version}</version>
+            <artifactId>core</artifactId>
+            <version>${ktoolbox.version}</version>
         </dependency>
         <dependency>
             <groupId>se.sics.ktoolbox.overlaymngr</groupId>
             <artifactId>core</artifactId>
-            <version>${overlaymngr.version}</version>
+            <version>${ktoolbox.version}</version>
         </dependency>
     </dependencies>
 </project>

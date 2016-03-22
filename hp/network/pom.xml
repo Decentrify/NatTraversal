@@ -5,7 +5,7 @@
   <parent>
     <groupId>se.sics.nat</groupId>
     <artifactId>hp</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>0.0.3-SNAPSHOT</version>
   </parent>
   <groupId>se.sics.nat.hp</groupId>
   <artifactId>network</artifactId>
@@ -21,8 +21,8 @@
       
       <dependency>
           <groupId>se.sics.ktoolbox.util</groupId>
-          <artifactId>util-serializer</artifactId>
-          <version>${util.version}</version>
+          <artifactId>network</artifactId>
+          <version>${ktoolbox.version}</version>
       </dependency>
   </dependencies>
 </project>

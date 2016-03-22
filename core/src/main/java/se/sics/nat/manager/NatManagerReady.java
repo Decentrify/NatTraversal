@@ -25,9 +25,11 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatManagerReady {
-    public final DecoratedAddress selfAdr;
+    public final DecoratedAddress privateAdr;
+    public final DecoratedAddress publicAdr;
     
-    public NatManagerReady(DecoratedAddress selfAdr) {
-        this.selfAdr = selfAdr;
+    public NatManagerReady(DecoratedAddress privateAdr, DecoratedAddress publicAdr) {
+        this.privateAdr = privateAdr;
+        this.publicAdr = publicAdr;
     }
 }

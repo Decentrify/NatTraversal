@@ -18,29 +18,12 @@
  */
 package se.sics.nat.stun.server;
 
-import java.util.HashSet;
-import java.util.Set;
-import se.sics.p2ptoolbox.util.config.KConfigLevel;
-import se.sics.p2ptoolbox.util.config.KConfigOption;
+import se.sics.ktoolbox.util.config.KConfigOption;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunServerKConfig implements KConfigLevel {
-    public final static KConfigOption.Basic<Integer> stunServerPort1 = new KConfigOption.Basic("stun.server.port1", Integer.class, new StunServerKConfig());
-    public final static KConfigOption.Basic<Integer> stunServerPort2 = new KConfigOption.Basic("stun.server.port2", Integer.class, new StunServerKConfig());
-    public final static KConfigOption.Basic<Integer> globalCroupier = new KConfigOption.Basic("services.globalCroupier", Integer.class, new StunServerKConfig());
-    public final static KConfigOption.Basic<Integer> stunService = new KConfigOption.Basic("services.stun", Integer.class, new StunServerKConfig());
-    
-    @Override
-    public Set<String> canWrite() {
-        Set<String> canWrite = new HashSet<>();
-        canWrite.add(toString());
-        return canWrite;
-    }
-
-    @Override
-    public String toString() {
-        return "StunServerKConfig";
-    }
+public class StunServerKConfig {
+    public final static KConfigOption.Basic<Integer> stunServerPort1 = new KConfigOption.Basic("stun.server.port1", Integer.class);
+    public final static KConfigOption.Basic<Integer> stunServerPort2 = new KConfigOption.Basic("stun.server.port2", Integer.class);
 }

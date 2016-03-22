@@ -25,7 +25,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.javatuples.Pair;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import se.sics.ktoolbox.util.network.KAddress;
+import se.sics.ktoolbox.util.network.basic.BasicAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -50,7 +51,7 @@ public class PortMappings {
         return Optional.fromNullable(portMapping);
     }
 
-    public Optional<Integer> getNatPort(BasicAddress inAdr) {
+    public Optional<Integer> getNatPort(KAddress inAdr) {
         return Optional.fromNullable(inMapping.get(inAdr));
     }
 
@@ -75,11 +76,11 @@ public class PortMappings {
         return Optional.fromNullable(oldConnectionTid);
     }
 
-    public void cleanConnection(int natPort, BasicAddress outAdr, UUID tid) {
+    public void cleanConnection(int natPort, KAddress outAdr, UUID tid) {
         UUID oldTid = timeoutMappings.get(natPort).get(outAdr);
         if (oldTid.equals(tid)) {
             timeoutMappings.get(natPort).remove(outAdr);
-            Pair<BasicAddress, Set<BasicAddress>> portMapping = mappings.get(natPort);
+            Pair<BasicAddress, Set<KAddress>> portMapping = mappings.get(natPort);
             portMapping.getValue1().remove(outAdr);
             if (portMapping.getValue1().isEmpty()) {
                 mappings.remove(natPort);
@@ -102,7 +103,7 @@ public class PortMappings {
     
     public String simpleToString() {
         int connections = 0;
-        for (Pair<BasicAddress, Set<BasicAddress>> portMapping : mappings.values()) {
+        for (Pair<KAddress, Set<KAddress>> portMapping : mappings.values()) {
             connections += portMapping.getValue1().size();
         }
         return mappings.size() + " active ports and " + connections + " connections";
@@ -110,9 +111,9 @@ public class PortMappings {
     
     public String complexToString() {
         StringBuilder sb = new StringBuilder();
-        for (Map.Entry<Integer, Pair<BasicAddress, Set<BasicAddress>>> portMapping : mappings.entrySet()) {
+        for (Map.Entry<Integer, Pair<KAddress, Set<KAddress>>> portMapping : mappings.entrySet()) {
             sb.append("\nport:" + portMapping.getKey() + "-");
-            for(BasicAddress outAdr : portMapping.getValue().getValue1()) {
+            for(KAddress outAdr : portMapping.getValue().getValue1()) {
                 sb.append(outAdr.toString() + ",");
             }
             sb.deleteCharAt(sb.length()-1);

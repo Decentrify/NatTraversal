@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.Channel;
 import se.sics.kompics.ChannelFilter;
+import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.ConfigurationException;
@@ -49,7 +50,6 @@ import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
 import se.sics.nat.common.util.NatDetectionResult;
 import se.sics.nat.detection.NatDetectionHooks;
-import se.sics.nat.detection.NatStatus;
 import se.sics.nat.hooks.BaseHooks;
 import se.sics.nat.network.NetworkMngrKCWrapper;
 import se.sics.nat.stun.NatDetected;
@@ -59,7 +59,7 @@ import se.sics.nat.stun.client.StunClientKCWrapper;
 import se.sics.nat.stun.upnp.hooks.UpnpHook;
 import se.sics.nat.stun.upnp.msg.UpnpReady;
 import se.sics.nat.traverser.NatTraverserComp;
-import se.sics.p2ptoolbox.croupier.CroupierPort;
+import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.config.impl.SystemKCWrapper;
 import se.sics.p2ptoolbox.util.nat.Nat;
@@ -68,17 +68,15 @@ import se.sics.p2ptoolbox.util.network.hooks.NetworkHook;
 import se.sics.p2ptoolbox.util.network.hooks.NetworkResult;
 import se.sics.p2ptoolbox.util.network.hooks.PortBindingHook;
 import se.sics.p2ptoolbox.util.network.hooks.PortBindingResult;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import se.sics.ktoolbox.util.address.basic.BasicAddress;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.other.ComponentHelper;
 import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
 import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
-import se.sics.p2ptoolbox.util.status.Status;
 import se.sics.p2ptoolbox.util.status.StatusPort;
-import se.sics.p2ptoolbox.util.truefilters.SourcePortFilter;
-import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
-import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
-import se.sics.p2ptoolbox.util.update.SelfViewUpdatePort;
+import se.sics.p2ptoolbox.util.filters.SourcePortFilter;
+import se.sics.p2ptoolbox.util.update.address.SelfAddressUpdate;
+import se.sics.ktoolbox.util.address.resolution.AddressUpdatePort;
+import se.sics.ktoolbox.util.update.view.ViewUpdatePort;
 
 /**
  *
@@ -94,7 +92,7 @@ public class NatManagerComp extends ComponentDefinition {
     //indirectly provided by children
     private final Negative<Network> networkPort = provides(Network.class);
     private final Negative<OverlayMngrPort> overlayMngrPort = provides(OverlayMngrPort.class);
-    private final Negative<SelfAddressUpdatePort> addressUpdate = provides(SelfAddressUpdatePort.class);
+    private final Negative<AddressUpdatePort> addressUpdate = provides(AddressUpdatePort.class);
 
     private final SystemKCWrapper systemConfig;
     private final SystemHookSetup systemHooks;
@@ -102,15 +100,16 @@ public class NatManagerComp extends ComponentDefinition {
     private StunClientKCWrapper stunConfig;
 
     private IpSolverHook.SetupResult ipSolverSetup;
-    private Triplet<NetworkParent, NetworkParent, NetworkParent> auxNetwork;
+    private NetworkParent systemNetwork;
+    private Pair<NetworkParent, NetworkParent> stunNetwork;
     private NatUpnpParent upnp;
     private Component stunClient;
     private NatDetectionResult natDetectionResult;
     private Component overlayMngr;
-
-    private NetworkParent network;
     private Component natTraverser;
-    private DecoratedAddress systemAdr;
+    
+    private DecoratedAddress privateAdr;
+    private DecoratedAddress publicAdr;
 
     public NatManagerComp(NatManagerInit init) {
         systemConfig = new SystemKCWrapper(init.configCore);
@@ -165,59 +164,60 @@ public class NatManagerComp extends ComponentDefinition {
         NetworkSetupCallback callback = new NetworkSetupCallback() {
             @Override
             public void networkSetupComplete() {
-                if (auxNetwork.getValue0().networkPort != null && auxNetwork.getValue1().networkPort != null
-                        && auxNetwork.getValue2().networkPort != null) {
+                if (systemNetwork.networkPort != null && stunNetwork.getValue1().networkPort != null
+                        && stunNetwork.getValue1().networkPort != null) {
                     step3();
                 }
             }
         };
-        auxNetwork = Triplet.with(
-                new NetworkParent(UUID.randomUUID(), callback,
-                        DecoratedAddress.open(networkConfig.localIp, systemConfig.port + 1, systemConfig.id), true),
+        systemNetwork = new NetworkParent(UUID.randomUUID(), callback,
+                        DecoratedAddress.open(networkConfig.localIp, systemConfig.port, systemConfig.id), true);
+        stunNetwork = Pair.with(
                 new NetworkParent(UUID.randomUUID(), callback,
                         DecoratedAddress.open(networkConfig.localIp, stunConfig.stunClientPorts.getValue0(), systemConfig.id), true),
                 new NetworkParent(UUID.randomUUID(), callback,
                         DecoratedAddress.open(networkConfig.localIp, stunConfig.stunClientPorts.getValue1(), systemConfig.id), true));
-        auxNetwork.getValue0().bindPort();
-        auxNetwork.getValue1().bindPort();
-        auxNetwork.getValue2().bindPort();
+        systemNetwork.bindPort();
+        stunNetwork.getValue0().bindPort();
+        stunNetwork.getValue1().bindPort();
     }
 
     //step3 nat detection upnp + stun + overlay
     private void step3() {
-        LOG.info("{}stun networks aux:{} stun1:{} stun2:{}", new Object[]{logPrefix, auxNetwork.getValue0().boundAdr.getPort(),
-            auxNetwork.getValue1().boundAdr.getPort(), auxNetwork.getValue2().boundAdr.getPort()});
+        LOG.info("{}networks system:{} stun1:{} stun2:{}", new Object[]{logPrefix, systemNetwork.boundAdr.getPort(),
+            stunNetwork.getValue0().boundAdr.getPort(), stunNetwork.getValue1().boundAdr.getPort()});
+        privateAdr = systemNetwork.boundAdr;
         natDetectionResult = new NatDetectionResult();
         upnp = new NatUpnpParent();
         upnp.setupUpnp();
         setupStun();
-        setupTempOverlays();
+        setupOverlays();
     }
 
     private void setupStun() {
         stunClient = create(StunClientComp.class, new StunClientComp.StunClientInit(stunConfig.configCore,
-                Pair.with(auxNetwork.getValue1().boundAdr, auxNetwork.getValue2().boundAdr)));
+                Pair.with(stunNetwork.getValue0().boundAdr, stunNetwork.getValue1().boundAdr)));
         connect(stunClient.getNegative(Timer.class), timer);
-        connect(stunClient.getNegative(Network.class), auxNetwork.getValue1().networkPort,
-                new SourcePortFilter(auxNetwork.getValue1().boundAdr.getPort(), false));
-        connect(stunClient.getNegative(Network.class), auxNetwork.getValue2().networkPort,
-                new SourcePortFilter(auxNetwork.getValue2().boundAdr.getPort(), false));
+        connect(stunClient.getNegative(Network.class), stunNetwork.getValue0().networkPort,
+                new SourcePortFilter(stunNetwork.getValue0().boundAdr.getPort(), false));
+        connect(stunClient.getNegative(Network.class), stunNetwork.getValue1().networkPort,
+                new SourcePortFilter(stunNetwork.getValue1().boundAdr.getPort(), false));
         //TODO Alex - connect failure detector port
     }
 
-    private void setupTempOverlays() {
-        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrComp.OverlayMngrInit(systemConfig.configCore, auxNetwork.getValue0().boundAdr, true));
+    private void setupOverlays() {
+        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrComp.OverlayMngrInit(systemConfig.configCore, 
+                systemNetwork.boundAdr, true));
 
         connect(overlayMngr.getNegative(Timer.class), timer);
-        connect(overlayMngr.getNegative(Network.class), auxNetwork.getValue0().networkPort);
-
+        connect(overlayMngr.getNegative(Network.class), systemNetwork.networkPort);
         trigger(Start.event, overlayMngr.control());
 
         subscribe(handleStunCroupierReady, overlayMngr.getPositive(OverlayMngrPort.class));
         OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(UUID.randomUUID());
         reqBuilder.setIdentifiers(stunConfig.globalCroupier, stunConfig.stunService);
         reqBuilder.setupCroupier(false);
-        reqBuilder.connectTo(stunClient.getNegative(CroupierPort.class), stunClient.getPositive(SelfViewUpdatePort.class));
+        reqBuilder.connectTo(stunClient.getNegative(CroupierPort.class), stunClient.getPositive(ViewUpdatePort.class));
         LOG.info("{}waiting for stun croupier...", logPrefix);
         trigger(reqBuilder.build(), overlayMngr.getPositive(OverlayMngrPort.class));
     }
@@ -314,7 +314,7 @@ public class NatManagerComp extends ComponentDefinition {
         connect(natTraverser.getNegative(Timer.class), timer);
         connect(natTraverser.getNegative(Network.class), network.networkPort);
         connect(natTraverser.getPositive(Network.class), networkPort);
-        connect(natTraverser.getPositive(SelfAddressUpdatePort.class), addressUpdate);
+        connect(natTraverser.getPositive(AddressUpdatePort.class), addressUpdate);
         connect(natTraverser.getNegative(OverlayMngrPort.class), overlayMngr.getPositive(OverlayMngrPort.class));
         //TODO Alex connect fd
 
@@ -322,15 +322,18 @@ public class NatManagerComp extends ComponentDefinition {
         connect(overlayMngr.getPositive(OverlayMngrPort.class), overlayMngrPort);
 
         subscribe(handleNatTraverserReady, natTraverser.getPositive(StatusPort.class));
-        subscribe(handleSelfAddressUpdate, natTraverser.getPositive(SelfAddressUpdatePort.class));
+        subscribe(handleSelfAddressUpdate, natTraverser.getPositive(AddressUpdatePort.class));
 
         trigger(Start.event, natTraverser.control());
         trigger(Start.event, overlayMngr.control());
     }
 
-    Handler handleNatTraverserReady = new Handler<Status.Internal<NatStatus>>() {
-        @Override
-        public void handle(Status.Internal<NatStatus> event) {
+   ClassMatchedHandler handleNatTraverserReady
+            = new ClassMatchedHandler<NatTraverserReady, Status.Internal<NatTraverserReady>>() {
+
+                @Override
+                public void handle(NatTraverserReady status, Status.Internal<NatTraverserReady> container) {
+   
             LOG.info("{}nat traverser ready", logPrefix);
 
             trigger(new Status.Internal(new NatManagerReady(systemAdr)), status);

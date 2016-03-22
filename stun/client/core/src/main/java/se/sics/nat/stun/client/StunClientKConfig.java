@@ -18,30 +18,14 @@
  */
 package se.sics.nat.stun.client;
 
-import java.util.HashSet;
-import java.util.Set;
-import se.sics.p2ptoolbox.util.config.KConfigLevel;
-import se.sics.p2ptoolbox.util.config.KConfigOption;
+import se.sics.ktoolbox.util.config.KConfigOption;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunClientKConfig implements KConfigLevel {
-    public final static KConfigOption.Basic<Integer> stunClientPort1 = new KConfigOption.Basic("stun.client.address.port1", Integer.class, new StunClientKConfig());
-    public final static KConfigOption.Basic<Integer> stunClientPort2 = new KConfigOption.Basic("stun.client.address.port2", Integer.class, new StunClientKConfig());
-    public final static KConfigOption.Basic<Integer> globalCroupier = new KConfigOption.Basic("services.globalCroupier", Integer.class, new StunClientKConfig());
-    public final static KConfigOption.Basic<Integer> stunService = new KConfigOption.Basic("services.stun", Integer.class, new StunClientKConfig());
-
-    @Override
-    public Set<String> canWrite() {
-        Set<String> canWrite = new HashSet<>();
-        canWrite.add(toString());
-        return canWrite;
-    }
-
-    @Override
-    public String toString() {
-        return "StunClientKConfig";
-    }
+public class StunClientKConfig {
+    public final static KConfigOption.Basic<Integer> stunClientPort1 = new KConfigOption.Basic("stun.client.address.port1", Integer.class);
+    public final static KConfigOption.Basic<Integer> stunClientPort2 = new KConfigOption.Basic("stun.client.address.port2", Integer.class);
+    public final static KConfigOption.Basic<Integer> globalCroupier = new KConfigOption.Basic("services.globalCroupier", Integer.class);
+    public final static KConfigOption.Basic<Integer> stunService = new KConfigOption.Basic("services.stun", Integer.class);
 }

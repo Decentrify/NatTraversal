@@ -19,7 +19,6 @@
 package se.sics.nat.emulator;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatEmulatorKCWrapper {

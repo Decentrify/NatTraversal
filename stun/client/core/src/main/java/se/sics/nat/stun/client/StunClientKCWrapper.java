@@ -18,33 +18,25 @@
  */
 package se.sics.nat.stun.client;
 
-import com.google.common.primitives.Ints;
 import org.javatuples.Pair;
-import se.sics.p2ptoolbox.util.config.KConfigCore;
-import se.sics.p2ptoolbox.util.config.KConfigHelper;
-import se.sics.p2ptoolbox.util.config.impl.SystemKCWrapper;
+import se.sics.kompics.config.Config;
+import se.sics.ktoolbox.util.config.KConfigHelper;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunClientKCWrapper {
     
-    public final KConfigCore configCore;
-    public final SystemKCWrapper system;
+    public final Config configCore;
     public final Pair<Integer, Integer> stunClientPorts;
     public final boolean hardBind = true;
-    public final byte[] globalCroupier;
-    public final byte[] stunService;
     public final long rtt = 2000;
-    public final static long CONFIG_TIMEOUT = 1000;
-    public final static long ECHO_TIMEOUT = 1000;
+    public final long CONFIG_TIMEOUT = 1000;
+    public final long ECHO_TIMEOUT = 1000;
     
-    public StunClientKCWrapper(KConfigCore configCore) {
+    public StunClientKCWrapper(Config configCore) {
         this.configCore = configCore;
-        system = new SystemKCWrapper(configCore);
         stunClientPorts = Pair.with(KConfigHelper.read(configCore, StunClientKConfig.stunClientPort1),
                 KConfigHelper.read(configCore, StunClientKConfig.stunClientPort2));
-        globalCroupier = Ints.toByteArray(KConfigHelper.read(configCore, StunClientKConfig.globalCroupier));
-        stunService = Ints.toByteArray(KConfigHelper.read(configCore, StunClientKConfig.stunService));
     }
 }

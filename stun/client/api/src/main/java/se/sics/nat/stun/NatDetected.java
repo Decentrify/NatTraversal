@@ -21,22 +21,44 @@ package se.sics.nat.stun;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
-import se.sics.kompics.KompicsEvent;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
+import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
+import se.sics.ktoolbox.util.network.nat.NatType;
+import se.sics.nat.stun.event.StunEvent;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatDetected implements KompicsEvent {
-    public NatedTrait nat;
+public class NatDetected implements StunEvent {
+    public final Identifier eventId;
+    public NatType natType;
     public Optional<InetAddress> publicIp;
     
     /**
-     * @param nat
-     * @param publicIp - optional - missing only if nat - udpBlocked
+     * @param natType
+     * @param publicIp - optional - missing only if natType - udpBlocked
      */
-    public NatDetected(NatedTrait nat, Optional<InetAddress> publicIp) {
-        this.nat = nat;
+    public NatDetected(Identifier eventId, NatType natType, Optional<InetAddress> publicIp) {
+        this.eventId = eventId;
+        this.natType = natType;
         this.publicIp = publicIp;
+    }
+    
+    /**
+     * @param natType
+     * @param publicIp - optional - missing only if natType - udpBlocked
+     */
+    public NatDetected(NatType natType, Optional<InetAddress> publicIp) {
+        this(UUIDIdentifier.randomId(), natType, publicIp);
+    }
+
+    @Override
+    public Identifier getId() {
+        return eventId;
+    }
+    
+    @Override
+    public String toString() {
+        return "NatDetected<" + eventId + ">";
     }
 }

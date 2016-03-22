@@ -50,7 +50,6 @@ import se.sics.ktoolbox.fd.event.EPFDSuspect;
 import se.sics.ktoolbox.fd.event.EPFDUnfollow;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
-import se.sics.nat.detection.NatStatus;
 import se.sics.nat.hp.client.SHPClientPort;
 import se.sics.nat.hp.client.msg.OpenConnection;
 import se.sics.nat.filters.NatInternalFilter;
@@ -61,24 +60,24 @@ import se.sics.nat.hp.server.HPServerComp;
 import se.sics.nat.pm.client.PMClientComp;
 import se.sics.nat.pm.server.PMServerComp;
 import se.sics.nat.pm.server.PMServerPort;
-import se.sics.p2ptoolbox.croupier.CroupierPort;
+import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.filters.AndFilter;
 import se.sics.p2ptoolbox.util.filters.NotFilter;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
-import se.sics.p2ptoolbox.util.network.ContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
-import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
+import se.sics.ktoolbox.util.msg.ContentMsg;
+import se.sics.ktoolbox.util.address.basic.BasicAddress;
+import se.sics.ktoolbox.util.msg.BasicContentMsg;
+import se.sics.ktoolbox.util.msg.BasicHeader;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.ktoolbox.util.msg.DecoratedHeader;
 import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
 import se.sics.p2ptoolbox.util.status.Status;
 import se.sics.p2ptoolbox.util.status.StatusPort;
-import se.sics.p2ptoolbox.util.update.SelfAddress;
-import se.sics.p2ptoolbox.util.update.SelfAddressUpdate;
-import se.sics.p2ptoolbox.util.update.SelfAddressUpdatePort;
-import se.sics.p2ptoolbox.util.update.SelfViewUpdatePort;
+import se.sics.ktoolbox.util.address.resolution.AddressUpdate;
+import se.sics.p2ptoolbox.util.update.address.SelfAddressUpdate;
+import se.sics.ktoolbox.util.address.resolution.AddressUpdatePort;
+import se.sics.ktoolbox.util.update.view.ViewUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -89,7 +88,7 @@ public class NatTraverserComp extends ComponentDefinition {
     private String logPrefix = "";
 
     private final Negative<StatusPort> status = provides(StatusPort.class);
-    private final Negative<SelfAddressUpdatePort> providedSAUpdate = provides(SelfAddressUpdatePort.class);
+    private final Negative<AddressUpdatePort> providedSAUpdate = provides(AddressUpdatePort.class);
     private final Negative<Network> providedNetwork = provides(Network.class);
     private final Positive<Network> network = requires(Network.class);
     private final Positive<Timer> timer = requires(Timer.class);
@@ -217,9 +216,9 @@ public class NatTraverserComp extends ComponentDefinition {
             pmClientComp = create(PMClientComp.class, new PMClientComp.PMClientInit(config.configCore, selfAdr));
             connect(pmClientComp.getNegative(Timer.class), timer);
             connect(pmClientComp.getNegative(Network.class), network);
-            connect(pmClientComp.getPositive(SelfAddressUpdatePort.class), providedSAUpdate);
+            connect(pmClientComp.getPositive(AddressUpdatePort.class), providedSAUpdate);
             //TODO Alex connect fd 
-            subscribe(handleSelfAddressUpdate, pmClientComp.getPositive(SelfAddressUpdatePort.class));
+            subscribe(handleSelfAddressUpdate, pmClientComp.getPositive(AddressUpdatePort.class));
         }
 
         private void setupHPServer() {
@@ -236,8 +235,8 @@ public class NatTraverserComp extends ComponentDefinition {
             connect(hpClientComp.getNegative(Timer.class), timer);
             connect(hpClientComp.getNegative(Network.class), network);
             if (!NatedTrait.isOpen(selfAdr)) {
-                connect(hpClientComp.getNegative(SelfAddressUpdatePort.class),
-                        pmClientComp.getPositive(SelfAddressUpdatePort.class));
+                connect(hpClientComp.getNegative(AddressUpdatePort.class),
+                        pmClientComp.getPositive(AddressUpdatePort.class));
             }
             hpClient = hpClientComp.getPositive(SHPClientPort.class);
         }
@@ -248,7 +247,7 @@ public class NatTraverserComp extends ComponentDefinition {
             OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(natParentServiceReq);
             reqBuilder.setIdentifiers(config.parentMaker.globalCroupier.array(), config.parentMaker.natParentService.array());
             reqBuilder.setupCroupier(false);
-            reqBuilder.connectTo(pmServerComp.getNegative(CroupierPort.class), pmServerComp.getPositive(SelfViewUpdatePort.class));
+            reqBuilder.connectTo(pmServerComp.getNegative(CroupierPort.class), pmServerComp.getPositive(ViewUpdatePort.class));
             LOG.info("{}waiting for croupier app...", logPrefix);
             trigger(reqBuilder.build(), overlayMngr);
         }
@@ -258,7 +257,7 @@ public class NatTraverserComp extends ComponentDefinition {
             OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(natParentServiceReq);
             reqBuilder.setIdentifiers(config.parentMaker.globalCroupier.array(), config.parentMaker.natParentService.array());
             reqBuilder.setupCroupier(true);
-            reqBuilder.connectTo(pmClientComp.getNegative(CroupierPort.class), pmClientComp.getPositive(SelfViewUpdatePort.class));
+            reqBuilder.connectTo(pmClientComp.getNegative(CroupierPort.class), pmClientComp.getPositive(ViewUpdatePort.class));
             LOG.info("{}waiting for croupier app...", logPrefix);
             trigger(reqBuilder.build(), overlayMngr);
         }
@@ -288,9 +287,9 @@ public class NatTraverserComp extends ComponentDefinition {
             }
         };
 
-        Handler handleSelfAddressRequest = new Handler<SelfAddress.Request>() {
+        Handler handleSelfAddressRequest = new Handler<AddressUpdate.Request>() {
             @Override
-            public void handle(SelfAddress.Request req) {
+            public void handle(AddressUpdate.Request req) {
                 LOG.trace("{}received self request");
                 answer(req, req.answer(selfAdr));
             }

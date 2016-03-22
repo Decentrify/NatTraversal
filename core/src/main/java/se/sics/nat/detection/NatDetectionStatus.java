@@ -30,15 +30,15 @@ import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 public class NatDetectionStatus {
 
     public static class Phase1 {
-        public final DecoratedAddress auxAdr;
+        public final DecoratedAddress privateAdr;
         
-        public Phase1(DecoratedAddress auxAdr) {
-            this.auxAdr = auxAdr;
+        public Phase1(DecoratedAddress privateAdr) {
+            this.privateAdr = privateAdr;
         }
     }
 
     public static class Phase2 {
-
+        
         public NatedTrait nat;
         public Optional<InetAddress> publicIp;
 

@@ -20,8 +20,6 @@ package se.sics.nat.emulator;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.javatuples.Pair;
@@ -33,7 +31,6 @@ import se.sics.kompics.Init;
 import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.CancelPeriodicTimeout;
@@ -42,19 +39,18 @@ import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
+import se.sics.ktoolbox.util.network.KAddress;
+import se.sics.ktoolbox.util.network.KContentMsg;
+import se.sics.ktoolbox.util.network.KHeader;
+import se.sics.ktoolbox.util.network.basic.BasicAddress;
+import se.sics.ktoolbox.util.network.nat.Nat;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
+import se.sics.ktoolbox.util.network.nat.NatType;
 import se.sics.nat.emulator.util.AllocationPolicyImpl;
 import se.sics.nat.emulator.util.FilterPolicyImpl;
 import se.sics.nat.emulator.util.MappingPolicyImpl;
 import se.sics.nat.emulator.util.PortMappings;
-import se.sics.p2ptoolbox.util.nat.Nat;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
-import se.sics.p2ptoolbox.util.network.ContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
-import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
-
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
@@ -71,7 +67,7 @@ public class NatEmulatorComp extends ComponentDefinition {
     private final InetAddress selfIp;
     private final int selfId;
 
-    private final NatedTrait natType;
+    private final NatType natType;
     //only get initialized if natType is NAT************************************
     private MappingPolicyImpl mappingPolicy = null;
     private AllocationPolicyImpl allocationPolicy = null;
@@ -129,11 +125,11 @@ public class NatEmulatorComp extends ComponentDefinition {
         }
     };
 
-    Handler handleIncoming = new Handler<BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object>>() {
+    Handler handleIncoming = new Handler<KContentMsg<NatAwareAddressImpl, KHeader<NatAwareAddressImpl>, Object>>() {
         @Override
-        public void handle(BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> container) {
+        public void handle(KContentMsg<NatAwareAddressImpl, KHeader<NatAwareAddressImpl>, Object> container) {
             LOG.trace("{}received incoming:{} from:{} on:{}",
-                    new Object[]{logPrefix, container.getContent(), container.getSource().getBase(), container.getDestination().getBase()});
+                    new Object[]{logPrefix, container.getContent(), container.getSource().getId(), container.getDestination().getId()});
             if (natType.type.equals(Nat.Type.OPEN)) {
                 LOG.debug("{}open - forwarding incoming", logPrefix);
                 trigger(container, localNetwork);
@@ -145,13 +141,13 @@ public class NatEmulatorComp extends ComponentDefinition {
             }
 
             Optional<BasicAddress> inBaseAdr
-                    = receiveAdr(container.getDestination().getPort(), container.getSource().getBase(), container.getProtocol());
+                    = receiveAdr(container.getDestination().getPort(), container.getSource().getPrivateAdr(), container.getProtocol());
             if (!inBaseAdr.isPresent()) {
                 LOG.warn("{}unable to forward incoming msg - filtered...", logPrefix);
                 return;
             }
 
-            DecoratedAddress inAdr = container.getDestination().changeBase(inBaseAdr.get());
+            NatAwareAddress inAdr = container.getDestination().withPrivateAddress(inBaseAdr.get());
             DecoratedHeader<DecoratedAddress> fHeader
                     = container.getHeader().changeBasicHeader(new BasicHeader(container.getSource(), inAdr, container.getProtocol()));
             ContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> fMsg
@@ -218,7 +214,7 @@ public class NatEmulatorComp extends ComponentDefinition {
         return publicPort.get();
     }
 
-    private Optional<BasicAddress> receiveAdr(Integer publicPort, BasicAddress outAdr, Transport protocol) {
+    private Optional<BasicAddress> receiveAdr(Integer publicPort, KAddress outAdr, Transport protocol) {
         PortMappings portMappings;
         switch (protocol) {
             case UDP:
@@ -228,7 +224,7 @@ public class NatEmulatorComp extends ComponentDefinition {
                 throw new RuntimeException("unhandled protocol:" + protocol);
         }
 
-        Optional<Pair<BasicAddress, Set<BasicAddress>>> portMapping = portMappings.getMapping(publicPort);
+        Optional<Pair<BasicAddress, Set<KAddress>>> portMapping = portMappings.getMapping(publicPort);
         if (!portMapping.isPresent()) {
             LOG.warn("{}no mapping for public port:{}, don't know where to forward, dropping",
                     new Object[]{logPrefix, publicPort});

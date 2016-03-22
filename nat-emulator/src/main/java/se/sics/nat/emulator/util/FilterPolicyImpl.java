@@ -18,11 +18,9 @@
  */
 package se.sics.nat.emulator.util;
 
-import java.net.InetAddress;
-import java.util.Map;
 import java.util.Set;
-import se.sics.p2ptoolbox.util.nat.Nat;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import se.sics.ktoolbox.util.network.KAddress;
+import se.sics.ktoolbox.util.network.nat.Nat;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -51,7 +49,7 @@ public abstract class FilterPolicyImpl {
 
     //******************************INTERFACE***********************************
 
-    public abstract boolean allow(BasicAddress outAdr, Set<BasicAddress> activeOut);
+    public abstract boolean allow(KAddress outAdr, Set<KAddress> activeOut);
     //**************************************************************************
 
     public static class EIFilter extends FilterPolicyImpl {
@@ -60,7 +58,7 @@ public abstract class FilterPolicyImpl {
         }
 
         @Override
-        public boolean allow(BasicAddress outAdr, Set<BasicAddress> activeOut) {
+        public boolean allow(KAddress outAdr, Set<KAddress> activeOut) {
             return true;
         }
     }
@@ -71,8 +69,8 @@ public abstract class FilterPolicyImpl {
         }
         
         @Override
-        public boolean allow(BasicAddress outAdr, Set<BasicAddress> activeOut) {
-            for(BasicAddress adr : activeOut) {
+        public boolean allow(KAddress outAdr, Set<KAddress> activeOut) {
+            for(KAddress adr : activeOut) {
                 if(adr.getIp().equals(outAdr.getIp())) {
                     return true;
                 }
@@ -88,7 +86,7 @@ public abstract class FilterPolicyImpl {
         }
         
         @Override
-        public boolean allow(BasicAddress outAdr, Set<BasicAddress> activeOut) {
+        public boolean allow(KAddress outAdr, Set<KAddress> activeOut) {
             return activeOut.contains(outAdr);
         }
     }

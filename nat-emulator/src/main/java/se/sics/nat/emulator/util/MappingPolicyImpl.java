@@ -19,9 +19,8 @@
 package se.sics.nat.emulator.util;
 
 import com.google.common.base.Optional;
-import org.javatuples.Pair;
-import se.sics.p2ptoolbox.util.nat.Nat;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import se.sics.ktoolbox.util.network.KAddress;
+import se.sics.ktoolbox.util.network.nat.Nat;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -35,12 +34,12 @@ public abstract class MappingPolicyImpl {
         }
     }
     //************************INTERFACE*****************************************
-    public abstract Optional<Integer> usePort(BasicAddress inAdr, BasicAddress outAdr, PortMappings portMappings);
+    public abstract Optional<Integer> usePort(KAddress inAdr, KAddress outAdr, PortMappings portMappings);
     //**************************************************************************
 
     public static class EIPolicy extends MappingPolicyImpl {
         @Override
-        public Optional<Integer> usePort(BasicAddress inAdr, BasicAddress outAdr, PortMappings portMappings) {
+        public Optional<Integer> usePort(KAddress inAdr, KAddress outAdr, PortMappings portMappings) {
             return portMappings.getNatPort(inAdr);
         }
     }

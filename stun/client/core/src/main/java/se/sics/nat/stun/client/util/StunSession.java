@@ -23,36 +23,47 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 import org.javatuples.Pair;
-import se.sics.nat.stun.msg.StunEcho;
-import se.sics.p2ptoolbox.util.nat.Nat;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
+import se.sics.ktoolbox.util.network.basic.BasicAddress;
+import se.sics.ktoolbox.util.network.nat.Nat;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
+import se.sics.nat.stun.event.StunEcho;
 
 /**
+ * TODO Alex document the msgHandlers
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunSession {
 
-    private final MsgHandler[][] handlers = new MsgHandler[2][];
-    private final Pair<DecoratedAddress, DecoratedAddress>[] maTargets = new Pair[8];
-
-    public final UUID id;
-    public Pair<DecoratedAddress, DecoratedAddress> self;
-    public Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> stunServers;
+    //******************************EXTERNAL_STATE******************************
+    public final Identifier sessionId;
+    public final Pair<NatAwareAddress, NatAwareAddress> self;
+    public final Pair<Pair<NatAwareAddress, NatAwareAddress>, Pair<NatAwareAddress, NatAwareAddress>> stunServers;
+    //*****************************INTERNAL_STATE*******************************
     public Phase phase;
-
-    private final DecoratedAddress[] echoResps;
+    private final MsgHandler[][] handlers = new MsgHandler[2][];
+    private final Pair<NatAwareAddress, NatAwareAddress>[] maTargets = new Pair[8];
+    private final NatAwareAddress[] echoResps;
     private final Result sessionResult;
 
-    public StunSession(UUID id, Pair<DecoratedAddress, DecoratedAddress> self, Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> stunServers) {
-        this.id = id;
-        this.self = self;
+    public StunSession(Identifier sessionId, Pair<BasicAddress, BasicAddress> self, 
+            Pair<Pair<NatAwareAddress, NatAwareAddress>, Pair<NatAwareAddress, NatAwareAddress>> stunServers) {
+        this.sessionId = sessionId;
+        this.self = Pair.with((NatAwareAddress)NatAwareAddressImpl.unknown(self.getValue0()), 
+                (NatAwareAddress)NatAwareAddressImpl.unknown(self.getValue1()));
         this.stunServers = stunServers;
         this.phase = new Phase();
-        this.echoResps = new DecoratedAddress[8];
+        this.echoResps = new NatAwareAddress[8];
         this.sessionResult = new Result();
         setHandlers();
+    }
+    
+    public StunSession(Pair<BasicAddress, BasicAddress> self, 
+            Pair<Pair<NatAwareAddress, NatAwareAddress>, Pair<NatAwareAddress, NatAwareAddress>> stunServers) {
+        this(UUIDIdentifier.randomId(), self, stunServers);
     }
 
     private void setHandlers() {
@@ -88,11 +99,11 @@ public class StunSession {
         return sessionResult;
     }
 
-    public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
+    public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
         return handlers[phase.state.index][phase.subPhase].next();
     }
 
-    public void receivedResponse(StunEcho.Response resp, DecoratedAddress src) {
+    public void receivedResponse(StunEcho.Response resp, NatAwareAddress src) {
         handlers[phase.state.index][phase.subPhase].receive(resp, src);
     }
 
@@ -128,7 +139,7 @@ public class StunSession {
                 || self.getValue1().getPort() == echoResps[4].getPort()) {
             sessionResult.setAllocationPolicy(Nat.AllocationPolicy.PORT_PRESERVATION);
         } else {
-            List<Pair<DecoratedAddress, DecoratedAddress>> list = new ArrayList<Pair<DecoratedAddress, DecoratedAddress>>();
+            List<Pair<NatAwareAddress, NatAwareAddress>> list = new ArrayList<>();
             switch (sessionResult.mappingPolicy.get()) {
                 case ENDPOINT_INDEPENDENT: {
                     list.add(Pair.with(echoResps[0], echoResps[4]));
@@ -167,14 +178,14 @@ public class StunSession {
      * return -1 if the port allocation policy is random return / positive
      * number that is the delta i.e. port increment number
      */
-    private int checkContiguity(List<Pair<DecoratedAddress, DecoratedAddress>> list) {
+    private int checkContiguity(List<Pair<NatAwareAddress, NatAwareAddress>> list) {
         // set minDelta to be an arbitrarily high number. it will be decreased to
         // the minDelta observed over all TriesPairs.
         int minDelta = 1000;
         int tolerance = 50;
-        Iterator<Pair<DecoratedAddress, DecoratedAddress>> it = list.iterator();
+        Iterator<Pair<NatAwareAddress, NatAwareAddress>> it = list.iterator();
         while (it.hasNext()) {
-            Pair<DecoratedAddress, DecoratedAddress> tPair = it.next();
+            Pair<NatAwareAddress, NatAwareAddress> tPair = it.next();
             int localPort = tPair.getValue0().getPort();
             int natPort = tPair.getValue1().getPort();
             int difference = Math.abs(localPort - natPort);
@@ -191,9 +202,9 @@ public class StunSession {
 
     public static interface MsgHandler {
 
-        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next();
+        public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next();
 
-        public void receive(StunEcho.Response resp, DecoratedAddress src);
+        public void receive(StunEcho.Response resp, NatAwareAddress src);
 
         public void timeout();
     }
@@ -201,13 +212,13 @@ public class StunSession {
     public class Test1 implements MsgHandler {
 
         @Override
-        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
-            Pair<DecoratedAddress, DecoratedAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-            return Pair.with(new StunEcho.Request(UUID.randomUUID(), id, StunEcho.Type.SIP_SP, null), routing);
+        public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
+            Pair<NatAwareAddress, NatAwareAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
+            return Pair.with(new StunEcho.Request(sessionId, StunEcho.Type.SIP_SP, null), routing);
         }
 
         @Override
-        public void receive(StunEcho.Response resp, DecoratedAddress src) {
+        public void receive(StunEcho.Response resp, NatAwareAddress src) {
             sessionResult.setPublicIp(resp.observed.get().getIp());
             echoResps[0] = resp.observed.get(); //we use test1 msg as MA0
             phase.setState(State.TEST, 1);
@@ -224,14 +235,14 @@ public class StunSession {
     public class Test2 implements MsgHandler {
 
         @Override
-        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
+        public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
             assert echoResps[0] != null;
-            Pair<DecoratedAddress, DecoratedAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-            return Pair.with(new StunEcho.Request(UUID.randomUUID(), id, StunEcho.Type.DIP_DP, echoResps[0]), routing);
+            Pair<NatAwareAddress, NatAwareAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
+            return Pair.with(new StunEcho.Request(sessionId, StunEcho.Type.DIP_DP, echoResps[0]), routing);
         }
 
         @Override
-        public void receive(StunEcho.Response resp, DecoratedAddress src) {
+        public void receive(StunEcho.Response resp, NatAwareAddress src) {
             if (self.getValue0().getIp().equals(echoResps[0].getIp())) {
                 sessionResult.setNatState(NatState.OPEN);
                 phase.setState(State.SUCCESS, 0);
@@ -258,13 +269,13 @@ public class StunSession {
     public class Test3 implements MsgHandler {
 
         @Override
-        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
-            Pair<DecoratedAddress, DecoratedAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-            return Pair.with(new StunEcho.Request(UUID.randomUUID(), id, StunEcho.Type.SIP_DP, echoResps[0]), routing);
+        public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
+            Pair<NatAwareAddress, NatAwareAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
+            return Pair.with(new StunEcho.Request(sessionId, StunEcho.Type.SIP_DP, echoResps[0]), routing);
         }
 
         @Override
-        public void receive(StunEcho.Response resp, DecoratedAddress src) {
+        public void receive(StunEcho.Response resp, NatAwareAddress src) {
             sessionResult.setNatState(NatState.NAT);
             sessionResult.setFilterPolicy(Nat.FilteringPolicy.HOST_DEPENDENT);
             phase.setState(State.MA, 0);
@@ -282,12 +293,12 @@ public class StunSession {
     public class MA implements MsgHandler {
 
         @Override
-        public Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next() {
-            return Pair.with(new StunEcho.Request(UUID.randomUUID(), id, StunEcho.Type.SIP_SP, null), maTargets[phase.subPhase]);
+        public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
+            return Pair.with(new StunEcho.Request(sessionId, StunEcho.Type.SIP_SP, null), maTargets[phase.subPhase]);
         }
 
         @Override
-        public void receive(StunEcho.Response resp, DecoratedAddress src) {
+        public void receive(StunEcho.Response resp, NatAwareAddress src) {
             echoResps[phase.subPhase] = resp.observed.get();
             if (phase.subPhase == 7) {
                 phase.setState(State.SUCCESS, 0);

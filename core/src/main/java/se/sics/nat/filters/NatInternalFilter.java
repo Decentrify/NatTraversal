@@ -22,9 +22,9 @@ package se.sics.nat.filters;
 import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.network.Msg;
 import se.sics.nat.common.NatMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
+import se.sics.ktoolbox.util.msg.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.ktoolbox.util.msg.DecoratedHeader;
 
 /**
  *

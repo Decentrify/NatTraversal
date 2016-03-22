@@ -24,9 +24,9 @@ import se.sics.kompics.network.Msg;
 import se.sics.kompics.network.Transport;
 import se.sics.p2ptoolbox.croupier.msg.CroupierMsg;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
-import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
+import se.sics.ktoolbox.util.msg.BasicContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
+import se.sics.ktoolbox.util.msg.DecoratedHeader;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>

@@ -18,24 +18,8 @@
  */
 package se.sics.nat.emulator;
 
-import java.util.HashSet;
-import java.util.Set;
-import se.sics.p2ptoolbox.util.config.KConfigLevel;
-
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatEmulatorKConfig implements KConfigLevel {
-
-    @Override
-    public Set<String> canWrite() {
-        Set<String> canWrite = new HashSet<>();
-        canWrite.add(toString());
-        return canWrite;
-    }
-
-    @Override
-    public String toString() {
-        return "NatEmulatorKConfig";
-    }
+public class NatEmulatorKConfig{
 }

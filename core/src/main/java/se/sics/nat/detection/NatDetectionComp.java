@@ -59,7 +59,7 @@ import se.sics.nat.stun.StunClientPort;
 import se.sics.nat.stun.client.StunClientComp;
 import se.sics.nat.stun.client.StunClientKCWrapper;
 import se.sics.nat.stun.upnp.msg.UpnpReady;
-import se.sics.p2ptoolbox.croupier.CroupierPort;
+import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.config.impl.SystemKCWrapper;
 import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
@@ -67,8 +67,8 @@ import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
 import se.sics.p2ptoolbox.util.proxy.SystemHookSetup;
 import se.sics.p2ptoolbox.util.status.Status;
 import se.sics.p2ptoolbox.util.status.StatusPort;
-import se.sics.p2ptoolbox.util.truefilters.SourcePortFilter;
-import se.sics.p2ptoolbox.util.update.SelfViewUpdatePort;
+import se.sics.p2ptoolbox.util.filters.SourcePortFilter;
+import se.sics.ktoolbox.util.update.view.ViewUpdatePort;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -252,7 +252,7 @@ public class NatDetectionComp extends ComponentDefinition {
         OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(UUID.randomUUID());
         reqBuilder.setIdentifiers(stunConfig.globalCroupier, stunConfig.stunService);
         reqBuilder.setupCroupier(false);
-        reqBuilder.connectTo(stunClient.getNegative(CroupierPort.class), stunClient.getPositive(SelfViewUpdatePort.class));
+        reqBuilder.connectTo(stunClient.getNegative(CroupierPort.class), stunClient.getPositive(ViewUpdatePort.class));
         LOG.info("{}waiting for croupier app...", logPrefix);
         trigger(reqBuilder.build(), overlayMngr);
     }

@@ -5,7 +5,7 @@
     <parent>
         <groupId>se.sics.nat.stun</groupId>
         <artifactId>server</artifactId>
-        <version>0.0.2-SNAPSHOT</version>
+        <version>0.0.3-SNAPSHOT</version>
     </parent>
     <groupId>se.sics.nat.stun.server</groupId>
     <artifactId>core</artifactId>
@@ -14,31 +14,24 @@
   
     <dependencies>
         <dependency>
-            <groupId>se.sics.nat.stun</groupId>
-            <artifactId>common</artifactId>
+            <groupId>se.sics.nat.stun.common</groupId>
+            <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>se.sics.ktoolbox.croupier</groupId>
-            <artifactId>croupier-core</artifactId>
-            <version>${croupier.version}</version>
+            <groupId>se.sics.ktoolbox.overlaymngr</groupId>
+            <artifactId>api</artifactId>
+            <version>${ktoolbox.version}</version>
         </dependency>
         <dependency>
-            <groupId>se.sics.ktoolbox.overlaymngr</groupId>
+            <groupId>se.sics.ktoolbox.croupier</groupId>
             <artifactId>core</artifactId>
-            <version>${overlaymngr.version}</version>
+            <version>${ktoolbox.version}</version>
         </dependency>
-      
         <dependency>
             <groupId>se.sics.ktoolbox.fd</groupId>
             <artifactId>api</artifactId>
-            <version>${failuredetector.version}</version>
+            <version>${ktoolbox.version}</version>
         </dependency>
-        <dependency>
-            <groupId>se.sics.ktoolbox.ipsolver</groupId>
-            <artifactId>core</artifactId>
-            <version>${ipsolver.version}</version>
-        </dependency>
-            
     </dependencies>
 </project>
