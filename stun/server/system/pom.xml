@@ -17,5 +17,87 @@
             <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>se.sics.nat.common</groupId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
+        <!-- KToolbox -->
+        <dependency>
+            <groupId>se.sics.ktoolbox.netmngr</groupId>
+            <artifactId>core</artifactId>
+            <version>${ktoolbox.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.cc</groupId>
+            <artifactId>mngr</artifactId>
+            <version>${ktoolbox.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.overlaymngr</groupId>
+            <artifactId>core</artifactId>
+            <version>${ktoolbox.version}</version>
+        </dependency>
+        
+         <!-- network -->
+        <dependency>
+            <groupId>se.sics.ktoolbox.netmngr</groupId>
+            <artifactId>network</artifactId>
+            <version>${ktoolbox.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.overlaymngr</groupId>
+            <artifactId>network</artifactId>
+            <version>${ktoolbox.version}</version>
+        </dependency>
+        
+        <!-- other -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${logger.version}</version>
+        </dependency>
     </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.3</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached> 
+                            <shadedClassifierName>shaded</shadedClassifierName> 
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>se.sics.ktoolbox.overlaymngr.OMngrLauncher</mainClass>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>application.conf</exclude>
+                                        <exclude>config.yml</exclude>
+                                        <exclude>log4j.properties</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>                        
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

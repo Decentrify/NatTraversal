@@ -75,7 +75,7 @@ public class StunServerComp extends ComponentDefinition {
     //****************************CONFIGURATION*********************************
     private final StunServerKCWrapper stunServerConfig;
     private Pair<NatAwareAddress, NatAwareAddress> selfAdr;
-    private final Identifier stunOverlayId;
+    private final Identifier croupierId;
     //*****************************INTERNAL_STATE*******************************
     private final EchoMngr echoMngr;
     private final PartnerMngr partnerMngr;
@@ -86,7 +86,7 @@ public class StunServerComp extends ComponentDefinition {
         logPrefix = "<nid:" + selfAdr.getValue0().getId() + "> ";
         LOG.info("{}initiating...", logPrefix);
 
-        stunOverlayId = init.stunOverlayId;
+        croupierId = init.croupierId;
         echoMngr = new EchoMngr();
         partnerMngr = new PartnerMngr();
 
@@ -178,7 +178,7 @@ public class StunServerComp extends ComponentDefinition {
 
         void start() {
             LOG.info("{}looking for partner", logPrefix);
-            trigger(new OverlayViewUpdate.Indication(stunOverlayId, false, StunView.empty(selfAdr)), croupierViewPort);
+            trigger(new OverlayViewUpdate.Indication(croupierId, false, StunView.empty(selfAdr)), croupierViewPort);
         }
 
         NatAwareAddress getPartner() {
@@ -272,7 +272,7 @@ public class StunServerComp extends ComponentDefinition {
             //TODO Alex - fix epfd and add
             //trigger(new EPFDFollow(partner.getValue0(), stunServerConfig.stunService,
             //                StunServerComp.this.getComponentCore().id()), fdPort);
-            trigger(new OverlayViewUpdate.Indication(stunOverlayId, false, StunView.partner(selfAdr, partner)), croupierViewPort);
+            trigger(new OverlayViewUpdate.Indication(croupierId, false, StunView.partner(selfAdr, partner)), croupierViewPort);
 
         }
 
@@ -307,11 +307,11 @@ public class StunServerComp extends ComponentDefinition {
     public static class Init extends se.sics.kompics.Init<StunServerComp> {
 
         public final Pair<NatAwareAddress, NatAwareAddress> selfAdr;
-        public final Identifier stunOverlayId;
+        public final Identifier croupierId;
 
         public Init(Pair<NatAwareAddress, NatAwareAddress> selfAdr, Identifier stunOverlayId) {
             this.selfAdr = selfAdr;
-            this.stunOverlayId = stunOverlayId;
+            this.croupierId = stunOverlayId;
         }
     }
 

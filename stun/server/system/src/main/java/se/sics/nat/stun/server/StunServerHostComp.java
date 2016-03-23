@@ -1,292 +1,173 @@
-///*
-// * Copyright (C) 2009 Swedish Institute of Computer Science (SICS) Copyright (C)
-// * 2009 Royal Institute of Technology (KTH)
-// *
-// * NatTraverser is free software; you can redistribute it and/or
-// * modify it under the terms of the GNU General Public License
-// * as published by the Free Software Foundation; either version 2
-// * of the License, or (at your option) any later version.
-// *
-// * This program is distributed in the hope that it will be useful,
-// * but WITHOUT ANY WARRANTY; without even the implied warranty of
-// * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// * GNU General Public License for more details.
-// *
-// * You should have received a copy of the GNU General Public License
-// * along with this program; if not, write to the Free Software
-// * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-// */
-//package se.sics.nat.stun.server;
-//
-//import com.google.common.base.Optional;
-//import java.net.InetAddress;
-//import java.util.UUID;
-//import org.javatuples.Pair;
-//import org.javatuples.Triplet;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
-//import se.sics.kompics.Channel;
-//import se.sics.kompics.Component;
-//import se.sics.kompics.ComponentDefinition;
-//import se.sics.kompics.ConfigurationException;
-//import se.sics.kompics.ControlPort;
-//import se.sics.kompics.Fault;
-//import se.sics.kompics.Handler;
-//import se.sics.kompics.Init;
-//import se.sics.kompics.KompicsEvent;
-//import se.sics.kompics.Negative;
-//import se.sics.kompics.Port;
-//import se.sics.kompics.PortType;
-//import se.sics.kompics.Positive;
-//import se.sics.kompics.Start;
-//import se.sics.kompics.network.Network;
-//import se.sics.kompics.timer.Timer;
-//import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
-//import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
-//import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
-//import se.sics.nat.hooks.BaseHooks;
-///**
-// * @author Alex Ormenisan <aaor@kth.se>
-// */
-//public class StunServerHostComp extends ComponentDefinition {
-//
-//    private static final Logger LOG = LoggerFactory.getLogger(StunServerHostComp.class);
-//    private String logPrefix = "";
-//
-//    private Component Timer;
-//    private Pair<NetworkParent, NetworkParent> network;
-//    private Component overlayMngr;
-//    private Component stunServer;
-//
-//    public StunServerHostComp(StunServerHostInit init) {
-//        SystemKCWrapper systemConfig = new SystemKCWrapper(config());
-//        logPrefix = "<nid:" + systemConfig.id + "> ";
-//        LOG.info("{}initializing...", logPrefix);
-//
-//        subscribe(handleStart, control);
-//    }
-//
-//    private Handler handleStart = new Handler<Start>() {
-//        @Override
-//        public void handle(Start event) {
-//            LOG.info("{}starting...", logPrefix);
-//            ipSolver.solveLocalIp(true);
-//        }
-//    };
-//
-//    @Override
-//    public Fault.ResolveAction handleFault(Fault fault) {
-//        LOG.error("{}child component failure:{}", logPrefix, fault);
-//        System.exit(1);
-//        return Fault.ResolveAction.RESOLVED;
-//    }
-//
-//    //*********************STEP_1 - LOCAL IP DETECTION**************************
-//    private class IpSolverParent implements IpSolverHook.Parent {
-//
-//        private IpSolverHook.SetupResult ipSolverSetup;
-//
-//        private void solveLocalIp(boolean started) {
-//            IpSolverHook.Definition ipSolver = systemHooks.getHook(BaseHooks.RequiredHooks.IP_SOLVER.hookName,
-//                    BaseHooks.IP_SOLVER_HOOK);
-//            ipSolverSetup = ipSolver.setup(new StunServerHostProxy(), this, new IpSolverHook.SetupInit());
-//            ipSolver.start(new StunServerHostProxy(), this, ipSolverSetup, new IpSolverHook.StartInit(started, 
-//                    networkConfig.rPrefferedInterface, networkConfig.rPrefferedInterfaces));
-//        }
-//
-//        @Override
-//        public void onResult(IpSolverResult result) {
-//            if (!result.getIp().isPresent()) {
-//                LOG.error("{}could not get any ip", logPrefix);
-//                throw new RuntimeException("could not get any ip");
-//            }
-//            setupNetwork(result.getIp().get());
-//        }
-//    }
-//
-//    private void setupNetwork(InetAddress localIp) {
-//        LOG.info("{}solved local ip:{}", logPrefix, localIp.getHostAddress());
-//        networkConfig.setLocalIp(localIp);
-//        network = Triplet.with(new NetworkParent(UUID.randomUUID(), systemConfig.port, true),
-//                new NetworkParent(UUID.randomUUID(), stunConfig.stunServerPorts.getValue0(), true),
-//                new NetworkParent(UUID.randomUUID(), stunConfig.stunServerPorts.getValue1(), true));
-//        network.getValue0().bindPort(false);
-//        network.getValue1().bindPort(false);
-//        network.getValue2().bindPort(false);
-//    }
-//    //************************STEP_2 - NETWORK**********************************
-//    private class NetworkParent implements NetworkHook.Parent, PortBindingHook.Parent {
-//
-//        final UUID id;
-//        final int tryPort;
-//        final boolean forcePort;
-//        int boundPort;
-//        DecoratedAddress adr;
-//
-//        PortBindingHook.SetupResult portBindingSetup = null;
-//        NetworkHook.SetupResult networkSetup = null;
-//        NetworkResult networkResult = null;
-//
-//        public NetworkParent(UUID id, int port, boolean forcePort) {
-//            this.id = id;
-//            this.tryPort = port;
-//            this.forcePort = forcePort;
-//        }
-//
-//        void bindPort(boolean started) {
-//            PortBindingHook.Definition portBindingHook = systemHooks.getHook(BaseHooks.RequiredHooks.PORT_BINDING.hookName, BaseHooks.PORT_BINDING_HOOK);
-//            portBindingSetup = portBindingHook.setup(new StunServerHostProxy(), this,
-//                    new PortBindingHook.SetupInit());
-//            portBindingHook.start(new StunServerHostProxy(), this, portBindingSetup,
-//                    new PortBindingHook.StartInit(started, networkConfig.localIp, tryPort, forcePort));
-//        }
-//
-//        @Override
-//        public void onResult(PortBindingResult result) {
-//            boundPort = result.boundPort;
-//            setNetwork(false);
-//        }
-//
-//        void setNetwork(boolean started) {
-//            NetworkHook.Definition networkHook = systemHooks.getHook(BaseHooks.RequiredHooks.NETWORK.hookName, BaseHooks.NETWORK_HOOK);
-//            adr = DecoratedAddress.open(networkConfig.localIp, boundPort, systemConfig.id);
-//            networkSetup = networkHook.setup(new StunServerHostProxy(), this,
-//                    new NetworkHook.SetupInit(adr, Optional.of(networkConfig.localIp)));
-//            networkHook.start(new StunServerHostProxy(), this, networkSetup, new NetworkHook.StartInit(started));
-//        }
-//
-//        @Override
-//        public void onResult(NetworkResult result) {
-//            this.networkResult = result;
-//            checkNetworkComplete();
-//        }
-//    }
-//
-//    private void checkNetworkComplete() {
-//        if (network.getValue0().networkResult != null && network.getValue1().networkResult != null
-//                && network.getValue2().networkResult != null) {
-//            connectOverlayMngr();
-//            connectStunServer();
-//            setupStunCroupier();
-//        }
-//    }
-//
-//    //******************STEP_3 - OMNGR, STUN_CROUPIER, STUNS_SERVER*************
-//
-//    private void connectOverlayMngr() {
-//        overlayMngr = create(OverlayMngrComp.class, new OverlayMngrInit(stunConfig.configCore, network.getValue0().adr, false));
-//        connect(overlayMngr.getNegative(Timer.class), timer);
-//        connect(overlayMngr.getNegative(Network.class), network.getValue0().networkResult.getNetwork());
-//
-//        trigger(Start.event, overlayMngr.control());
-//    }
-//
-//    private void connectStunServer() {
-//        stunServer = create(StunServerComp.class, new StunServerInit(stunConfig.configCore,
-//                Pair.with(network.getValue1().adr, network.getValue2().adr)));
-//        connect(stunServer.getNegative(Timer.class), timer);
-//        connect(stunServer.getNegative(Network.class), network.getValue1().networkResult.getNetwork(),
-//                new SourcePortFilter(network.getValue1().boundPort, false));
-//        connect(stunServer.getNegative(Network.class), network.getValue2().networkResult.getNetwork(),
-//                new SourcePortFilter(network.getValue2().boundPort, false));
-//
-//    }
-//
-//    private void setupStunCroupier() {
-//        subscribe(handleStunCroupierReady, overlayMngr.getPositive(OverlayMngrPort.class));
-//
-//        OMngrCroupier.ConnectRequestBuilder reqBuilder = new OMngrCroupier.ConnectRequestBuilder(UUID.randomUUID());
-//        reqBuilder.setIdentifiers(stunConfig.globalCroupier.array(), stunConfig.stunService.array());
-//        reqBuilder.setupCroupier(false);
-//        reqBuilder.connectTo(stunServer.getNegative(CroupierPort.class), stunServer.getPositive(SelfViewUpdatePort.class));
-//        LOG.info("{}waiting for croupier app...", logPrefix);
-//        trigger(reqBuilder.build(), overlayMngr.getPositive(OverlayMngrPort.class));
-//    }
-//
-//    Handler handleStunCroupierReady = new Handler<OMngrCroupier.ConnectResponse>() {
-//        @Override
-//        public void handle(OMngrCroupier.ConnectResponse resp) {
-//            LOG.info("{}app croupier ready", logPrefix);
-//            trigger(Start.event, stunServer.control());
-//        }
-//    };
-//
-//    public static class StunServerHostInit extends Init<StunServerHostComp> {
-//
-//        public final KConfigCore configCore;
-//        public final SystemHookSetup systemHooks;
-//
-//        public StunServerHostInit(KConfigCore configCore, SystemHookSetup systemHooks) {
-//            this.configCore = configCore;
-//            this.systemHooks = systemHooks;
-//        }
-//    }
-//
-//    public class StunServerHostProxy implements ComponentProxy {
-//
-//        @Override
-//        public <P extends PortType> Positive<P> requires(Class<P> portType) {
-//            return StunServerHostComp.this.requires(portType);
-//        }
-//
-//        @Override
-//        public <P extends PortType> Negative<P> provides(Class<P> portType) {
-//            return StunServerHostComp.this.provides(portType);
-//        }
-//
-//        @Override
-//        public Negative<ControlPort> getControlPort() {
-//            return StunServerHostComp.this.control;
-//        }
-//
-//        @Override
-//        public <T extends ComponentDefinition> Component create(Class<T> definition, Init<T> initEvent) {
-//            return StunServerHostComp.this.create(definition, initEvent);
-//        }
-//
-//        @Override
-//        public <T extends ComponentDefinition> Component create(Class<T> definition, Init.None initEvent) {
-//            return StunServerHostComp.this.create(definition, initEvent);
-//        }
-//
-//        @Override
-//        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative) {
-//            return StunServerHostComp.this.connect(negative, positive);
-//        }
-//
-//        @Override
-//        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative, ChannelFilter filter) {
-//            return StunServerHostComp.this.connect(negative, positive, filter);
-//        }
-//
-//        @Override
-//        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive) {
-//            return StunServerHostComp.this.connect(negative, positive);
-//        }
-//
-//        @Override
-//        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive, ChannelFilter filter) {
-//            return StunServerHostComp.this.connect(negative, positive, filter);
-//        }
-//
-//        @Override
-//        public <P extends PortType> void disconnect(Negative<P> negative, Positive<P> positive) {
-//            StunServerHostComp.this.disconnect(negative, positive);
-//        }
-//
-//        @Override
-//        public <P extends PortType> void disconnect(Positive<P> positive, Negative<P> negative) {
-//            StunServerHostComp.this.disconnect(negative, positive);
-//        }
-//
-//        @Override
-//        public <P extends PortType> void trigger(KompicsEvent e, Port<P> p) {
-//            StunServerHostComp.this.trigger(e, p);
-//        }
-//
-//        @Override
-//        public <E extends KompicsEvent, P extends PortType> void subscribe(Handler<E> handler, Port<P> port) throws ConfigurationException {
-//            StunServerHostComp.this.subscribe(handler, port);
-//        }
-//    }
-//}
+/*
+ * Copyright (C) 2009 Swedish Institute of Computer Science (SICS) Copyright (C)
+ * 2009 Royal Institute of Technology (KTH)
+ *
+ * NatTraverser is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ */
+package se.sics.nat.stun.server;
+
+import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import se.sics.kompics.Channel;
+import se.sics.kompics.Component;
+import se.sics.kompics.ComponentDefinition;
+import se.sics.kompics.Fault;
+import se.sics.kompics.Handler;
+import se.sics.kompics.Negative;
+import se.sics.kompics.Positive;
+import se.sics.kompics.Start;
+import se.sics.kompics.network.Network;
+import se.sics.kompics.timer.Timer;
+import se.sics.ktoolbox.croupier.CroupierPort;
+import se.sics.ktoolbox.netmngr.NetMngrBind;
+import se.sics.ktoolbox.netmngr.NetMngrPort;
+import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
+import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
+import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
+import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
+import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdatePort;
+import se.sics.nat.overlays.NatOverlayId;
+
+/**
+ * @author Alex Ormenisan <aaor@kth.se>
+ */
+public class StunServerHostComp extends ComponentDefinition {
+
+    private static final Logger LOG = LoggerFactory.getLogger(StunServerHostComp.class);
+    private String logPrefix = "";
+
+    //*****************************CONNECTIONS**********************************
+    //***************************EXTERNAL_CONNECT*******************************
+    Positive<OverlayMngrPort> oMngrPort = requires(OverlayMngrPort.class);
+    Positive<NetMngrPort> netMngrPort = requires(NetMngrPort.class);
+    //*****************************CONFIGURATION********************************
+    private StunServerHostKCWrapper stunServerHostConfig;
+    //*****************************EXTERNAL_STATE*******************************
+    private final ExtPort extPorts;
+    //*****************************INTERNAL_STATE*******************************
+    private Component stunServerComp;
+    //********************************AUX_STATE*********************************
+    private Pair<NetMngrBind.Request, NetMngrBind.Request> bindReq;
+    private Pair<NatAwareAddress, NatAwareAddress> stunServerAdr = Pair.with(null, null);
+    private OMngrCroupier.ConnectRequest croupierReq;
+
+    public StunServerHostComp(Init init) {
+        SystemKCWrapper systemConfig = new SystemKCWrapper(config());
+        logPrefix = "<nid:" + systemConfig.id + "> ";
+        LOG.info("{}initializing...", logPrefix);
+
+        stunServerHostConfig = new StunServerHostKCWrapper(config());
+        extPorts = init.extPorts;
+
+        subscribe(handleStart, control);
+        subscribe(handleBindResp, netMngrPort);
+        subscribe(handleCroupierConnected, oMngrPort);
+    }
+
+    Handler handleStart = new Handler<Start>() {
+        @Override
+        public void handle(Start event) {
+            LOG.info("{}starting...", logPrefix);
+            StunServerKCWrapper stunServerConfig = new StunServerKCWrapper(config());
+            LOG.info("{}binding stun ports", logPrefix);
+            NetMngrBind.Request bindReq1 = new NetMngrBind.Request(stunServerConfig.stunServerPorts.getValue0());
+            trigger(bindReq1, netMngrPort);
+            NetMngrBind.Request bindReq2 = new NetMngrBind.Request(stunServerConfig.stunServerPorts.getValue1());
+            trigger(bindReq2, netMngrPort);
+            bindReq = Pair.with(bindReq1, bindReq2);
+        }
+    };
+
+    private boolean ready() {
+        if (stunServerAdr.getValue0() == null || stunServerAdr.getValue1() == null) {
+            LOG.warn("{}stun self address not ready yet");
+            return false;
+        }
+        return true;
+    }
+
+    Handler handleBindResp = new Handler<NetMngrBind.Response>() {
+        @Override
+        public void handle(NetMngrBind.Response resp) {
+            LOG.trace("{}received:{}", logPrefix, resp);
+            if (resp.req.getId().equals(bindReq.getValue0().getId())) {
+                stunServerAdr = stunServerAdr.setAt0((NatAwareAddress) resp.boundAdr);
+            } else if (resp.req.getId().equals(bindReq.getValue0().getId())) {
+                stunServerAdr = stunServerAdr.setAt1((NatAwareAddress) resp.boundAdr);
+            }
+            if (ready()) {
+                Identifier croupierId = NatOverlayId.getStunCroupierId(stunServerHostConfig.natOverlayPrefix);
+                LOG.info("{}connecting stun server", logPrefix);
+                connectStunServer(croupierId);
+                LOG.info("{}connecting overlays");
+                croupierReq = new OMngrCroupier.ConnectRequest(croupierId, false);
+                trigger(croupierReq, oMngrPort);
+            }
+        }
+    };
+
+    private void connectStunServer(Identifier croupierId) {
+        stunServerComp = create(StunServerComp.class, new StunServerComp.Init(stunServerAdr, croupierId));
+        connect(stunServerComp.getNegative(Timer.class), extPorts.timerPort, Channel.TWO_WAY);
+        connect(stunServerComp.getNegative(Network.class), extPorts.networkPort, Channel.TWO_WAY);
+        connect(stunServerComp.getNegative(CroupierPort.class), extPorts.croupierPort, Channel.TWO_WAY);
+        connect(stunServerComp.getPositive(OverlayViewUpdatePort.class), extPorts.viewUpdatePort, Channel.TWO_WAY);
+    }
+
+    Handler handleCroupierConnected = new Handler<OMngrCroupier.ConnectResponse>() {
+        @Override
+        public void handle(OMngrCroupier.ConnectResponse resp) {
+            LOG.trace("{}received:{}", logPrefix, resp);
+            if(resp.req.getId().equals(croupierReq.getId())) {
+                trigger(Start.event, stunServerComp.control());
+                LOG.info("{}setup complete", logPrefix);
+            }
+        }
+    };
+
+    @Override
+    public Fault.ResolveAction handleFault(Fault fault) {
+        LOG.error("{}child component failure:{}", logPrefix, fault);
+        System.exit(1);
+        return Fault.ResolveAction.RESOLVED;
+    }
+
+    public static class Init extends se.sics.kompics.Init<StunServerHostComp> {
+
+        public final ExtPort extPorts;
+
+        public Init(ExtPort extPorts) {
+            this.extPorts = extPorts;
+        }
+    }
+
+    public static class ExtPort {
+
+        public final Positive<Timer> timerPort;
+        public final Positive<Network> networkPort;
+        public final Positive<CroupierPort> croupierPort;
+        public final Negative<OverlayViewUpdatePort> viewUpdatePort;
+
+        public ExtPort(Positive<Timer> timerPort, Positive<Network> networkPort,
+                Positive<CroupierPort> croupierPort, Negative<OverlayViewUpdatePort> viewUpdatePort) {
+            this.timerPort = timerPort;
+            this.networkPort = networkPort;
+            this.croupierPort = croupierPort;
+            this.viewUpdatePort = viewUpdatePort;
+        }
+    }
+}
