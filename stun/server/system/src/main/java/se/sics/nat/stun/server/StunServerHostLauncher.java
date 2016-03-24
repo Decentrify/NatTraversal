@@ -51,6 +51,7 @@ import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdatePort;
 import se.sics.ktoolbox.util.setup.BasicSerializerSetup;
 import se.sics.ktoolbox.util.status.Status;
 import se.sics.ktoolbox.util.status.StatusPort;
+import se.sics.nat.stun.StunSerializerSetup;
 
 /**
  *
@@ -157,6 +158,7 @@ public class StunServerHostLauncher extends ComponentDefinition {
         serializerId = GradientSerializerSetup.registerSerializers(serializerId);
         serializerId = OMngrSerializerSetup.registerSerializers(serializerId);
         serializerId = NetworkMngrSerializerSetup.registerSerializers(serializerId);
+        serializerId = StunSerializerSetup.registerSerializers(serializerId);
 
         if (serializerId > 255) {
             throw new RuntimeException("switch to bigger serializerIds, last serializerId:" + serializerId);

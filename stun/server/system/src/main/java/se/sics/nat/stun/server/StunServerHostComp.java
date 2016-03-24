@@ -94,7 +94,7 @@ public class StunServerHostComp extends ComponentDefinition {
 
     private boolean ready() {
         if (stunServerAdr.getValue0() == null || stunServerAdr.getValue1() == null) {
-            LOG.warn("{}stun self address not ready yet");
+            LOG.warn("{}stun self address not ready yet", logPrefix);
             return false;
         }
         return true;
@@ -104,9 +104,9 @@ public class StunServerHostComp extends ComponentDefinition {
         @Override
         public void handle(NetMngrBind.Response resp) {
             LOG.trace("{}received:{}", logPrefix, resp);
-            if (resp.req.getId().equals(bindReq.getValue0().getId())) {
+            if (resp.getId().equals(bindReq.getValue0().getId())) {
                 stunServerAdr = stunServerAdr.setAt0((NatAwareAddress) resp.boundAdr);
-            } else if (resp.req.getId().equals(bindReq.getValue0().getId())) {
+            } else if (resp.req.getId().equals(bindReq.getValue1().getId())) {
                 stunServerAdr = stunServerAdr.setAt1((NatAwareAddress) resp.boundAdr);
             }
             if (ready()) {
