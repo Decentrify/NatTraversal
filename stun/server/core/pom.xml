@@ -18,6 +18,8 @@
             <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        
+        <!-- KToolbox -->
         <dependency>
             <groupId>se.sics.ktoolbox.croupier</groupId>
             <artifactId>core</artifactId>

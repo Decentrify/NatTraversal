@@ -14,11 +14,12 @@
   
   <dependencies>
       <dependency>
-          <groupId>se.sics.nat.stun</groupId>
-          <artifactId>common</artifactId>
+          <groupId>se.sics.nat.stun.common</groupId>
+          <artifactId>core</artifactId>
           <version>${project.version}</version>
       </dependency>
       
+      <!-- network -->
       <dependency>
           <groupId>se.sics.ktoolbox.util</groupId>
           <artifactId>network</artifactId>

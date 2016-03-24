@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.msg;
+package se.sics.nat.stun.event;
 
 import com.google.common.base.Optional;
 import io.netty.buffer.ByteBuf;
@@ -24,11 +24,11 @@ import java.util.UUID;
 import org.javatuples.Pair;
 import se.sics.kompics.network.netty.serialization.Serializer;
 import se.sics.kompics.network.netty.serialization.Serializers;
-import se.sics.nat.stun.msg.server.StunPartner;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunPartnerSerializer {
@@ -49,18 +49,18 @@ public class StunPartnerSerializer {
         @Override
         public void toBinary(Object o, ByteBuf buf) {
             StunPartner.Request req = (StunPartner.Request) o;
-            Serializers.lookupSerializer(UUID.class).toBinary(req.id, buf);
-            Serializers.lookupSerializer(DecoratedAddress.class).toBinary(req.partnerAdr.getValue0(), buf);
+            Serializers.toBinary(req.eventId, buf);
+            Serializers.lookupSerializer(NatAwareAddressImpl.class).toBinary(req.partnerAdr.getValue0(), buf);
             buf.writeInt(req.partnerAdr.getValue1().getPort());
         }
 
         @Override
         public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
-            UUID id = (UUID) Serializers.lookupSerializer(UUID.class).fromBinary(buf, hint);
-            DecoratedAddress partnerAdr1 = (DecoratedAddress) Serializers.lookupSerializer(DecoratedAddress.class).fromBinary(buf, hint);
+            Identifier eventId = (Identifier)Serializers.fromBinary(buf, hint);
+            NatAwareAddress partnerAdr1 = (NatAwareAddressImpl) Serializers.lookupSerializer(NatAwareAddressImpl.class).fromBinary(buf, hint);
             int partnerPort2 = buf.readInt();
-            DecoratedAddress partnerAdr2 = partnerAdr1.changePort(partnerPort2);
-            return new StunPartner.Request(id, Pair.with(partnerAdr1, partnerAdr2));
+            NatAwareAddress partnerAdr2 = ((NatAwareAddressImpl)partnerAdr1).changePublicPort(partnerPort2);
+            return new StunPartner.Request(eventId, Pair.with(partnerAdr1, partnerAdr2));
         }
     }
 
@@ -80,26 +80,26 @@ public class StunPartnerSerializer {
         @Override
         public void toBinary(Object o, ByteBuf buf) {
             StunPartner.Response resp = (StunPartner.Response) o;
-            Serializers.lookupSerializer(UUID.class).toBinary(resp.id, buf);
+            Serializers.toBinary(resp.eventId, buf);
             buf.writeBoolean(resp.accept);
             if (resp.accept) {
-                Serializers.lookupSerializer(DecoratedAddress.class).toBinary(resp.partnerAdr.get().getValue0(), buf);
+                Serializers.lookupSerializer(NatAwareAddressImpl.class).toBinary(resp.partnerAdr.get().getValue0(), buf);
                 buf.writeInt(resp.partnerAdr.get().getValue1().getPort());
             }
         }
 
         @Override
         public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
-            UUID id = (UUID) Serializers.lookupSerializer(UUID.class).fromBinary(buf, hint);
+            Identifier eventId = (Identifier) Serializers.fromBinary(buf, hint);
             boolean accept = buf.readBoolean();
             if(accept) {
-                DecoratedAddress partnerAdr1 = (DecoratedAddress) Serializers.lookupSerializer(DecoratedAddress.class).fromBinary(buf, hint);
+                NatAwareAddress partnerAdr1 = (NatAwareAddressImpl) Serializers.lookupSerializer(NatAwareAddressImpl.class).fromBinary(buf, hint);
                 int partnerPort2 = buf.readInt();
-                DecoratedAddress partnerAdr2 = partnerAdr1.changePort(partnerPort2);
-                return new StunPartner.Response(id, accept, Optional.of(Pair.with(partnerAdr1, partnerAdr2)));
+                NatAwareAddress partnerAdr2 = ((NatAwareAddressImpl)partnerAdr1).changePublicPort(partnerPort2);
+                return new StunPartner.Response(eventId, accept, Optional.of(Pair.with(partnerAdr1, partnerAdr2)));
             }
-            Optional<Pair<DecoratedAddress, DecoratedAddress>> partnerAdr = Optional.absent();
-            return new StunPartner.Response(id, accept, partnerAdr);
+            Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr = Optional.absent();
+            return new StunPartner.Response(eventId, accept, partnerAdr);
         }
     }
 }

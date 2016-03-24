@@ -96,7 +96,7 @@ public abstract class StunEcho implements StunEvent {
 
         public final Optional<NatAwareAddress> observed;
 
-        private Response(Identifier eventId, Identifier sessionId, Type type, Optional observed) {
+        Response(Identifier eventId, Identifier sessionId, Type type, Optional observed) {
             super(eventId, sessionId, type);
             this.observed = observed;
         }

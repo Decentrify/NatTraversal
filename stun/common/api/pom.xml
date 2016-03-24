@@ -14,8 +14,8 @@
   
   <dependencies>
       <dependency>
-          <groupId>se.sics.nat</groupId>
-          <artifactId>common</artifactId>
+          <groupId>se.sics.nat.common</groupId>
+          <artifactId>api</artifactId>
           <version>${project.version}</version>
       </dependency>
   </dependencies>

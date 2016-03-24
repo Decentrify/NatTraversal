@@ -20,26 +20,27 @@
 package se.sics.nat.stun;
 
 import se.sics.kompics.network.netty.serialization.Serializers;
-import se.sics.nat.stun.msg.StunEcho;
-import se.sics.nat.stun.msg.StunEchoSerializer;
-import se.sics.nat.stun.msg.StunPartnerSerializer;
-import se.sics.nat.stun.msg.StunViewSerializer;
-import se.sics.nat.stun.msg.server.StunPartner;
+import se.sics.ktoolbox.util.setup.BasicSerializerSetup;
+import se.sics.nat.stun.event.StunEcho;
+import se.sics.nat.stun.event.StunEchoSerializer;
+import se.sics.nat.stun.event.StunPartner;
+import se.sics.nat.stun.event.StunPartnerSerializer;
+import se.sics.nat.stun.util.StunViewSerializer;
 import se.sics.nat.stun.util.StunView;
-import se.sics.p2ptoolbox.util.serializer.BasicSerializerSetup;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunSerializerSetup {
-    public static int serializerIds = 5;
+    public static int serializerIds = 6;
     
     public static enum StunSerializers {
         StunView(StunView.class, "stunViewSerializer"),
         StunPReqSerializer(StunPartner.Request.class, "stunPReqSerializer"),
         StunPRespSerializer(StunPartner.Response.class, "stunPRespSerializer"),
         StunEchoRequest(StunEcho.Request.class, "stunEchoRequestSerializer"),
-        StunEchoResponse(StunEcho.Response.class, "stunEchoResponseSerializer");
+        StunEchoResponse(StunEcho.Response.class, "stunEchoResponseSerializer"),
+        StunEchoReset(StunEcho.Reset.class, "stunEchoResetSerializer");
         
         public final Class serializedClass;
         public final String serializerName;
@@ -81,6 +82,10 @@ public class StunSerializerSetup {
         StunEchoSerializer.Response stunEchoResponseSerializer = new StunEchoSerializer.Response(currentId++);
         Serializers.register(stunEchoResponseSerializer, StunSerializers.StunEchoResponse.serializerName);
         Serializers.register(StunSerializers.StunEchoResponse.serializedClass, StunSerializers.StunEchoResponse.serializerName);
+        
+        StunEchoSerializer.Reset stunEchoResetSerializer = new StunEchoSerializer.Reset(currentId++);
+        Serializers.register(stunEchoResetSerializer, StunSerializers.StunEchoReset.serializerName);
+        Serializers.register(StunSerializers.StunEchoReset.serializedClass, StunSerializers.StunEchoReset.serializerName);
         
         assert startingId + serializerIds == currentId;
         return currentId;

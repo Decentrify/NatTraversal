@@ -68,7 +68,7 @@ public class StunPartner {
         public final boolean accept;
         public final Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr;
 
-        private Response(Identifier id, boolean accept, Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr) {
+        Response(Identifier id, boolean accept, Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr) {
             this.eventId = id;
             this.accept = accept;
             this.partnerAdr = partnerAdr;

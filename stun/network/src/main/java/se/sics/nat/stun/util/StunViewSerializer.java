@@ -16,15 +16,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.msg;
+package se.sics.nat.stun.util;
 
 import com.google.common.base.Optional;
 import io.netty.buffer.ByteBuf;
 import org.javatuples.Pair;
 import se.sics.kompics.network.netty.serialization.Serializer;
 import se.sics.kompics.network.netty.serialization.Serializers;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
 import se.sics.nat.stun.util.StunView;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -44,30 +45,31 @@ public class StunViewSerializer implements Serializer {
     @Override
     public void toBinary(Object o, ByteBuf buf) {
         StunView sv = (StunView)o;
-        Serializer decoratedAdrS = Serializers.lookupSerializer(DecoratedAddress.class);
-        decoratedAdrS.toBinary(sv.selfStunAdr.getValue0(), buf);
+        Serializer adrSerializer = Serializers.lookupSerializer(NatAwareAddressImpl.class);
+        adrSerializer.toBinary(sv.selfStunAdr.getValue0(), buf);
         buf.writeInt(sv.selfStunAdr.getValue1().getPort());
         buf.writeBoolean(sv.partnerStunAdr.isPresent());
         if(sv.partnerStunAdr.isPresent()) {
-            decoratedAdrS.toBinary(sv.partnerStunAdr.get().getValue0(), buf);
+            adrSerializer.toBinary(sv.partnerStunAdr.get().getValue0(), buf);
             buf.writeInt(sv.partnerStunAdr.get().getValue1().getPort());
         }
     }
 
     @Override
     public Object fromBinary(ByteBuf buf, Optional<Object> hint) {
-        Serializer decoratedAdrS = Serializers.lookupSerializer(DecoratedAddress.class);
-        DecoratedAddress selfStunAdr1 = (DecoratedAddress)decoratedAdrS.fromBinary(buf, hint);
+        Serializer adrSerializer = Serializers.lookupSerializer(NatAwareAddressImpl.class);
+        NatAwareAddressImpl selfStunAdr1 = (NatAwareAddressImpl)adrSerializer.fromBinary(buf, hint);
         int selfStunPort2 = buf.readInt();
-        DecoratedAddress selfStunAdr2 = selfStunAdr1.changePort(selfStunPort2);
+        NatAwareAddress selfStunAdr2 = selfStunAdr1.changePublicPort(selfStunPort2);
         boolean withPartner = buf.readBoolean();
         if(withPartner) {
-            DecoratedAddress partnerStunAdr1 = (DecoratedAddress)decoratedAdrS.fromBinary(buf, hint);
+            NatAwareAddressImpl partnerStunAdr1 = (NatAwareAddressImpl)adrSerializer.fromBinary(buf, hint);
             int partnerStunPort2 = buf.readInt();
-            DecoratedAddress partnerStunAdr2 = partnerStunAdr1.changePort(partnerStunPort2);
-            return StunView.partner(Pair.with(selfStunAdr1, selfStunAdr2), Pair.with(partnerStunAdr1, partnerStunAdr2));
+            NatAwareAddress partnerStunAdr2 = partnerStunAdr1.changePublicPort(partnerStunPort2);
+            return StunView.partner(Pair.with((NatAwareAddress)selfStunAdr1, selfStunAdr2), 
+                    Pair.with((NatAwareAddress)partnerStunAdr1, partnerStunAdr2));
         } else {
-            return StunView.empty(Pair.with(selfStunAdr1, selfStunAdr2));
+            return StunView.empty(Pair.with((NatAwareAddress)selfStunAdr1, selfStunAdr2));
         }
     }
 }
