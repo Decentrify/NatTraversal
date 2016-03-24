@@ -16,39 +16,22 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.common.util;
+package se.sics.nat.stun.upnp;
 
-import com.google.common.base.Optional;
-import java.net.InetAddress;
-import org.javatuples.Pair;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
+import se.sics.kompics.PortType;
+import se.sics.nat.stun.upnp.event.UPnPReady;
+import se.sics.nat.stun.upnp.event.UPnPMap;
+import se.sics.nat.stun.upnp.event.UPnPUnmap;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatDetectionResult {
-
-    private Optional<InetAddress> upnp = Optional.absent();
-    private Pair<NatedTrait, Optional<InetAddress>> nat = null;
-
-    public void setNatReady(NatedTrait trait, Optional<InetAddress> natAdr) {
-        nat = Pair.with(trait, natAdr);
-    }
-
-    public void setUpnpReady(Optional<InetAddress> upnpAdr) {
-        this.upnp = upnpAdr;
-    }
-
-    public boolean isReady() {
-        return upnp != null && nat != null;
-    }
-
-    public Pair<NatedTrait, Optional<InetAddress>> getResult() {
-        if (upnp.isPresent()) {
-            return Pair.with(NatedTrait.upnp(), upnp);
-        } else {
-            return nat;
-        }
+public class UPnPPort extends PortType {
+    {
+        indication(UPnPReady.class);
+        request(UPnPMap.Request.class);
+        indication(UPnPMap.Response.class);
+        request(UPnPUnmap.Request.class);
+        indication(UPnPUnmap.Response.class);
     }
 }

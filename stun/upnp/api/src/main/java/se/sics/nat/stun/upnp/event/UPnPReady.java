@@ -16,23 +16,33 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.upnp.msg;
+package se.sics.nat.stun.upnp.event;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
-import java.util.UUID;
-import se.sics.kompics.KompicsEvent;
+import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
+import se.sics.nat.stun.event.StunEvent;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class UpnpReady implements KompicsEvent {
+public class UPnPReady implements StunEvent {
 
-    public final UUID id;
+    public final Identifier eventId;
     public final Optional<InetAddress> externalIp;
 
-    public UpnpReady(UUID id, InetAddress externalIp) {
-        this.id = id;
+    public UPnPReady(Identifier eventId, InetAddress externalIp) {
+        this.eventId = eventId;
         this.externalIp = Optional.fromNullable(externalIp);
+    }
+    
+    public UPnPReady(InetAddress externalIp) {
+        this(UUIDIdentifier.randomId(), externalIp);
+    }
+
+    @Override
+    public Identifier getId() {
+        return eventId;
     }
 }
