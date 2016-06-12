@@ -18,37 +18,20 @@
  */
 package se.sics.nat.detection;
 
-import com.google.common.base.Optional;
-import java.net.InetAddress;
-import org.javatuples.Pair;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
+import se.sics.kompics.config.Config;
+import se.sics.ktoolbox.util.config.KConfigHelper;
+import se.sics.nat.stun.util.StunView;
 
 /**
+ *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatDetectionStatus {
-
-    public static class Phase1 {
-        public final DecoratedAddress privateAdr;
-        
-        public Phase1(DecoratedAddress privateAdr) {
-            this.privateAdr = privateAdr;
-        }
-    }
-
-    public static class Phase2 {
-        
-        public NatedTrait nat;
-        public Optional<InetAddress> publicIp;
-
-        /**
-         * @param nat
-         * @param publicIp - optional - missing only if nat - udpBlocked
-         */
-        public Phase2(Pair<NatedTrait, Optional<InetAddress>> result) {
-            this.nat = result.getValue0();
-            this.publicIp = result.getValue1();
-        }
+public class NatDetectionKCWrapper {
+    public final Config configCore;
+    public final StunView stunView;
+    
+    public NatDetectionKCWrapper(Config configCore) {
+        this.configCore = configCore;
+        stunView = KConfigHelper.read(configCore, NatDetectionKConfig.stunView);
     }
 }

@@ -33,7 +33,7 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.ktoolbox.netmngr.NetMngrBind;
-import se.sics.ktoolbox.netmngr.NetMngrPort;
+import se.sics.ktoolbox.netmngr.event.NetMngrPort;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;

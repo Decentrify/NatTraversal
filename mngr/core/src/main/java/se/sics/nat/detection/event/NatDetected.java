@@ -16,20 +16,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
-package se.sics.nat.stun;
+package se.sics.nat.detection.event;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
+import se.sics.kompics.KompicsEvent;
+import se.sics.ktoolbox.util.identifiable.Identifiable;
 import se.sics.ktoolbox.util.identifiable.Identifier;
 import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.ktoolbox.util.network.nat.NatType;
-import se.sics.nat.stun.event.StunEvent;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class NatDetected implements StunEvent {
+public class NatDetected implements KompicsEvent, Identifiable<Identifier> {
     public final Identifier eventId;
     public NatType natType;
     public Optional<InetAddress> publicIp;

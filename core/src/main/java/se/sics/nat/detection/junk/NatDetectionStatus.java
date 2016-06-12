@@ -1,3 +1,5 @@
+package se.sics.nat.detection.junk;
+
 ///*
 // * Copyright (C) 2009 Swedish Institute of Computer Science (SICS) Copyright (C)
 // * 2009 Royal Institute of Technology (KTH)
@@ -16,35 +18,39 @@
 // * along with this program; if not, write to the Free Software
 // * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // */
+//package se.sics.nat.detection;
 //
-//package se.sics.nat.filters;
-//
-//import se.sics.kompics.ChannelFilter;
-//import se.sics.kompics.network.Msg;
-//import se.sics.nat.common.NatMsg;
-//import se.sics.ktoolbox.util.msg.BasicContentMsg;
+//import com.google.common.base.Optional;
+//import java.net.InetAddress;
+//import org.javatuples.Pair;
+//import se.sics.p2ptoolbox.util.nat.NatedTrait;
 //import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-//import se.sics.ktoolbox.util.msg.DecoratedHeader;
 //
 ///**
-// *
 // * @author Alex Ormenisan <aaor@kth.se>
 // */
-//public class NatInternalFilter extends ChannelFilter<Msg, Boolean> {
+//public class NatDetectionStatus {
 //
-//    public NatInternalFilter() {
-//        super(Msg.class, true, true);
+//    public static class Phase1 {
+//        public final DecoratedAddress privateAdr;
+//        
+//        public Phase1(DecoratedAddress privateAdr) {
+//            this.privateAdr = privateAdr;
+//        }
 //    }
-//    
-//    @Override
-//    public Boolean getValue(Msg msg) {
-//        BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> contentMsg = null;
-//        if (msg instanceof BasicContentMsg) {
-//            contentMsg = (BasicContentMsg) msg;
+//
+//    public static class Phase2 {
+//        
+//        public NatedTrait nat;
+//        public Optional<InetAddress> publicIp;
+//
+//        /**
+//         * @param nat
+//         * @param publicIp - optional - missing only if nat - udpBlocked
+//         */
+//        public Phase2(Pair<NatedTrait, Optional<InetAddress>> result) {
+//            this.nat = result.getValue0();
+//            this.publicIp = result.getValue1();
 //        }
-//        if(contentMsg == null) {
-//            return false;
-//        }
-//        return (contentMsg.getContent() instanceof NatMsg);
 //    }
 //}

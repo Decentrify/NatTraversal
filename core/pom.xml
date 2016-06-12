@@ -14,11 +14,6 @@
   
     <dependencies>
         <dependency>
-            <groupId>se.sics.nat</groupId>
-            <artifactId>common</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>se.sics.nat.stun.client</groupId>
             <artifactId>core</artifactId>
             <version>${project.version}</version>
@@ -28,34 +23,10 @@
             <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>se.sics.nat.pm.client</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.pm.server</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.hp.client</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.nat.hp.server</groupId>
-            <artifactId>core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         
+        <!-- KToolbox -->
         <dependency>
-            <groupId>se.sics.ktoolbox.croupier</groupId>
-            <artifactId>core</artifactId>
-            <version>${ktoolbox.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>se.sics.ktoolbox.overlaymngr</groupId>
+            <groupId>se.sics.ktoolbox.netmngr</groupId>
             <artifactId>core</artifactId>
             <version>${ktoolbox.version}</version>
         </dependency>

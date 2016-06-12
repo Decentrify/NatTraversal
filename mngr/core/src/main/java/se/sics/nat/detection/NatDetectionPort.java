@@ -16,16 +16,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
-package se.sics.nat.stun;
+package se.sics.nat.detection;
 
 import se.sics.kompics.PortType;
+import se.sics.nat.detection.event.NatDetected;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunClientPort extends PortType {
+public class NatDetectionPort extends PortType {
     {
-        indication(StunNatDetected.class);
+        indication(NatDetected.class);
     }
 }

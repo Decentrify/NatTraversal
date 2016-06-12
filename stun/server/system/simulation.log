@@ -1918,3 +1918,368 @@ KompicsFault(java.lang.RuntimeException: Cannot create component se.sics.nat.stu
 [11:22:58,574] INFO  {StunServerComp} <nid:10000> partnered with:10001
 [11:23:41,557] WARN  {CroupierComp} <nid:10000,oid:31000001> no partners - not shuffling
 [11:23:42,554] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:15:14,713] INFO  {StunServerHostLauncher} initiating...
+[11:15:14,720] INFO  {StunServerHostLauncher}  starting...
+[11:15:14,724] INFO  {StunServerHostLauncher}  setting up network mngr
+[11:15:14,735] ERROR {KConfig} missing:system.seed
+[11:15:14,736] ERROR {Kompics} Handling an event caused a fault! Might be handled later...
+java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:246)
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:215)
+	at se.sics.kompics.ComponentDefinition.create(ComponentDefinition.java:196)
+	at se.sics.nat.stun.server.StunServerHostLauncher.setNetMngr(StunServerHostLauncher.java:100)
+	at se.sics.nat.stun.server.StunServerHostLauncher.access$400(StunServerHostLauncher.java:60)
+	at se.sics.nat.stun.server.StunServerHostLauncher$1.handle(StunServerHostLauncher.java:91)
+	at se.sics.nat.stun.server.StunServerHostLauncher$1.handle(StunServerHostLauncher.java:85)
+	at se.sics.kompics.JavaComponent.executeEvent(JavaComponent.java:389)
+	at se.sics.kompics.JavaComponent.execute(JavaComponent.java:333)
+	at se.sics.kompics.Scheduler.executeComponent(Scheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler.access$100(ThreadPoolScheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler$1.run(ThreadPoolScheduler.java:35)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.reflect.InvocationTargetException
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62)
+	at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.lang.reflect.Constructor.newInstance(Constructor.java:408)
+	at se.sics.kompics.JavaComponent.createInstance(JavaComponent.java:260)
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:226)
+	... 14 more
+Caused by: java.lang.RuntimeException: missing system.seed
+	at se.sics.ktoolbox.util.config.KConfigHelper.read(KConfigHelper.java:37)
+	at se.sics.ktoolbox.util.config.impl.SystemKCWrapper.<init>(SystemKCWrapper.java:41)
+	at se.sics.ktoolbox.netmngr.NetworkMngrComp.<init>(NetworkMngrComp.java:88)
+	... 20 more
+[11:15:14,738] ERROR {Kompics} A fault was escalated to the root component: 
+KompicsFault(java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp thrown in Component(3f852aea-b0f2-4964-94af-097d6f9545c3):se.sics.nat.stun.server.StunServerHostLauncher@5a8d4b0f while handling event se.sics.kompics.Start@1b537aad) 
+
+
+[11:15:14,739] INFO  {Kompics} User declared that Fault KompicsFault(java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp thrown in Component(3f852aea-b0f2-4964-94af-097d6f9545c3):se.sics.nat.stun.server.StunServerHostLauncher@5a8d4b0f while handling event se.sics.kompics.Start@1b537aad) should quit JVM...
+[11:15:31,631] INFO  {StunServerHostLauncher} initiating...
+[11:15:31,639] INFO  {StunServerHostLauncher}  starting...
+[11:15:31,643] INFO  {StunServerHostLauncher}  setting up network mngr
+[11:15:31,668] DEBUG {KConfig} missing:system.aggregator.ip
+[11:15:31,669] ERROR {KConfig} missing:network.ipType
+[11:15:31,670] ERROR {Kompics} Handling an event caused a fault! Might be handled later...
+java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:246)
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:215)
+	at se.sics.kompics.ComponentDefinition.create(ComponentDefinition.java:196)
+	at se.sics.nat.stun.server.StunServerHostLauncher.setNetMngr(StunServerHostLauncher.java:100)
+	at se.sics.nat.stun.server.StunServerHostLauncher.access$400(StunServerHostLauncher.java:60)
+	at se.sics.nat.stun.server.StunServerHostLauncher$1.handle(StunServerHostLauncher.java:91)
+	at se.sics.nat.stun.server.StunServerHostLauncher$1.handle(StunServerHostLauncher.java:85)
+	at se.sics.kompics.JavaComponent.executeEvent(JavaComponent.java:389)
+	at se.sics.kompics.JavaComponent.execute(JavaComponent.java:333)
+	at se.sics.kompics.Scheduler.executeComponent(Scheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler.access$100(ThreadPoolScheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler$1.run(ThreadPoolScheduler.java:35)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.reflect.InvocationTargetException
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62)
+	at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.lang.reflect.Constructor.newInstance(Constructor.java:408)
+	at se.sics.kompics.JavaComponent.createInstance(JavaComponent.java:260)
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:226)
+	... 14 more
+Caused by: java.lang.RuntimeException: missing network.ipType
+	at se.sics.ktoolbox.util.config.KConfigHelper.read(KConfigHelper.java:37)
+	at se.sics.ktoolbox.netmngr.NetworkKCWrapper.<init>(NetworkKCWrapper.java:36)
+	at se.sics.ktoolbox.netmngr.NetworkMngrComp.<init>(NetworkMngrComp.java:92)
+	... 20 more
+[11:15:31,672] ERROR {Kompics} A fault was escalated to the root component: 
+KompicsFault(java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp thrown in Component(5908ce30-9835-426f-b6f0-a54963229844):se.sics.nat.stun.server.StunServerHostLauncher@45393053 while handling event se.sics.kompics.Start@4a2039f8) 
+
+
+[11:15:31,673] INFO  {Kompics} User declared that Fault KompicsFault(java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp thrown in Component(5908ce30-9835-426f-b6f0-a54963229844):se.sics.nat.stun.server.StunServerHostLauncher@45393053 while handling event se.sics.kompics.Start@4a2039f8) should quit JVM...
+[11:16:00,709] INFO  {StunServerHostLauncher} initiating...
+[11:16:00,722] INFO  {StunServerHostLauncher}  starting...
+[11:16:00,726] INFO  {StunServerHostLauncher}  setting up network mngr
+[11:16:00,763] DEBUG {KConfig} missing:system.aggregator.ip
+[11:16:00,772] DEBUG {KConfig} missing:system.aggregator.ip
+[11:16:00,776] DEBUG {KConfig} missing:system.aggregator.ip
+[11:16:00,889] INFO  {SocketUDT} library location : ./lib/bin
+[11:16:00,889] INFO  {SocketUDT} loader provider  : com.barchart.udt.lib.LibraryLoaderUDT
+[11:16:00,890] INFO  {PluginPropsUDT} ARCH/OS/LINK = x86_64/MacOSX/gpp
+[11:16:00,892] INFO  {LibraryLoaderUDT} Platform supported.
+[11:16:00,892] INFO  {LibraryLoaderUDT} Loading release libraries.
+[11:16:01,007] INFO  {LibraryLoaderUDT} Release libraries loaded.
+[11:16:01,019] INFO  {StunServerHostLauncher}  network mngr ready
+[11:16:01,019] INFO  {StunServerHostLauncher}  setting up caracal client
+[11:16:01,030] DEBUG {KConfig} missing:system.aggregator.ip
+[11:16:01,041] DEBUG {KConfig} missing:system.aggregator.ip
+[11:16:01,137] ERROR {Kompics} Handling an event caused a fault! Might be handled later...
+java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus
+	at se.sics.kompics.network.netty.ChannelManager.createTCPChannel(ChannelManager.java:321)
+	at se.sics.kompics.network.netty.MessageQueueManager.sendTCP(MessageQueueManager.java:86)
+	at se.sics.kompics.network.netty.MessageQueueManager.send(MessageQueueManager.java:63)
+	at se.sics.kompics.network.netty.MessageQueueManager.send(MessageQueueManager.java:53)
+	at se.sics.kompics.network.netty.NettyNetwork$4.handle(NettyNetwork.java:220)
+	at se.sics.kompics.network.netty.NettyNetwork$4.handle(NettyNetwork.java:210)
+	at se.sics.kompics.JavaComponent.executeEvent(JavaComponent.java:389)
+	at se.sics.kompics.JavaComponent.execute(JavaComponent.java:333)
+	at se.sics.kompics.Scheduler.executeComponent(Scheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler.access$100(ThreadPoolScheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler$1.run(ThreadPoolScheduler.java:35)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.ClassNotFoundException: se.sics.kompics.network.ConnectionStatus
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:372)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:361)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:360)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:308)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+	... 14 more
+[11:16:01,141] ERROR {Kompics} A fault was escalated to the root component: 
+KompicsFault(java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus thrown in Component(b4d265f9-5c68-4abc-b730-731a21959601):se.sics.kompics.network.netty.NettyNetwork@2dbe05a3 while handling event SampleRequest(src: 192.168.88.245:30000/, dest: 193.10.64.86:45678/, #samples: 5, schemas? true, lut? false, lutversion: 0)) 
+
+
+[11:16:01,142] INFO  {Kompics} User declared that Fault KompicsFault(java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus thrown in Component(b4d265f9-5c68-4abc-b730-731a21959601):se.sics.kompics.network.netty.NettyNetwork@2dbe05a3 while handling event SampleRequest(src: 192.168.88.245:30000/, dest: 193.10.64.86:45678/, #samples: 5, schemas? true, lut? false, lutversion: 0)) should quit JVM...
+[11:18:33,103] INFO  {StunServerHostLauncher} initiating...
+[11:18:33,114] INFO  {StunServerHostLauncher}  starting...
+[11:18:33,124] INFO  {StunServerHostLauncher}  setting up network mngr
+[11:18:33,154] DEBUG {KConfig} missing:system.aggregator.ip
+[11:18:33,163] DEBUG {KConfig} missing:system.aggregator.ip
+[11:18:33,168] DEBUG {KConfig} missing:system.aggregator.ip
+[11:18:33,255] INFO  {SocketUDT} library location : ./lib/bin
+[11:18:33,256] INFO  {SocketUDT} loader provider  : com.barchart.udt.lib.LibraryLoaderUDT
+[11:18:33,257] INFO  {PluginPropsUDT} ARCH/OS/LINK = x86_64/MacOSX/gpp
+[11:18:33,259] INFO  {LibraryLoaderUDT} Platform supported.
+[11:18:33,259] INFO  {LibraryLoaderUDT} Loading release libraries.
+[11:18:33,371] INFO  {LibraryLoaderUDT} Release libraries loaded.
+[11:18:33,392] INFO  {StunServerHostLauncher}  network mngr ready
+[11:18:33,393] INFO  {StunServerHostLauncher}  setting up caracal client
+[11:18:33,416] DEBUG {KConfig} missing:system.aggregator.ip
+[11:18:33,434] DEBUG {KConfig} missing:system.aggregator.ip
+[11:18:33,516] ERROR {Kompics} Handling an event caused a fault! Might be handled later...
+java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus
+	at se.sics.kompics.network.netty.ChannelManager.createTCPChannel(ChannelManager.java:321)
+	at se.sics.kompics.network.netty.MessageQueueManager.sendTCP(MessageQueueManager.java:86)
+	at se.sics.kompics.network.netty.MessageQueueManager.send(MessageQueueManager.java:63)
+	at se.sics.kompics.network.netty.MessageQueueManager.send(MessageQueueManager.java:53)
+	at se.sics.kompics.network.netty.NettyNetwork$4.handle(NettyNetwork.java:220)
+	at se.sics.kompics.network.netty.NettyNetwork$4.handle(NettyNetwork.java:210)
+	at se.sics.kompics.JavaComponent.executeEvent(JavaComponent.java:389)
+	at se.sics.kompics.JavaComponent.execute(JavaComponent.java:333)
+	at se.sics.kompics.Scheduler.executeComponent(Scheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler.access$100(ThreadPoolScheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler$1.run(ThreadPoolScheduler.java:35)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.ClassNotFoundException: se.sics.kompics.network.ConnectionStatus
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:372)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:361)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:360)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:308)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+	... 14 more
+[11:18:33,521] ERROR {Kompics} A fault was escalated to the root component: 
+KompicsFault(java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus thrown in Component(a849626a-b08a-4386-96a0-94520d504d37):se.sics.kompics.network.netty.NettyNetwork@2fdfb321 while handling event SampleRequest(src: 192.168.88.245:30000/, dest: 193.10.64.86:45678/, #samples: 5, schemas? true, lut? false, lutversion: 0)) 
+
+
+[11:18:33,522] INFO  {Kompics} User declared that Fault KompicsFault(java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus thrown in Component(a849626a-b08a-4386-96a0-94520d504d37):se.sics.kompics.network.netty.NettyNetwork@2fdfb321 while handling event SampleRequest(src: 192.168.88.245:30000/, dest: 193.10.64.86:45678/, #samples: 5, schemas? true, lut? false, lutversion: 0)) should quit JVM...
+[11:24:53,687] INFO  {StunServerHostLauncher} initiating...
+[11:24:53,702] INFO  {StunServerHostLauncher}  starting...
+[11:24:53,707] INFO  {StunServerHostLauncher}  setting up network mngr
+[11:24:53,758] DEBUG {KConfig} missing:system.aggregator.ip
+[11:24:53,770] DEBUG {KConfig} missing:system.aggregator.ip
+[11:24:53,775] DEBUG {KConfig} missing:system.aggregator.ip
+[11:24:53,916] INFO  {SocketUDT} library location : ./lib/bin
+[11:24:53,916] INFO  {SocketUDT} loader provider  : com.barchart.udt.lib.LibraryLoaderUDT
+[11:24:53,917] INFO  {PluginPropsUDT} ARCH/OS/LINK = x86_64/MacOSX/gpp
+[11:24:53,920] INFO  {LibraryLoaderUDT} Platform supported.
+[11:24:53,920] INFO  {LibraryLoaderUDT} Loading release libraries.
+[11:24:54,034] INFO  {LibraryLoaderUDT} Release libraries loaded.
+[11:24:54,043] INFO  {StunServerHostLauncher}  network mngr ready
+[11:24:54,043] INFO  {StunServerHostLauncher}  setting up caracal client
+[11:24:54,055] DEBUG {KConfig} missing:system.aggregator.ip
+[11:24:54,066] DEBUG {KConfig} missing:system.aggregator.ip
+[11:24:54,170] ERROR {Kompics} Handling an event caused a fault! Might be handled later...
+java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus
+	at se.sics.kompics.network.netty.ChannelManager.createTCPChannel(ChannelManager.java:321)
+	at se.sics.kompics.network.netty.MessageQueueManager.sendTCP(MessageQueueManager.java:86)
+	at se.sics.kompics.network.netty.MessageQueueManager.send(MessageQueueManager.java:63)
+	at se.sics.kompics.network.netty.MessageQueueManager.send(MessageQueueManager.java:53)
+	at se.sics.kompics.network.netty.NettyNetwork$4.handle(NettyNetwork.java:220)
+	at se.sics.kompics.network.netty.NettyNetwork$4.handle(NettyNetwork.java:210)
+	at se.sics.kompics.JavaComponent.executeEvent(JavaComponent.java:389)
+	at se.sics.kompics.JavaComponent.execute(JavaComponent.java:333)
+	at se.sics.kompics.Scheduler.executeComponent(Scheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler.access$100(ThreadPoolScheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler$1.run(ThreadPoolScheduler.java:35)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.ClassNotFoundException: se.sics.kompics.network.ConnectionStatus
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:372)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:361)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:360)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:308)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+	... 14 more
+[11:24:54,174] ERROR {Kompics} A fault was escalated to the root component: 
+KompicsFault(java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus thrown in Component(60fe6728-a7c2-4bd4-bd11-dbff7000450c):se.sics.kompics.network.netty.NettyNetwork@29e26a50 while handling event SampleRequest(src: 192.168.88.245:30000/, dest: 193.10.64.86:45678/, #samples: 5, schemas? true, lut? false, lutversion: 0)) 
+
+
+[11:24:54,175] INFO  {Kompics} User declared that Fault KompicsFault(java.lang.NoClassDefFoundError: se/sics/kompics/network/ConnectionStatus thrown in Component(60fe6728-a7c2-4bd4-bd11-dbff7000450c):se.sics.kompics.network.netty.NettyNetwork@29e26a50 while handling event SampleRequest(src: 192.168.88.245:30000/, dest: 193.10.64.86:45678/, #samples: 5, schemas? true, lut? false, lutversion: 0)) should quit JVM...
+[11:29:37,594] INFO  {StunServerHostLauncher} initiating...
+[11:29:37,603] INFO  {StunServerHostLauncher}  starting...
+[11:29:37,607] INFO  {StunServerHostLauncher}  setting up network mngr
+[11:29:37,632] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:37,641] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:37,644] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:37,724] INFO  {SocketUDT} library location : ./lib/bin
+[11:29:37,724] INFO  {SocketUDT} loader provider  : com.barchart.udt.lib.LibraryLoaderUDT
+[11:29:37,725] INFO  {PluginPropsUDT} ARCH/OS/LINK = x86_64/MacOSX/gpp
+[11:29:37,726] INFO  {LibraryLoaderUDT} Platform supported.
+[11:29:37,726] INFO  {LibraryLoaderUDT} Loading release libraries.
+[11:29:37,841] INFO  {LibraryLoaderUDT} Release libraries loaded.
+[11:29:37,852] INFO  {StunServerHostLauncher}  network mngr ready
+[11:29:37,852] INFO  {StunServerHostLauncher}  setting up caracal client
+[11:29:37,863] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:37,873] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:38,094] INFO  {StunServerHostLauncher}  caracal client ready
+[11:29:38,094] INFO  {StunServerHostLauncher}  setting up overlay mngr
+[11:29:38,105] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:38,108] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:38,109] INFO  {StunServerHostLauncher}  setting up host
+[11:29:38,113] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:38,113] INFO  {StunServerHostComp} <nid:10000> initializing...
+[11:29:38,115] INFO  {StunServerHostComp} <nid:10000> starting...
+[11:29:38,123] INFO  {StunServerHostComp} <nid:10000> binding stun ports
+[11:29:38,126] WARN  {StunServerHostComp} <nid:10000> stun self address not ready yet
+[11:29:38,131] INFO  {StunServerHostComp} <nid:10000> connecting stun server
+[11:29:38,133] INFO  {StunServerComp} <nid:10000> initiating...
+[11:29:38,139] INFO  {StunServerHostComp} {}connecting overlays
+[11:29:38,147] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:38,182] INFO  {StunServerHostComp} <nid:10000> setup complete
+[11:29:38,182] INFO  {StunServerComp} <nid:10000> starting...
+[11:29:38,182] INFO  {StunServerComp} <nid:10000> looking for partner
+[11:29:40,185] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:41,191] WARN  {LOGIC_TODO} caracal answer failed - delivering empty answer - hope to succeed in the future
+[11:29:42,182] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:44,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:44,910] INFO  {StunServerHostLauncher} initiating...
+[11:29:44,916] INFO  {StunServerHostLauncher}  starting...
+[11:29:44,922] INFO  {StunServerHostLauncher}  setting up network mngr
+[11:29:44,946] DEBUG {KConfig} missing:system.aggregator.ip
+[11:29:44,946] ERROR {KConfig} missing:network.ipType
+[11:29:44,947] ERROR {Kompics} Handling an event caused a fault! Might be handled later...
+java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:246)
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:215)
+	at se.sics.kompics.ComponentDefinition.create(ComponentDefinition.java:197)
+	at se.sics.nat.stun.server.StunServerHostLauncher.setNetMngr(StunServerHostLauncher.java:100)
+	at se.sics.nat.stun.server.StunServerHostLauncher.access$400(StunServerHostLauncher.java:60)
+	at se.sics.nat.stun.server.StunServerHostLauncher$1.handle(StunServerHostLauncher.java:91)
+	at se.sics.nat.stun.server.StunServerHostLauncher$1.handle(StunServerHostLauncher.java:85)
+	at se.sics.kompics.JavaComponent.executeEvent(JavaComponent.java:389)
+	at se.sics.kompics.JavaComponent.execute(JavaComponent.java:333)
+	at se.sics.kompics.Scheduler.executeComponent(Scheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler.access$100(ThreadPoolScheduler.java:15)
+	at se.sics.kompics.scheduler.ThreadPoolScheduler$1.run(ThreadPoolScheduler.java:35)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.reflect.InvocationTargetException
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62)
+	at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.lang.reflect.Constructor.newInstance(Constructor.java:408)
+	at se.sics.kompics.JavaComponent.createInstance(JavaComponent.java:260)
+	at se.sics.kompics.JavaComponent.doCreate(JavaComponent.java:226)
+	... 14 more
+Caused by: java.lang.RuntimeException: missing network.ipType
+	at se.sics.ktoolbox.util.config.KConfigHelper.read(KConfigHelper.java:37)
+	at se.sics.ktoolbox.netmngr.NetworkKCWrapper.<init>(NetworkKCWrapper.java:36)
+	at se.sics.ktoolbox.netmngr.NetworkMngrComp.<init>(NetworkMngrComp.java:92)
+	... 20 more
+[11:29:44,950] ERROR {Kompics} A fault was escalated to the root component: 
+KompicsFault(java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp thrown in Component(ceeb944d-08d2-4e73-a8d7-a86b79eb2344):se.sics.nat.stun.server.StunServerHostLauncher@3281f61c while handling event se.sics.kompics.Start@603f0075) 
+
+
+[11:29:44,951] INFO  {Kompics} User declared that Fault KompicsFault(java.lang.RuntimeException: Cannot create component se.sics.ktoolbox.netmngr.NetworkMngrComp thrown in Component(ceeb944d-08d2-4e73-a8d7-a86b79eb2344):se.sics.nat.stun.server.StunServerHostLauncher@3281f61c while handling event se.sics.kompics.Start@603f0075) should quit JVM...
+[11:29:46,185] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:48,184] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:50,187] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:52,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:54,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:56,184] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:29:58,183] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:00,184] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:02,184] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:04,183] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:05,189] WARN  {CroupierComp} <nid:10000,oid:31000001> no partners - not shuffling
+[11:30:05,737] INFO  {StunServerHostLauncher} initiating...
+[11:30:05,745] INFO  {StunServerHostLauncher}  starting...
+[11:30:05,750] INFO  {StunServerHostLauncher}  setting up network mngr
+[11:30:05,778] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:05,786] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:05,791] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:05,881] INFO  {SocketUDT} library location : ./lib/bin
+[11:30:05,881] INFO  {SocketUDT} loader provider  : com.barchart.udt.lib.LibraryLoaderUDT
+[11:30:05,882] INFO  {PluginPropsUDT} ARCH/OS/LINK = x86_64/MacOSX/gpp
+[11:30:05,884] INFO  {LibraryLoaderUDT} Platform supported.
+[11:30:05,885] INFO  {LibraryLoaderUDT} Loading release libraries.
+[11:30:05,997] INFO  {LibraryLoaderUDT} Release libraries loaded.
+[11:30:06,007] INFO  {StunServerHostLauncher}  network mngr ready
+[11:30:06,008] INFO  {StunServerHostLauncher}  setting up caracal client
+[11:30:06,022] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:06,032] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:06,185] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:06,219] INFO  {StunServerHostLauncher}  caracal client ready
+[11:30:06,219] INFO  {StunServerHostLauncher}  setting up overlay mngr
+[11:30:06,233] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:06,236] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:06,237] INFO  {StunServerHostLauncher}  setting up host
+[11:30:06,241] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:06,241] INFO  {StunServerHostComp} <nid:10001> initializing...
+[11:30:06,244] INFO  {StunServerHostComp} <nid:10001> starting...
+[11:30:06,245] INFO  {StunServerHostComp} <nid:10001> binding stun ports
+[11:30:06,248] WARN  {StunServerHostComp} <nid:10001> stun self address not ready yet
+[11:30:06,257] INFO  {StunServerHostComp} <nid:10001> connecting stun server
+[11:30:06,259] INFO  {StunServerComp} <nid:10001> initiating...
+[11:30:06,262] INFO  {StunServerHostComp} {}connecting overlays
+[11:30:06,269] DEBUG {KConfig} missing:system.aggregator.ip
+[11:30:06,294] INFO  {StunServerHostComp} <nid:10001> setup complete
+[11:30:06,295] INFO  {StunServerComp} <nid:10001> starting...
+[11:30:06,295] INFO  {StunServerComp} <nid:10001> looking for partner
+[11:30:08,185] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:08,298] WARN  {CroupierComp} <nid:10001,oid:31000001> no neighbours
+[11:30:09,307] WARN  {LOGIC_TODO} caracal answer failed - delivering empty answer - hope to succeed in the future
+[11:30:10,185] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:12,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:14,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:14,297] WARN  {CroupierComp} <nid:10001,oid:31000001> no neighbours
+[11:30:16,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:18,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:18,299] WARN  {CroupierComp} <nid:10001,oid:31000001> no neighbours
+[11:30:20,187] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:20,300] WARN  {CroupierComp} <nid:10001,oid:31000001> no neighbours
+[11:30:21,192] WARN  {CroupierComp} <nid:10000,oid:31000001> no partners - not shuffling
+[11:30:22,183] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:24,186] INFO  {StunServerComp} <nid:10001> partnered with:10000
+[11:30:24,188] INFO  {StunServerComp} <nid:10000> partnered with:10001
+[11:30:26,185] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:30,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:31,305] WARN  {CroupierComp} <nid:10001,oid:31000001> no partners - not shuffling
+[11:30:32,300] WARN  {CroupierComp} <nid:10001,oid:31000001> no neighbours
+[11:30:34,184] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:37,189] WARN  {CroupierComp} <nid:10000,oid:31000001> no partners - not shuffling
+[11:30:38,187] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:50,187] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours
+[11:30:51,301] WARN  {CroupierComp} <nid:10001,oid:31000001> no partners - not shuffling
+[11:31:02,186] WARN  {CroupierComp} <nid:10000,oid:31000001> no neighbours

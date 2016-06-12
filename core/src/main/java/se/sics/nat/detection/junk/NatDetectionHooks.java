@@ -1,3 +1,5 @@
+package se.sics.nat.detection.junk;
+
 ///*
 // * Copyright (C) 2009 Swedish Institute of Computer Science (SICS) Copyright (C)
 // * 2009 Royal Institute of Technology (KTH)
@@ -17,34 +19,26 @@
 // * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // */
 //
-//package se.sics.nat.filters;
+//package se.sics.nat.detection;
 //
-//import se.sics.kompics.ChannelFilter;
-//import se.sics.kompics.network.Msg;
-//import se.sics.nat.common.NatMsg;
-//import se.sics.ktoolbox.util.msg.BasicContentMsg;
-//import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-//import se.sics.ktoolbox.util.msg.DecoratedHeader;
+//import se.sics.nat.stun.upnp.hooks.UpnpHook;
+//import se.sics.p2ptoolbox.util.proxy.Hook;
 //
 ///**
-// *
 // * @author Alex Ormenisan <aaor@kth.se>
 // */
-//public class NatInternalFilter extends ChannelFilter<Msg, Boolean> {
-//
-//    public NatInternalFilter() {
-//        super(Msg.class, true, true);
-//    }
+//public class NatDetectionHooks {
+//    public static final Class<UpnpHook.Definition> UPNP_HOOK = UpnpHook.Definition.class;
 //    
-//    @Override
-//    public Boolean getValue(Msg msg) {
-//        BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, Object> contentMsg = null;
-//        if (msg instanceof BasicContentMsg) {
-//            contentMsg = (BasicContentMsg) msg;
+//    public static enum RequiredHooks {
+//        UPNP("NAT_UPNP", UPNP_HOOK);
+//        
+//        public final String hookName;
+//        public final Class<? extends Hook.Definition> hookType;
+//
+//        RequiredHooks(String name, Class<? extends Hook.Definition> hookType) {
+//            this.hookName = name;
+//            this.hookType = hookType;
 //        }
-//        if(contentMsg == null) {
-//            return false;
-//        }
-//        return (contentMsg.getContent() instanceof NatMsg);
 //    }
 //}
