@@ -197,6 +197,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
                 throw new RuntimeException("no bound ip");
             }
             privateIp = resp.boundIp;
+            ipHack();
             setNatDetection();
             trigger(Start.event, natDetection.getValue0().control());
         }
