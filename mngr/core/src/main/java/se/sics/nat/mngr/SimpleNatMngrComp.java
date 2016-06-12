@@ -194,12 +194,12 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         public void handle(NatDetected event) {
             LOG.info("{}detected nat - public ip:{} nat type:{}",
                     new Object[]{logPrefix, (event.publicIp.isPresent() ? event.publicIp.get() : "x"), event.natType});
-            publicIp = event.publicIp.get();
             natType = event.natType;
             if (!(natType.isSimpleNat() || natType.isOpen())) {
                 LOG.error("{}currently only open or simple nats allowed");
                 throw new RuntimeException("only open or simple nats allowed");
             }
+            publicIp = event.publicIp.get();
             cleanupNatDetection();
             bindAppNetwork();
         }

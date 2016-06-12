@@ -31,8 +31,8 @@ public class StunClientKCWrapper {
     public final Pair<Integer, Integer> stunClientPorts;
     public final boolean hardBind = true;
     public final long rtt = 2000;
-    public final long CONFIG_TIMEOUT = 1000;
-    public final long ECHO_TIMEOUT = 1000;
+    public final long CONFIG_TIMEOUT = 2000;
+    public final long ECHO_TIMEOUT = 2000;
     
     public StunClientKCWrapper(Config configCore) {
         this.configCore = configCore;
