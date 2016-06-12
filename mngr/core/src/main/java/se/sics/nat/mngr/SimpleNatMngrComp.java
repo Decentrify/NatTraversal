@@ -185,7 +185,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
             privateIp = netAuxConfig.publicIp.get();
             Config.Builder cb = config().modify(id());
             cb.setValue("netty.bindInterface", aux);
-            cb.finalise();
+            updateConfig(cb.finalise());
         }
     }
     //******************************DETECTION***********************************
@@ -197,7 +197,6 @@ public class SimpleNatMngrComp extends ComponentDefinition {
                 throw new RuntimeException("no bound ip");
             }
             privateIp = resp.boundIp;
-            ipHack();
             setNatDetection();
             trigger(Start.event, natDetection.getValue0().control());
         }
