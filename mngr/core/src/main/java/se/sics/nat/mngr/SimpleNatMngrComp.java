@@ -82,7 +82,8 @@ public class SimpleNatMngrComp extends ComponentDefinition {
     Positive<NatDetectionPort> natDetectionPort = requires(NatDetectionPort.class);
     //****************************CONFIGURATION*********************************
     private final SystemKCWrapper systemConfig;
-    private final NetworkKCWrapper netMngrConfig;
+    private final NetworkKCWrapper netConfig;
+    private final NetworkAuxKCWrapper netAuxConfig;
     //**************************INTERNAL_STATE**********************************
     private InetAddress privateIp;
     private InetAddress publicIp;
@@ -103,7 +104,8 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         logPrefix = "<nid:" + systemConfig.id + "> ";
         LOG.info("{}initializing...", logPrefix);
 
-        netMngrConfig = new NetworkKCWrapper(config());
+        netConfig = new NetworkKCWrapper(config());
+        netAuxConfig = new NetworkAuxKCWrapper(config());
         extPorts = init.extPorts;
 
         subscribe(handleStart, control);
@@ -125,7 +127,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
             trigger(Start.event, ipSolverComp.control());
             trigger(Start.event, nxNetComp.control());
             trigger(Start.event, chunkMngrComp.control());
-            trigger(new IpSolve.Request(netMngrConfig.ipTypes), ipSolverPort);
+            trigger(new IpSolve.Request(netConfig.ipTypes), ipSolverPort);
         }
     };
 
@@ -175,6 +177,17 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         NxNetBind.Request bindReq = new NxNetBind.Request(selfAdr);
         trigger(bindReq, nxNetPort);
     }
+    
+    //hack to deal with vagrant - which acts like a firewall apparently
+    private void ipHack() {
+        if(netAuxConfig.publicIp.isPresent()) {
+            InetAddress aux = privateIp;
+            privateIp = netAuxConfig.publicIp.get();
+            Config.Builder cb = config().modify(id());
+            cb.setValue("netty.bindInterface", aux);
+            cb.finalise();
+        }
+    }
     //******************************DETECTION***********************************
     Handler handlePrivateIpDetected = new Handler<IpSolve.Response>() {
         @Override
@@ -184,6 +197,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
                 throw new RuntimeException("no bound ip");
             }
             privateIp = resp.boundIp;
+            ipHack();
             setNatDetection();
             trigger(Start.event, natDetection.getValue0().control());
         }
