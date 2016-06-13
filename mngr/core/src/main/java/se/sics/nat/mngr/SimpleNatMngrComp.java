@@ -173,21 +173,12 @@ public class SimpleNatMngrComp extends ComponentDefinition {
             Config.Builder cb = config().modify(id());
             cb.setValue("netty.bindInterface", privateIp);
             cb.finalise();
+            updateConfig(cb.finalise());
         }
         NxNetBind.Request bindReq = new NxNetBind.Request(selfAdr);
         trigger(bindReq, nxNetPort);
     }
     
-    //hack to deal with vagrant - which acts like a firewall apparently
-    private void ipHack() {
-        if(netAuxConfig.publicIp.isPresent()) {
-            InetAddress aux = privateIp;
-            privateIp = netAuxConfig.publicIp.get();
-            Config.Builder cb = config().modify(id());
-            cb.setValue("netty.bindInterface", aux);
-            updateConfig(cb.finalise());
-        }
-    }
     //******************************DETECTION***********************************
     Handler handlePrivateIpDetected = new Handler<IpSolve.Response>() {
         @Override
@@ -197,7 +188,6 @@ public class SimpleNatMngrComp extends ComponentDefinition {
                 throw new RuntimeException("no bound ip");
             }
             privateIp = resp.boundIp;
-            ipHack();
             setNatDetection();
             trigger(Start.event, natDetection.getValue0().control());
         }
