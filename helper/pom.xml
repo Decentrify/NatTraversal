@@ -5,7 +5,7 @@
   <parent>
     <groupId>se.sics</groupId>
     <artifactId>nat</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2-SNAPSHOT</version>
   </parent>
   <groupId>se.sics.nat</groupId>
   <artifactId>helper</artifactId>
@@ -19,9 +19,9 @@
         </dependency>
         
         <dependency>
-            <groupId>se.sics.ktoolbox.ipsolver</groupId>
+            <groupId>se.sics.ktoolbox.networkmngr</groupId>
             <artifactId>core</artifactId>
-            <version>${ipsolver.version}</version>
+            <version>${networkmngr.version}</version>
         </dependency>
         <dependency>
             <groupId>se.sics.ktoolbox.cm</groupId>

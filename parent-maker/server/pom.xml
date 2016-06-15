@@ -5,7 +5,7 @@
   <parent>
     <groupId>se.sics.nat</groupId>
     <artifactId>parent-maker</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.3-SNAPSHOT</version>
   </parent>
   <groupId>se.sics.nat.pm.server</groupId>
   <artifactId>core</artifactId>
@@ -22,6 +22,16 @@
           <groupId>se.sics.nat.pm</groupId>
           <artifactId>common</artifactId>
           <version>${project.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>se.sics.ktoolbox.croupier</groupId>
+          <artifactId>api</artifactId>
+          <version>${ktoolbox.version}</version>
+      </dependency>
+      <dependency>
+          <groupId>se.sics.ktoolbox.fd</groupId>
+          <artifactId>api</artifactId>
+          <version>${ktoolbox.version}</version>
       </dependency>
   </dependencies>
 </project>

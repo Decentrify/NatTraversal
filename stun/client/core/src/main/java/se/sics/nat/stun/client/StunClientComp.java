@@ -18,49 +18,41 @@
  */
 package se.sics.nat.stun.client;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.google.common.base.Optional;
+import java.net.InetAddress;
 import java.util.UUID;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.sics.kompics.Channel;
-import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.ClassMatchedHandler;
-import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.ConfigurationException;
-import se.sics.kompics.ControlPort;
-import se.sics.kompics.Fault;
 import se.sics.kompics.Handler;
-import se.sics.kompics.Init;
-import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.Negative;
-import se.sics.kompics.Port;
-import se.sics.kompics.PortType;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
 import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.nat.stun.NatReady;
+import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
+import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
+import se.sics.ktoolbox.util.network.KContentMsg;
+import se.sics.ktoolbox.util.network.KHeader;
+import se.sics.ktoolbox.util.network.basic.BasicAddress;
+import se.sics.ktoolbox.util.network.basic.BasicContentMsg;
+import se.sics.ktoolbox.util.network.basic.BasicHeader;
+import se.sics.ktoolbox.util.network.nat.Nat;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
+import se.sics.ktoolbox.util.network.nat.NatType;
+import se.sics.nat.stun.StunNatDetected;
 import se.sics.nat.stun.StunClientPort;
 import se.sics.nat.stun.client.util.StunSession;
-import se.sics.nat.stun.msg.StunEcho;
-import se.sics.p2ptoolbox.util.nat.Nat;
-import se.sics.p2ptoolbox.util.nat.NatedTrait;
-import se.sics.p2ptoolbox.util.network.ContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
-import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.nat.stun.event.StunEcho;
+import se.sics.nat.stun.event.StunEvent;
+import se.sics.nat.stun.util.StunView;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -79,8 +71,7 @@ import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
  * SS2_FAILED | | ----------EchoChangeIpAndPort.Req----------------------->SS1 |
  * ServerHostChangeMsg.Req | SS2_FAILED <------EchoChangeIpAndPort.Resp(Failed
  * SS2)-----(If not Ack'd at SS1) | V SS2 (port 2) | | CHANGE_IP_TIMEOUT
- * <-------(EchoChangeIpAndPort.Resp not revd)----| | | CHANGED_IP,
- * <------(EchoChangeIpAndPort.Resp recvd)---------------| CHANGE_IP_TIMEOUT | |
+ * <-------(EchoChangeIpAndPort.Resp not revd)----| | | CHANGED_IP,  <------(EchoChangeIpAndPort.Resp recvd)---------------| CHANGE_IP_TIMEOUT | |
  * |---------------EchoChangePort.Req-----------------------> SS1 (port 1) |
  * CHANGE_PORT_TIMEOUT <-------(EchoChangePort.Resp not revd)-------| |
  * CHANGED_PORT <------(EchoChangeIpAndPort.Resp recvd)--------------|
@@ -106,402 +97,189 @@ import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
  * conservative in setting the NAT binding timeout.
  *
  */
+
+//TODO Alex - currently Stun does one session 
 public class StunClientComp extends ComponentDefinition {
 
     private static final Logger LOG = LoggerFactory.getLogger(StunClientComp.class);
     private String logPrefix = "";
 
+    //******************************CONNECTIONS*********************************
     private final Negative<StunClientPort> stunPort = provides(StunClientPort.class);
-    private Positive<Network> network1;
-    private Positive<Network> network2;
     private final Positive<Timer> timer = requires(Timer.class);
+    private final Positive<Network> network = requires(Network.class);
+    //*******************************CONFIG*************************************
+    private final StunClientKCWrapper stunClientConfig;
+    //****************************STATE_INTERNAL********************************
+    private StunSession session;
+    private UUID echoTId;
 
-    private final Pair<DecoratedAddress, DecoratedAddress> self;
-    private final EchoMngr echoMngr;
-    private final HookTracker hookTracker;
-    private final StunServerMngr stunServersMngr;
-
-    public StunClientComp(StunClientInit init) {
-        this.logPrefix = init.self.getValue0().getIp() + "<" + init.self.getValue0().getPort() + "," + init.self.getValue1().getPort() + "> ";
+    public StunClientComp(Init init) {
+        SystemKCWrapper systemConfig = new SystemKCWrapper(config());
+        stunClientConfig = new StunClientKCWrapper(config());
+        this.logPrefix = "<nid:" + systemConfig.id + " > ";
         LOG.info("{}initiating...", logPrefix);
-        this.self = init.self;
-        this.echoMngr = new EchoMngr();
-        this.hookTracker = new HookTracker(init.networkHookDefinition);
-        this.stunServersMngr = new StunServerMngr(init.stunServers);
 
-        hookTracker.setupHook1();
-        hookTracker.setupHook2();
+        
+        session = new StunSession(init.selfAdr, Pair.with(init.stunView.selfStunAdr, init.stunView.partnerStunAdr.get()));
 
         subscribe(handleStart, control);
-        subscribe(handleStop, control);
-        subscribe(echoMngr.handleEchoTimeout, timer);
-        subscribe(echoMngr.handleEchoResponse, network1);
-        subscribe(echoMngr.handleEchoResponse, network2);
+        subscribe(handleEchoResponse, network);
+        subscribe(handleEchoTimeout, timer);
     }
-
+    //*******************************CONTROL************************************
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
-            hookTracker.startHook1(true);
-            hookTracker.startHook2(true);
-            echoMngr.startEchoSession();
+            startEchoSession();
         }
     };
-
-    Handler handleStop = new Handler<Stop>() {
-        @Override
-        public void handle(Stop event) {
-            LOG.info("{}stopping...", logPrefix);
-            hookTracker.preStop1();
-            hookTracker.preStop2();
-        }
-    };
-
-    public Fault.ResolveAction handleFault(Fault fault) {
-        LOG.error("{}fault:{} from component:{} - restarting hook...", new Object[]{logPrefix, fault.getCause().getMessage(),
-            fault.getSourceCore().id()});
-        hookTracker.restartHook(fault.getSourceCore().id());
-
-        return Fault.ResolveAction.RESOLVED;
+    
+    @Override
+    public void tearDown() {
+        LOG.info("{}tearing down...", logPrefix);
     }
 
-    //**************************************************************************
-    private class EchoMngr {
+    //********************************ECHO**************************************
+    private void startEchoSession() {
+        LOG.info("{}starting new echo session:{}", logPrefix, session.sessionId);
+        LOG.info("{}stun server1:{} {}", new Object[]{logPrefix,
+            session.stunServers.getValue0().getValue0(), session.stunServers.getValue0().getValue1()});
+        LOG.info("{}stun server2:{} {}", new Object[]{logPrefix,
+            session.stunServers.getValue1().getValue0(), session.stunServers.getValue1().getValue1()});
+        processSession(session);
+    }
 
-        Map<UUID, StunSession> ongoingSessions;
-        Map<UUID, UUID> echoTimeouts;
+    private void processSession(StunSession session) {
+        Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next = session.next();
+        KHeader<NatAwareAddress> requestHeader = new BasicHeader(next.getValue1().getValue0(), next.getValue1().getValue1(), Transport.UDP);
+        KContentMsg request = new BasicContentMsg(requestHeader, next.getValue0());
+        LOG.trace("{}sending:{}", new Object[]{logPrefix, request});
+        trigger(request, network);
+        scheduleTimeout(next);
+    }
 
-        public EchoMngr() {
-            this.ongoingSessions = new HashMap<UUID, StunSession>();
-            this.echoTimeouts = new HashMap<UUID, UUID>();
-        }
-
-        void startEchoSession() {
-            Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> stunServers = stunServersMngr.getStunServers();
-            StunSession session = new StunSession(UUID.randomUUID(), self, stunServers);
-            LOG.info("{}starting new echo session:{}", logPrefix, session.id);
-            LOG.info("{}stun server1:{} {}", new Object[]{logPrefix, stunServers.getValue0().getValue0().getBase(), stunServers.getValue0().getValue1().getBase()});
-            LOG.info("{}stun server2:{} {}", new Object[]{logPrefix, stunServers.getValue1().getValue0().getBase(), stunServers.getValue1().getValue1().getBase()});
-            ongoingSessions.put(session.id, session);
-
-            processSession(session);
-        }
-
-        Handler handleEchoTimeout = new Handler<EchoTimeout>() {
-            @Override
-            public void handle(EchoTimeout timeout) {
-                LOG.trace("{}echo:{} timeout to:{}",
-                        new Object[]{logPrefix, timeout.echo.getValue0(), timeout.echo.getValue1().getValue1().getBase()});
-                echoTimeouts.remove(timeout.echo.getValue0().id);
-
-                StunSession session = ongoingSessions.get(timeout.echo.getValue0().sessionId);
-                if (session == null) {
-                    LOG.warn("{}session logic error", logPrefix);
-                    return;
-                }
-                session.timeout();
-
-                if (!session.finished()) {
-                    processSession(session);
-                } else {
-                    processResult(session);
-                }
-            }
-        };
-
-        ClassMatchedHandler handleEchoResponse
-                = new ClassMatchedHandler<StunEcho.Response, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Response>>() {
-
-                    @Override
-                    public void handle(StunEcho.Response content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Response> container) {
-                        LOG.debug("{}received:{} from:{}", new Object[]{logPrefix, content, container.getHeader().getSource().getBase()});
-                        cancelEchoTimeout(content.id);
-                        StunSession session = ongoingSessions.get(content.sessionId);
-                        if (session == null) {
-                            LOG.error("{}session logic error", logPrefix);
-                            throw new RuntimeException("session logic error");
-                        }
-                        session.receivedResponse(content, container.getSource());
-                        if (!session.finished()) {
-                            processSession(session);
-                        } else {
-                            processResult(session);
-                        }
+    private void processResult(StunSession session) {
+        StunSession.Result sessionResult = session.getResult();
+        if (sessionResult.isFailed()) {
+            LOG.warn("{}result failed with:{}", logPrefix, sessionResult.failureDescription.get());
+            throw new RuntimeException("stun session failed with:" + sessionResult.failureDescription.get());
+        } else {
+            LOG.info("{}result:{}", logPrefix, sessionResult.natState.get());
+            switch (sessionResult.natState.get()) {
+                case UDP_BLOCKED:
+                    Optional<InetAddress> missing = Optional.absent();
+                    trigger(new StunNatDetected(NatType.udpBlocked(), missing), stunPort);
+                    break;
+                case OPEN:
+                    trigger(new StunNatDetected(NatType.open(), sessionResult.publicIp), stunPort);
+                    break;
+                case FIREWALL:
+                    trigger(new StunNatDetected(NatType.firewall(), sessionResult.publicIp), stunPort);
+                    break;
+                case NAT:
+                    LOG.info("{}result:NAT filter:{} mapping:{} allocation:{}",
+                            new Object[]{logPrefix, sessionResult.filterPolicy.get(), sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get()});
+                    NatType nat;
+                    if (sessionResult.allocationPolicy.get().equals(Nat.AllocationPolicy.PORT_CONTIGUITY)) {
+                        LOG.info("{}session result:NAT delta:{}", logPrefix, sessionResult.delta.get());
+                        nat = NatType.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
+                                sessionResult.delta.get(), sessionResult.filterPolicy.get(), 0);
+                    } else {
+                        nat = NatType.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
+                                0, sessionResult.filterPolicy.get(), 10000);
                     }
-                };
+                    trigger(new StunNatDetected(nat, sessionResult.publicIp), stunPort);
+                    break;
+                default:
+                    LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());
+            }
+        }
+    }
 
-        private void processResult(StunSession session) {
-            //TODO Alex - deal with result
-            ongoingSessions.remove(session.id);
-            StunSession.Result sessionResult = session.getResult();
-            if (sessionResult.isFailed()) {
-                //TODO Alex - what to do on session fail
-                LOG.warn("{}stun session failed with:{}", logPrefix, sessionResult.failureDescription.get());
-                throw new RuntimeException("stun session failed with:" + sessionResult.failureDescription.get());
+    Handler handleEchoTimeout = new Handler<EchoTimeout>() {
+        @Override
+        public void handle(EchoTimeout timeout) {
+            if (echoTId == null || !timeout.getTimeoutId().equals(echoTId)) {
+                //junk timeout - either late or someone elses
+                return;
+            }
+            LOG.trace("{}timeout echo:{} to:{}",
+                    new Object[]{logPrefix, timeout.echo.getValue0(), timeout.echo.getValue1().getValue1()});
+            echoTId = null;
+
+            session.timeout();
+            if (!session.finished()) {
+                processSession(session);
             } else {
-                LOG.info("{}session result:{}", logPrefix, sessionResult.natState.get());
-                switch (sessionResult.natState.get()) {
-                    case UDP_BLOCKED:
-                        trigger(new NatReady(NatedTrait.udpBlocked(), null), stunPort);
-                        break;
-                    case OPEN:
-                        trigger(new NatReady(NatedTrait.open(), sessionResult.publicIp.get()), stunPort);
-                        break;
-                    case FIREWALL:
-                        trigger(new NatReady(NatedTrait.firewall(), sessionResult.publicIp.get()), stunPort);
-                        break;
-                    case NAT:
-                        LOG.info("{}session result:NAT filter:{} mapping:{} allocation:{}",
-                                new Object[]{logPrefix, sessionResult.filterPolicy.get(), sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get()});
-                        NatedTrait nat;
-                        if (sessionResult.allocationPolicy.get().equals(Nat.AllocationPolicy.PORT_CONTIGUITY)) {
-                            LOG.info("{}session result:NAT delta:{}", logPrefix, sessionResult.delta.get());
-                            nat = NatedTrait.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
-                                    sessionResult.delta.get(), sessionResult.filterPolicy.get(), 0, new ArrayList<DecoratedAddress>());
-                        } else {
-                            nat = NatedTrait.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
-                                    0, sessionResult.filterPolicy.get(), 10000, new ArrayList<DecoratedAddress>());
-                        }
-                        trigger(new NatReady(nat, sessionResult.publicIp.get()), stunPort);
-                        break;
-                    default:
-                        LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());
+                processResult(session);
+            }
+        }
+    };
+
+    ClassMatchedHandler handleEchoResponse
+            = new ClassMatchedHandler<StunEcho.Response, KContentMsg<NatAwareAddress, ?, StunEcho.Response>>() {
+
+                @Override
+                public void handle(StunEcho.Response content, KContentMsg<NatAwareAddress, ?, StunEcho.Response> container) {
+                    LOG.trace("{}received:{}", new Object[]{logPrefix, container});
+                    cancelEchoTimeout();
+                    session.receivedResponse(content, container.getHeader().getSource());
+                    if (!session.finished()) {
+                        processSession(session);
+                    } else {
+                        processResult(session);
+                    }
                 }
-            }
-        }
+            };
 
-        private void processSession(StunSession session) {
-            Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> next = session.next();
-            DecoratedHeader<DecoratedAddress> requestHeader = new DecoratedHeader(new BasicHeader(next.getValue1().getValue0(), next.getValue1().getValue1(), Transport.UDP), null, null);
-            ContentMsg request = new BasicContentMsg(requestHeader, next.getValue0());
-            LOG.debug("{}sending:{} from:{} to:{}",
-                    new Object[]{logPrefix, next.getValue0().type, next.getValue1().getValue0().getBase(), next.getValue1().getValue1().getBase()});
-            if (next.getValue1().getValue0().getPort() == self.getValue0().getPort()) {
-                trigger(request, network1);
-            } else {
-                trigger(request, network2);
-            }
+    public static class Init extends se.sics.kompics.Init<StunClientComp> {
 
-            ScheduleTimeout st = new ScheduleTimeout(StunClientConfig.echoTimeout);
-            EchoTimeout timeout = new EchoTimeout(st, next);
-            st.setTimeoutEvent(timeout);
-            trigger(st, timer);
-            echoTimeouts.put(timeout.echo.getValue0().id, timeout.getTimeoutId());
-        }
+        public final Pair<BasicAddress, BasicAddress> selfAdr;
+        public final StunView stunView;
 
-        private void cancelEchoTimeout(UUID echoId) {
-            UUID timeoutId = echoTimeouts.remove(echoId);
-            CancelTimeout ct = new CancelTimeout(timeoutId);
-            trigger(ct, timer);
+        public Init(Pair<BasicAddress, BasicAddress> selfAdr,
+                StunView stunView) {
+            this.selfAdr = selfAdr;
+            this.stunView = stunView;
         }
     }
 
-    private class StunServerMngr {
-
-        List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
-
-        public StunServerMngr(List<Pair<DecoratedAddress, DecoratedAddress>> stunServers) {
-            this.stunServers = stunServers;
-        }
-
-        public Pair<Pair<DecoratedAddress, DecoratedAddress>, Pair<DecoratedAddress, DecoratedAddress>> getStunServers() {
-            return Pair.with(stunServers.get(0), stunServers.get(1));
-        }
+    private void scheduleTimeout(Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo) {
+        ScheduleTimeout st = new ScheduleTimeout(stunClientConfig.ECHO_TIMEOUT);
+        EchoTimeout timeout = new EchoTimeout(st, echo);
+        st.setTimeoutEvent(timeout);
+        trigger(st, timer);
+        echoTId = timeout.getTimeoutId();
     }
 
-    //**************************HOOK_PARENT*************************************
-    public class HookTracker implements ComponentProxy {
-
-        private final SCNetworkHook.Definition networkHookDefinition;
-        private SCNetworkHook.SetupResult hookSetup1;
-        private SCNetworkHook.SetupResult hookSetup2;
-        private final Map<UUID, Integer> compToHook;
-        private Component[] networkHook1;
-        private Component[] networkHook2;
-        private int hookRetry;
-
-        public HookTracker(SCNetworkHook.Definition networkHookDefinition) {
-            this.networkHookDefinition = networkHookDefinition;
-            this.compToHook = new HashMap<>();
-            this.hookRetry = StunClientConfig.fatalRetries;
+    private void cancelEchoTimeout() {
+        if (echoTId == null) {
+            return;
         }
-
-        private void setupHook1() {
-            LOG.info("{}setting up network hook1",
-                    new Object[]{logPrefix});
-            hookSetup1 = networkHookDefinition.setup(this, new SCNetworkHook.SetupInit(self.getValue0()));
-            networkHook1 = hookSetup1.components;
-            for (Component component : networkHook1) {
-                compToHook.put(component.id(), 1);
-            }
-            network1 = hookSetup1.network;
-        }
-
-        private void setupHook2() {
-            LOG.info("{}setting up network hook2",
-                    new Object[]{logPrefix});
-            hookSetup2 = networkHookDefinition.setup(this, new SCNetworkHook.SetupInit(self.getValue1()));
-            networkHook2 = hookSetup2.components;
-            for (Component component : networkHook2) {
-                compToHook.put(component.id(), 2);
-            }
-            network2 = hookSetup2.network;
-        }
-
-        private void startHook1(boolean started) {
-            networkHookDefinition.start(this, hookSetup1, new SCNetworkHook.StartInit(started));
-            hookSetup1 = null;
-        }
-
-        private void startHook2(boolean started) {
-            networkHookDefinition.start(this, hookSetup2, new SCNetworkHook.StartInit(started));
-            hookSetup2 = null;
-        }
-
-        private void preStop1() {
-            LOG.info("{}tearing down hook1", new Object[]{logPrefix});
-            networkHookDefinition.preStop(this, new SCNetworkHook.Tear(networkHook1));
-            for (Component component : networkHook1) {
-                compToHook.remove(component.id());
-            }
-            networkHook1 = null;
-            network1 = null;
-        }
-
-        private void preStop2() {
-            LOG.info("{}tearing down hook2", new Object[]{logPrefix});
-
-            networkHookDefinition.preStop(this, new SCNetworkHook.Tear(networkHook2));
-            for (Component component : networkHook2) {
-                compToHook.remove(component.id());
-            }
-            networkHook2 = null;
-            network2 = null;
-        }
-
-        private void restartHook(UUID compId) {
-            hookRetry--;
-            if (hookRetry == 0) {
-                LOG.error("{}stun client hook fatal error - recurring errors", logPrefix);
-                throw new RuntimeException("stun client hook fatal error - recurring errors");
-            }
-
-            Integer hookNr = compToHook.get(compId);
-            switch (hookNr) {
-                case 1:
-                    preStop1();
-                    setupHook1();
-                    startHook1(false);
-                    break;
-                case 2:
-                    preStop2();
-                    setupHook2();
-                    startHook2(false);
-                    break;
-            }
-        }
-
-        //for the moment no one resets
-        public void resetFailureRetry() {
-            hookRetry = StunClientConfig.fatalRetries;
-        }
-
-        //*******************************PROXY**********************************
-        @Override
-        public <P extends PortType> void trigger(KompicsEvent e, Port<P> p) {
-            StunClientComp.this.trigger(e, p);
-        }
-
-        @Override
-        public <T extends ComponentDefinition> Component create(Class<T> definition, Init<T> initEvent) {
-            return StunClientComp.this.create(definition, initEvent);
-        }
-
-        @Override
-        public <T extends ComponentDefinition> Component create(Class<T> definition, Init.None initEvent) {
-            return StunClientComp.this.create(definition, initEvent);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative) {
-            return StunClientComp.this.connect(negative, positive);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive) {
-            return StunClientComp.this.connect(negative, positive);
-        }
-
-        @Override
-        public <P extends PortType> void disconnect(Negative<P> negative, Positive<P> positive) {
-            StunClientComp.this.disconnect(negative, positive);
-        }
-
-        @Override
-        public <P extends PortType> void disconnect(Positive<P> positive, Negative<P> negative) {
-            StunClientComp.this.disconnect(negative, positive);
-        }
-
-        @Override
-        public Negative<ControlPort> getControlPort() {
-            return StunClientComp.this.control;
-        }
-
-        @Override
-        public <P extends PortType> Positive<P> requires(Class<P> portType) {
-            return StunClientComp.this.requires(portType);
-        }
-
-        @Override
-        public <P extends PortType> Negative<P> provides(Class<P> portType) {
-            return StunClientComp.this.provides(portType);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative, ChannelFilter filter) {
-            return StunClientComp.this.connect(negative, positive, filter);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive, ChannelFilter filter) {
-            return StunClientComp.this.connect(positive, negative, filter);
-        }
-
-        @Override
-        public <E extends KompicsEvent, P extends PortType> void subscribe(Handler<E> handler, Port<P> port) throws ConfigurationException {
-            StunClientComp.this.subscribe(handler, port);
-        }
+        CancelTimeout ct = new CancelTimeout(echoTId);
+        trigger(ct, timer);
+        echoTId = null;
     }
 
-    public static class StunClientInit extends Init<StunClientComp> {
+    private static class EchoTimeout extends Timeout implements StunEvent {
 
-        public final Pair<DecoratedAddress, DecoratedAddress> self;
-        public final List<Pair<DecoratedAddress, DecoratedAddress>> stunServers;
-        public final SCNetworkHook.Definition networkHookDefinition;
+        Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo;
 
-        public StunClientInit(Pair<DecoratedAddress, DecoratedAddress> startSelf,
-                List<Pair<DecoratedAddress, DecoratedAddress>> stunServers,
-                SCNetworkHook.Definition networkHookDefinition) {
-            this.self = startSelf;
-            this.stunServers = stunServers;
-            this.networkHookDefinition = networkHookDefinition;
-        }
-    }
-
-    public static class StunClientConfig {
-
-        public static long echoTimeout = 2000;
-        public static int fatalRetries = 5;
-    }
-
-    public static class EchoTimeout extends Timeout {
-
-        public final Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> echo;
-
-        public EchoTimeout(ScheduleTimeout request, Pair<StunEcho.Request, Pair<DecoratedAddress, DecoratedAddress>> echo) {
+        public EchoTimeout(ScheduleTimeout request, Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo) {
             super(request);
             this.echo = echo;
+        }
+
+        @Override
+        public String toString() {
+            return "EchoTimeout<s:" + echo.getValue0().sessionId + ", t:" + getId() + ">";
+        }
+
+        @Override
+        public Identifier getId() {
+            return new UUIDIdentifier(getTimeoutId());
         }
     }
 }

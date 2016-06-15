@@ -31,16 +31,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
-import se.sics.kompics.Init;
 import se.sics.kompics.Negative;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
 import se.sics.nat.stun.upnp.cybergarage.Cybergarage;
 import se.sics.nat.stun.upnp.cybergarage.DetectedIP;
 import se.sics.nat.stun.upnp.cybergarage.ForwardPort;
-import se.sics.nat.stun.upnp.msg.UpnpReady;
-import se.sics.nat.stun.upnp.msg.MapPorts;
-import se.sics.nat.stun.upnp.msg.UnmapPorts;
+import se.sics.nat.stun.upnp.event.UPnPMap;
+import se.sics.nat.stun.upnp.event.UPnPReady;
+import se.sics.nat.stun.upnp.event.UPnPUnmap;
 import se.sics.nat.stun.upnp.util.Protocol;
 
 /**
@@ -51,27 +49,28 @@ public class UpnpComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(UpnpComp.class);
     private String logPrefix = "";
 
-    private Negative<UpnpPort> upnpPort = provides(UpnpPort.class);
-
-    private final Random rand;
+    //**************************CONNECTIONS*************************************
+    //**********************EXTERNAL_CONNECT_TO*********************************
+    private Negative<UPnPPort> upnpPort = provides(UPnPPort.class);
+    //*************************CONFIGURATION************************************
     private final String applicationName;
+    //*************************INTERNAL_STATE***********************************
+    private final Random rand;
     private Cybergarage upnp;
-
     private InetAddress upnpDeviceIp;
+    //<privatePort, req> - answer req on change
+    private Map<Integer, UPnPMap.Request> portMapReq = new HashMap<>();
+    //***************************AUX_STATE**************************************
 
-    private Map<Integer, MapPorts.Req> portMapReq; //<privatePort, req>
-
-    public UpnpComp(UpnpInit init) {
-        this.applicationName = init.applicationName;
+    public UpnpComp(Init init) {
+        applicationName = init.applicationName;
         logPrefix = applicationName + " ";
         LOG.info("{}initiating...", logPrefix);
         this.rand = new Random(init.seed);
-        this.portMapReq = new HashMap<Integer, MapPorts.Req>();
 
         UPnP.setEnable(UPnP.USE_ONLY_IPV4_ADDR);
 
         subscribe(handleStart, control);
-        subscribe(handleStop, control);
         subscribe(handleMapPorts, upnpPort);
         subscribe(handleUnmapPorts, upnpPort);
     }
@@ -104,25 +103,23 @@ public class UpnpComp extends ComponentDefinition {
                     break;
                 }
             }
-            if(upnpDeviceIp == null) {
+            if (upnpDeviceIp == null) {
                 upnp.terminate(); //no upnp found should stop looking
             }
-            trigger(new UpnpReady(UUID.randomUUID(), upnpDeviceIp), upnpPort);
+            trigger(new UPnPReady(upnpDeviceIp), upnpPort);
         }
     };
 
-    Handler handleStop = new Handler<Stop>() {
-        @Override
-        public void handle(Stop event) {
-            LOG.info("{} stopping...", logPrefix);
-            upnp.terminate();
-        }
-    };
+    @Override
+    public void tearDown() {
+        LOG.info("{}tear down...", logPrefix);
+        upnp.terminate();
+    }
     //**************************************************************************
 
-    Handler handleMapPorts = new Handler<MapPorts.Req>() {
+    Handler handleMapPorts = new Handler<UPnPMap.Request>() {
         @Override
-        public void handle(MapPorts.Req req) {
+        public void handle(UPnPMap.Request req) {
             LOG.trace("{}received:{}", logPrefix, req);
             CopyOnWriteArraySet<ForwardPort> registerPorts = new CopyOnWriteArraySet<ForwardPort>();
             for (Map.Entry<Integer, Pair<Protocol, Integer>> e : req.ports.entrySet()) {
@@ -142,7 +139,7 @@ public class UpnpComp extends ComponentDefinition {
                         throw new RuntimeException("unhandled protocol type:" + e.getValue().getValue0());
                 }
                 ForwardPort registerPort = new ForwardPort(mappingName, false, protocolType, e.getKey());
-                portMapReq.put(e.getKey(), req); //in order to send back a port changed notif if necessary
+                portMapReq.put(e.getKey(), req); //in order to send back a port changed notify if necessary
                 registerPorts.add(registerPort);
             }
             Map<ForwardPort, Boolean> resp = upnp.registerPorts(registerPorts);
@@ -171,16 +168,17 @@ public class UpnpComp extends ComponentDefinition {
             answer(req, req.answer(mappedPorts));
         }
     };
-    
-    Handler handleUnmapPorts = new Handler<UnmapPorts.Req>() {
+
+    Handler handleUnmapPorts = new Handler<UPnPUnmap.Request>() {
         @Override
-        public void handle(UnmapPorts.Req req) {
+        public void handle(UPnPUnmap.Request req) {
             LOG.trace("{}received:{}", logPrefix, req);
             CopyOnWriteArraySet<ForwardPort> unregisterPorts = new CopyOnWriteArraySet<ForwardPort>();
             for (Map.Entry<Integer, Pair<Protocol, Integer>> e : req.ports.entrySet()) {
-                if(!portMapReq.containsKey(e.getKey())) {
+                if(portMapReq.remove(e.getKey()) == null) {
                     continue;
-                }
+                } 
+                
                 String mappingName = applicationName;
                 int protocolType;
                 switch (e.getValue().getValue0()) {
@@ -210,12 +208,12 @@ public class UpnpComp extends ComponentDefinition {
         LOG.debug("{}:Device notified:{}", logPrefix, ssdpPacket);
     }
 
-    public static class UpnpInit extends Init<UpnpComp> {
+    public static class Init extends se.sics.kompics.Init<UpnpComp> {
 
         public final long seed;
         public final String applicationName;
 
-        public UpnpInit(long seed, String applicationName) {
+        public Init(long seed, String applicationName) {
             this.seed = seed;
             this.applicationName = applicationName;
         }

@@ -18,40 +18,39 @@
  */
 package se.sics.nat.stun.server;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.sics.kompics.Channel;
-import se.sics.kompics.ChannelFilter;
 import se.sics.kompics.ClassMatchedHandler;
-import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.ConfigurationException;
-import se.sics.kompics.ControlPort;
-import se.sics.kompics.Fault;
 import se.sics.kompics.Handler;
-import se.sics.kompics.Init;
-import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.Negative;
-import se.sics.kompics.Port;
-import se.sics.kompics.PortType;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
+import se.sics.kompics.timer.CancelTimeout;
+import se.sics.kompics.timer.ScheduleTimeout;
+import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
-import se.sics.nat.stun.msg.StunEcho;
-import se.sics.p2ptoolbox.util.network.ContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
-import se.sics.p2ptoolbox.util.network.impl.BasicHeader;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedAddress;
-import se.sics.p2ptoolbox.util.network.impl.DecoratedHeader;
-import se.sics.p2ptoolbox.util.proxy.ComponentProxy;
+import se.sics.ktoolbox.croupier.CroupierPort;
+import se.sics.ktoolbox.croupier.event.CroupierSample;
+import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
+import se.sics.ktoolbox.util.network.KAddress;
+import se.sics.ktoolbox.util.network.KContentMsg;
+import se.sics.ktoolbox.util.network.KHeader;
+import se.sics.ktoolbox.util.network.basic.BasicContentMsg;
+import se.sics.ktoolbox.util.network.basic.BasicHeader;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
+import se.sics.ktoolbox.util.other.Container;
+import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdate;
+import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdatePort;
+import se.sics.nat.stun.event.StunEcho;
+import se.sics.nat.stun.event.StunEvent;
+import se.sics.nat.stun.event.StunPartner;
+import se.sics.nat.stun.util.StunView;
 
 /**
  * A partner is required to provide the stun service. Only nodes with the same
@@ -67,306 +66,282 @@ public class StunServerComp extends ComponentDefinition {
     private static final Logger LOG = LoggerFactory.getLogger(StunServerComp.class);
     private String logPrefix = "";
 
-    private Positive<Network> network1;
-    private Positive<Network> network2;
-    private final Positive<Timer> timer = requires(Timer.class);
-
-    private final Pair<DecoratedAddress, DecoratedAddress> self;
-    private final List<DecoratedAddress> partners;
+    //****************************CONNECTIONS***********************************
+    private final Positive<Timer> timerPort = requires(Timer.class);
+    private final Positive<Network> networkPort = requires(Network.class);
+//    private final Positive<EPFDPort> fdPort = requires(EPFDPort.class);
+    private final Positive<CroupierPort> croupierPort = requires(CroupierPort.class);
+    private final Negative<OverlayViewUpdatePort> croupierViewPort = provides(OverlayViewUpdatePort.class);
+    //****************************CONFIGURATION*********************************
+    private final StunServerKCWrapper stunServerConfig;
+    private Pair<NatAwareAddress, NatAwareAddress> selfAdr;
+    private final Identifier croupierId;
+    //*****************************INTERNAL_STATE*******************************
     private final EchoMngr echoMngr;
-    private final HookTracker hookTracker;
+    private final PartnerMngr partnerMngr;
 
-    public StunServerComp(StunServerInit init) {
-        this.self = init.self;
-        this.logPrefix = getPrefix(self);
+    public StunServerComp(Init init) {
+        stunServerConfig = new StunServerKCWrapper(config());
+        selfAdr = init.selfAdr;
+        logPrefix = "<nid:" + selfAdr.getValue0().getId() + "> ";
         LOG.info("{}initiating...", logPrefix);
 
-        this.echoMngr = new EchoMngr();
-        this.hookTracker = new HookTracker(init.networkHookDefinition);
-        this.partners = init.partners;
-
-        hookTracker.setupHook1();
-        hookTracker.setupHook2();
+        croupierId = init.croupierId;
+        echoMngr = new EchoMngr();
+        partnerMngr = new PartnerMngr();
 
         subscribe(handleStart, control);
-        subscribe(handleStop, control);
-        subscribe(echoMngr.handleEchoRequest, network1);
-        subscribe(echoMngr.handleEchoRequest, network2);
+        subscribe(handleViewRequest, croupierViewPort);
+
+        subscribe(partnerMngr.handleSamples, croupierPort);
+        subscribe(partnerMngr.handlePartnerRequest, networkPort);
+        subscribe(partnerMngr.handlePartnerResponse, networkPort);
+        subscribe(partnerMngr.handleMsgTimeout, timerPort);
+//        subscribe(partnerMngr.handleSuspectPartner, fdPort);
+
     }
 
+    //******************************CONTROL*************************************
     Handler handleStart = new Handler<Start>() {
         @Override
         public void handle(Start event) {
             LOG.info("{}starting...", logPrefix);
-            hookTracker.startHook1(true);
-            hookTracker.startHook2(true);
+            partnerMngr.start();
         }
     };
 
-    Handler handleStop = new Handler<Stop>() {
+    Handler handleViewRequest = new Handler<OverlayViewUpdate.Request>() {
         @Override
-        public void handle(Stop event) {
-            LOG.info("{} stopping...", logPrefix);
-            hookTracker.preStop1();
-            hookTracker.preStop2();
+        public void handle(OverlayViewUpdate.Request req) {
+            LOG.info("{}received:{}", logPrefix, req);
+            if (partnerMngr.partner == null) {
+                answer(req, req.update(StunView.empty(selfAdr)));
+            } else {
+                answer(req, req.update(StunView.partner(selfAdr, partnerMngr.partner)));
+            }
         }
     };
 
-    @Override
-    public Fault.ResolveAction handleFault(Fault fault) {
-        LOG.error("{}fault:{} from component:{} - restarting hook...",
-                new Object[]{logPrefix, fault.getCause().getMessage(), fault.getSourceCore().id()});
-        hookTracker.restartHook(fault.getSourceCore().id());
+    //**********************************AUX*************************************
+    private void send(Object content, NatAwareAddress src, NatAwareAddress dst) {
+        KHeader<NatAwareAddress> header = new BasicHeader(src, dst, Transport.UDP);
+        KContentMsg container = new BasicContentMsg(header, content);
+        LOG.trace("{}sending:{}", new Object[]{logPrefix, container});
+        trigger(container, networkPort);
+    }
 
-        return Fault.ResolveAction.RESOLVED;
+    private void send(KContentMsg container) {
+        LOG.trace("{}sending:{}", new Object[]{logPrefix, container});
+        trigger(container, networkPort);
     }
 
     //**************************************************************************
     private class EchoMngr {
 
         ClassMatchedHandler handleEchoRequest
-                = new ClassMatchedHandler<StunEcho.Request, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Request>>() {
+                = new ClassMatchedHandler<StunEcho.Request, BasicContentMsg<NatAwareAddress, KHeader<NatAwareAddress>, StunEcho.Request>>() {
 
                     @Override
-                    public void handle(StunEcho.Request content, BasicContentMsg<DecoratedAddress, DecoratedHeader<DecoratedAddress>, StunEcho.Request> container) {
-                        DecoratedAddress recSelf = container.getDestination();
-                        LOG.debug("{}received:{} from:{} on:{}",
-                                new Object[]{logPrefix, content, container.getSource().getBase(), recSelf.getBase()});
+                    public void handle(StunEcho.Request content, BasicContentMsg<NatAwareAddress, KHeader<NatAwareAddress>, StunEcho.Request> container) {
+                        if (partnerMngr.getPartner() == null) {
+                            send(container.answer(content.reset()));
+                            return;
+                        }
+                        LOG.debug("{}received:{}", new Object[]{logPrefix, container});
                         switch (content.type) {
                             case SIP_SP: {
-                                sendResponse(content.answer(container.getSource()),
-                                        container.getDestination(), container.getSource());
+                                send(container.answer(content.answer(container.getSource())));
                             }
                             break;
                             case SIP_DP: {
-                                sendResponse(content.answer(container.getSource()),
-                                        self.getValue1(), container.getSource());
+                                send(content.answer(container.getSource()), selfAdr.getValue1(), container.getSource());
                             }
                             break;
                             case DIP_DP: {
                                 if (container.getSource().getId().equals(content.target.getId())) {
-                                    sendResponse(content, self.getValue0(), getPartner());
+                                    //forward to partner
+                                    send(content, selfAdr.getValue0(), partnerMngr.getPartner());
                                 } else {
-                                    sendResponse(content.answer(), self.getValue1(), content.target);
+                                    send(content.answer(), selfAdr.getValue1(), content.target);
                                 }
                             }
                             break;
                         }
                     }
                 };
-
-        private void sendResponse(StunEcho echo, DecoratedAddress src, DecoratedAddress dst) {
-            DecoratedHeader<DecoratedAddress> responseHeader = new DecoratedHeader(new BasicHeader(
-                    src, dst, Transport.UDP), null, null);
-            ContentMsg response = new BasicContentMsg(responseHeader, echo);
-            LOG.debug("{}sending:{} from:{} to:{}",
-                    new Object[]{logPrefix, echo, responseHeader.getSource().getBase(),
-                        responseHeader.getDestination().getBase()});
-            if (src.equals(self.getValue0())) {
-                trigger(response, network1);
-            } else if (src.equals(self.getValue1())) {
-                trigger(response, network2);
-            } else {
-                LOG.error("{}unknown self:{}", new Object[]{logPrefix, src});
-                throw new RuntimeException("unknown self:" + src);
-            }
-        }
     }
 
-    private DecoratedAddress getPartner() {
-        return partners.get(0);
-    }
+    private class PartnerMngr {
 
-    private String getPrefix(Pair<DecoratedAddress, DecoratedAddress> self) {
-        String ret = self.getValue0().getIp().toString();
-        ret += ":<" + self.getValue0().getBase().getPort() + "," + self.getValue1().getBase().getPort() + ">:";
-        ret += self.getValue0().getBase().getId() + " ";
-        return ret;
-    }
+        private Pair<NatAwareAddress, NatAwareAddress> partner;
+        private Pair<UUID, NatAwareAddress> pendingPartner;
 
-    //**************************HOOK_PARENT*************************************
-    public class HookTracker implements ComponentProxy {
-
-        private final SSNetworkHook.Definition networkHookDefinition;
-        private SSNetworkHook.SetupResult hookSetup1;
-        private SSNetworkHook.SetupResult hookSetup2;
-        private final Map<UUID, Integer> compToHook;
-        private Component[] networkHook1;
-        private Component[] networkHook2;
-
-        private int hookRetry;
-
-        public HookTracker(SSNetworkHook.Definition networkHookDefinition) {
-            this.networkHookDefinition = networkHookDefinition;
-            this.compToHook = new HashMap<>();
-            this.hookRetry = StunServerConfig.fatalRetries;
+        void start() {
+            LOG.info("{}looking for partner", logPrefix);
+            trigger(new OverlayViewUpdate.Indication(croupierId, false, StunView.empty(selfAdr)), croupierViewPort);
         }
 
-        private void setupHook1() {
-            LOG.info("{}setting up network hook1",
-                    new Object[]{logPrefix});
-            hookSetup1 = networkHookDefinition.setup(this, new SSNetworkHook.SetupInit(self.getValue0()));
-            networkHook1 = hookSetup1.components;
-            for (Component component : networkHook1) {
-                compToHook.put(component.id(), 1);
-            }
-            network1 = hookSetup1.network;
+        NatAwareAddress getPartner() {
+            return partner.getValue0();
         }
 
-        private void setupHook2() {
-            LOG.info("{}setting up network hook2",
-                    new Object[]{logPrefix});
-            hookSetup2 = networkHookDefinition.setup(this, new SSNetworkHook.SetupInit(self.getValue1()));
-            networkHook2 = hookSetup2.components;
-            for (Component component : networkHook2) {
-                compToHook.put(component.id(), 2);
-            }
-            network2 = hookSetup2.network;
-        }
+        Handler handleSamples = new Handler<CroupierSample<StunView>>() {
 
-        private void startHook1(boolean started) {
-            networkHookDefinition.start(this, hookSetup1, new SSNetworkHook.StartInit(started));
-            hookSetup1 = null;
-        }
-
-        private void startHook2(boolean started) {
-            networkHookDefinition.start(this, hookSetup1, new SSNetworkHook.StartInit(started));
-            hookSetup1 = null;
-        }
-
-        private void preStop1() {
-            LOG.info("{}tearing down hook1", new Object[]{logPrefix});
-
-            networkHookDefinition.preStop(this, new SSNetworkHook.Tear(networkHook1));
-            for (Component component : networkHook1) {
-                compToHook.remove(component.id());
-            }
-            networkHook1 = null;
-            network1 = null;
-        }
-
-        private void preStop2() {
-            LOG.info("{}tearing down hook2", new Object[]{logPrefix});
-
-            networkHookDefinition.preStop(this, new SSNetworkHook.Tear(networkHook2));
-            for (Component component : networkHook2) {
-                compToHook.remove(component.id());
-            }
-            networkHook2 = null;
-            network2 = null;
-        }
-
-        private void restartHook(UUID compId) {
-            hookRetry--;
-            if (hookRetry == 0) {
-                LOG.error("{}stun server hook fatal error - recurring errors", logPrefix);
-                throw new RuntimeException("stun server hook fatal error - recurring errors");
-            }
-
-            LOG.info("{}restarting hook");
-            Integer hookNr = compToHook.get(compId);
-            switch (hookNr) {
-                case 1:
-                    preStop1();
-                    setupHook1();
-                    startHook1(false);
+            @Override
+            public void handle(CroupierSample<StunView> sample) {
+                if (partner != null) {
+                    return;
+                }
+                if (selfAdr.getValue0().getId().partition(2) == 1) {
+                    return; // 0s search for partners actively
+                }
+                for (Container<KAddress, StunView> source : sample.publicSample.values()) {
+                    if (source.getContent().hasPartner()) {
+                        continue;
+                    }
+                    if (source.getSource().getId().partition(2) == 0) {
+                        continue;
+                    }
+                    NatAwareAddress partnerAdr = (NatAwareAddress) source.getSource();
+                    pendingPartner = Pair.with(scheduleMsgTimeout(), partnerAdr);
+                    send(new StunPartner.Request(selfAdr), selfAdr.getValue0(), partnerAdr);
                     break;
-                case 2:
-                    preStop2();
-                    setupHook2();
-                    startHook2(false);
-                    break;
+                }
             }
+        };
+
+        ClassMatchedHandler handlePartnerRequest
+                = new ClassMatchedHandler<StunPartner.Request, KContentMsg<NatAwareAddress, KHeader<NatAwareAddress>, StunPartner.Request>>() {
+
+                    @Override
+                    public void handle(StunPartner.Request content, KContentMsg<NatAwareAddress, KHeader<NatAwareAddress>, StunPartner.Request> container) {
+                        LOG.trace("{}received:{}", new Object[]{logPrefix, container});
+                        NatAwareAddress requestingPartner = container.getHeader().getSource();
+                        if (partner != null && partner.getValue0().getId().equals(requestingPartner.getId())) {
+                            LOG.debug("{}already have a partner");
+                            send(container.answer(content.deny()));
+                        }
+                        if (selfAdr.getValue0().getId().partition(2) == 0) {
+                            throw new RuntimeException("logic error - active searchers should not get requests");
+                        }
+
+                        partner = content.partnerAdr;
+                        LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getValue0().getId()});
+                        foundPartner();
+                        send(container.answer(content.accept(selfAdr)));
+                    }
+                };
+
+        ClassMatchedHandler handlePartnerResponse
+                = new ClassMatchedHandler<StunPartner.Response, KContentMsg<NatAwareAddress, KHeader<NatAwareAddress>, StunPartner.Response>>() {
+
+                    @Override
+                    public void handle(StunPartner.Response content, KContentMsg<NatAwareAddress, KHeader<NatAwareAddress>, StunPartner.Response> container) {
+                        LOG.trace("{}received:{}", new Object[]{logPrefix, container});
+                        NatAwareAddress respondingPartner = container.getHeader().getSource();
+                        if (partner != null) {
+                            if (partner.getValue0().getId().equals(respondingPartner.getId())) {
+                                //a bit weird I already answered him, but maybe message got lost
+                                return;
+                            } else {
+                                //probably a slow connection an he timedout in a previous round
+                                //the epfd should fix this - no need to fix
+                                return;
+                            }
+                        }
+                        if (pendingPartner != null && !pendingPartner.getValue1().getId().equals(respondingPartner.getId())) {
+                            //probably a slow connection an he timedout in a previous round
+                            //the epfd should fix this - no need to fix;
+                            return;
+                        }
+                        //clean session
+                        cancelMsgTimeout(pendingPartner.getValue0());
+                        pendingPartner = null;
+                        if (!content.accept) {
+                            return;
+                        }
+                        //success
+                        partner = content.partnerAdr.get();
+                        LOG.info("{}partnered with:{}", new Object[]{logPrefix, partner.getValue0().getId()});
+                        foundPartner();
+                    }
+                };
+
+        private void foundPartner() {
+            subscribe(echoMngr.handleEchoRequest, networkPort);
+            //TODO Alex - fix epfd and add
+            //trigger(new EPFDFollow(partner.getValue0(), stunServerConfig.stunService,
+            //                StunServerComp.this.getComponentCore().id()), fdPort);
+            trigger(new OverlayViewUpdate.Indication(croupierId, false, StunView.partner(selfAdr, partner)), croupierViewPort);
+
         }
 
-        //for the moment no one resets
-        public void resetFailureRetry() {
-            hookRetry = StunServerConfig.fatalRetries;
-        }
+        Handler handleMsgTimeout = new Handler<MsgTimeout>() {
+            @Override
+            public void handle(MsgTimeout timeout) {
+                if (pendingPartner == null || !pendingPartner.getValue0().equals(timeout.getTimeoutId())) {
+                    LOG.trace("{}late timeout", logPrefix);
+                    return;
+                }
+                LOG.debug("{}timeout - partner:{}", new Object[]{logPrefix, pendingPartner.getValue1()});
+                pendingPartner = null;
+            }
+        };
 
-        //*******************************PROXY**********************************
-        @Override
-        public <P extends PortType> void trigger(KompicsEvent e, Port<P> p) {
-            StunServerComp.this.trigger(e, p);
-        }
+//        Handler handleSuspectPartner = new Handler<EPFDSuspect>() {
+//            @Override
+//            public void handle(EPFDSuspect suspect) {
+//                if (partner == null || !partner.getValue0().getBase().equals(suspect.req.target.getBase())) {
+//                    LOG.warn("{}possible old partner suspected");
+//                    trigger(new EPFDUnfollow(suspect.req), fdPort);
+//                    return;
+//                }
+//                LOG.info("{}partner:{} suspected - resetting", new Object[]{logPrefix, partner.getValue0().getBase()});
+//                partner = null;
+//                trigger(new EPFDUnfollow(suspect.req), fdPort);
+//                trigger(CroupierUpdate.update(StunView.empty(selfAdr)), croupierView);
+//            }
+//        };
+    }
 
-        @Override
-        public <T extends ComponentDefinition> Component create(Class<T> definition, Init<T> initEvent) {
-            return StunServerComp.this.create(definition, initEvent);
-        }
+    public static class Init extends se.sics.kompics.Init<StunServerComp> {
 
-        @Override
-        public <T extends ComponentDefinition> Component create(Class<T> definition, Init.None initEvent) {
-            return StunServerComp.this.create(definition, initEvent);
-        }
+        public final Pair<NatAwareAddress, NatAwareAddress> selfAdr;
+        public final Identifier croupierId;
 
-        @Override
-        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative) {
-            return StunServerComp.this.connect(negative, positive);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive) {
-            return StunServerComp.this.connect(negative, positive);
-        }
-
-        @Override
-        public <P extends PortType> void disconnect(Negative<P> negative, Positive<P> positive) {
-            StunServerComp.this.disconnect(negative, positive);
-        }
-
-        @Override
-        public <P extends PortType> void disconnect(Positive<P> positive, Negative<P> negative) {
-            StunServerComp.this.disconnect(negative, positive);
-        }
-
-        @Override
-        public Negative<ControlPort> getControlPort() {
-            return StunServerComp.this.control;
-        }
-
-        @Override
-        public <P extends PortType> Positive<P> requires(Class<P> portType) {
-            return StunServerComp.this.requires(portType);
-        }
-
-        @Override
-        public <P extends PortType> Negative<P> provides(Class<P> portType) {
-            return StunServerComp.this.provides(portType);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Positive<P> positive, Negative<P> negative, ChannelFilter filter) {
-            return StunServerComp.this.connect(negative, positive, filter);
-        }
-
-        @Override
-        public <P extends PortType> Channel<P> connect(Negative<P> negative, Positive<P> positive, ChannelFilter filter) {
-            return StunServerComp.this.connect(positive, negative, filter);
-        }
-
-        @Override
-        public <E extends KompicsEvent, P extends PortType> void subscribe(Handler<E> handler, Port<P> port) throws ConfigurationException {
-            StunServerComp.this.subscribe(handler, port);
+        public Init(Pair<NatAwareAddress, NatAwareAddress> selfAdr, Identifier stunOverlayId) {
+            this.selfAdr = selfAdr;
+            this.croupierId = stunOverlayId;
         }
     }
 
-    public static class StunServerInit extends Init<StunServerComp> {
-
-        public final Pair<DecoratedAddress, DecoratedAddress> self;
-        public final List<DecoratedAddress> partners;
-        public final SSNetworkHook.Definition networkHookDefinition;
-
-        public StunServerInit(Pair<DecoratedAddress, DecoratedAddress> self, List<DecoratedAddress> partners,
-                SSNetworkHook.Definition networkHookDefinition) {
-            this.self = self;
-            this.partners = partners;
-            this.networkHookDefinition = networkHookDefinition;
-        }
+    private UUID scheduleMsgTimeout() {
+        ScheduleTimeout spt = new ScheduleTimeout(stunServerConfig.rtt);
+        MsgTimeout sc = new MsgTimeout(spt);
+        spt.setTimeoutEvent(sc);
+        trigger(spt, timerPort);
+        return sc.getTimeoutId();
     }
 
-    public static class StunServerConfig {
+    private void cancelMsgTimeout(UUID tid) {
+        CancelTimeout cpt = new CancelTimeout(tid);
+        trigger(cpt, timerPort);
+    }
 
-        public static final int fatalRetries = 5;
+    public class MsgTimeout extends Timeout implements StunEvent {
+
+        public MsgTimeout(ScheduleTimeout request) {
+            super(request);
+        }
+
+        @Override
+        public String toString() {
+            return "StunPartnerTimeout<" + getId() + ">";
+        }
+
+        @Override
+        public Identifier getId() {
+            return new UUIDIdentifier(getTimeoutId());
+        }
     }
 }

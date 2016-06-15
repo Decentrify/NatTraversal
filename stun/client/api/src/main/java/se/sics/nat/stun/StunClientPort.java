@@ -26,6 +26,6 @@ import se.sics.kompics.PortType;
  */
 public class StunClientPort extends PortType {
     {
-        indication(NatReady.class);
+        indication(StunNatDetected.class);
     }
 }

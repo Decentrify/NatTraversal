@@ -50,6 +50,7 @@ import se.sics.nat.hp.msg.SimpleHolePunching.Ping;
 import se.sics.nat.hp.msg.SimpleHolePunching.Pong;
 import se.sics.nat.hp.msg.SimpleHolePunching.Ready;
 import se.sics.nat.hp.msg.SimpleHolePunching.Relay;
+import se.sics.p2ptoolbox.util.config.KConfigCore;
 import se.sics.p2ptoolbox.util.nat.NatedTrait;
 import se.sics.p2ptoolbox.util.network.ContentMsg;
 import se.sics.p2ptoolbox.util.network.impl.BasicContentMsg;
@@ -72,7 +73,7 @@ public class SHPClientComp extends ComponentDefinition {
     private final Positive<Timer> timer = requires(Timer.class);
     private final Positive<SelfAddressUpdatePort> parentMaker = requires(SelfAddressUpdatePort.class);
 
-    private final NatTraverserConfig config;
+    private final SHPClientKCWrapper config;
     private DecoratedAddress self;
 
     private UUID internalStateCheckId;
@@ -83,7 +84,7 @@ public class SHPClientComp extends ComponentDefinition {
     public SHPClientComp(SHPClientInit init) {
         this.config = init.config;
         this.self = init.self;
-        this.logPrefix = self.getBase() + " ";
+        this.logPrefix = "<nid:" + self.getBase() + "> ";
         LOG.info("{}initiating...", logPrefix);
 
         this.initiatorSessions = new HashMap<>();
@@ -342,11 +343,11 @@ public class SHPClientComp extends ComponentDefinition {
 
     public static class SHPClientInit extends Init<SHPClientComp> {
 
-        public final NatTraverserConfig config;
+        public final SHPClientKCWrapper config;
         public final DecoratedAddress self;
 
-        public SHPClientInit(NatTraverserConfig config, DecoratedAddress self) {
-            this.config = config;
+        public SHPClientInit(KConfigCore configCore, DecoratedAddress self) {
+            this.config = new SHPClientKCWrapper(configCore);
             this.self = self;
         }
     }
@@ -356,7 +357,7 @@ public class SHPClientComp extends ComponentDefinition {
             LOG.warn("{}double starting internal state check timeout", logPrefix);
             return;
         }
-        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(config.internalStateCheck, config.internalStateCheck);
+        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(config.stateCheckTimeout, config.stateCheckTimeout);
         PeriodicInternalStateCheck sc = new PeriodicInternalStateCheck(spt);
         spt.setTimeoutEvent(sc);
         internalStateCheckId = sc.getTimeoutId();
@@ -382,7 +383,7 @@ public class SHPClientComp extends ComponentDefinition {
     }
 
     private UUID scheduleMsgTimeout(Pair<UUID, UUID> msgId, DecoratedAddress target) {
-        ScheduleTimeout st = new ScheduleTimeout(config.msgRTT);
+        ScheduleTimeout st = new ScheduleTimeout(config.rtt);
         MsgTimeout mt = new MsgTimeout(st, msgId, target);
         st.setTimeoutEvent(mt);
         trigger(st, timer);

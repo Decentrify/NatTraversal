@@ -5,7 +5,7 @@
   <parent>
     <groupId>se.sics.nat</groupId>
     <artifactId>stun</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.3-SNAPSHOT</version>
   </parent>
   <groupId>se.sics.nat.stun</groupId>
   <artifactId>network</artifactId>
@@ -14,15 +14,16 @@
   
   <dependencies>
       <dependency>
-          <groupId>se.sics.nat.stun</groupId>
-          <artifactId>common</artifactId>
+          <groupId>se.sics.nat.stun.common</groupId>
+          <artifactId>core</artifactId>
           <version>${project.version}</version>
       </dependency>
       
+      <!-- network -->
       <dependency>
           <groupId>se.sics.ktoolbox.util</groupId>
-          <artifactId>util-serializer</artifactId>
-          <version>${util.version}</version>
+          <artifactId>network</artifactId>
+          <version>${ktoolbox.version}</version>
       </dependency>
   </dependencies>
 </project>

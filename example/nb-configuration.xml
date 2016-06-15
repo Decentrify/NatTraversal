@@ -15,4 +15,11 @@ Any value defined here will override the pom.xml file value but is only applicab
 -->
         <netbeans.hint.licensePath>${project.basedir}/../license-gpl20.txt</netbeans.hint.licensePath>
     </properties>
+    <config-data xmlns="http://www.netbeans.org/ns/maven-config-data/1">
+        <configurations>
+            <configuration id="stun1" profiles=""/>
+            <configuration id="stun2" profiles=""/>
+            <configuration id="node1" profiles=""/>
+        </configurations>
+    </config-data>
 </project-shared-configuration>

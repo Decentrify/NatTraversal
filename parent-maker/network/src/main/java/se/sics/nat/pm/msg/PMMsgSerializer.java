@@ -21,7 +21,7 @@ package se.sics.nat.pm.msg;
 import com.google.common.base.Optional;
 import io.netty.buffer.ByteBuf;
 import se.sics.kompics.network.netty.serialization.Serializer;
-import se.sics.nat.pm.common.PMMsg;
+import se.sics.nat.pm.PMMsg;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>

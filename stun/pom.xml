@@ -4,7 +4,7 @@
     <parent>
         <groupId>se.sics</groupId>
         <artifactId>nat</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>0.0.3-SNAPSHOT</version>
     </parent>
     <groupId>se.sics.nat</groupId>
     <artifactId>stun</artifactId>
@@ -12,10 +12,9 @@
     <name>STUN</name>
     <modules>
         <module>common</module>
-        <module>client</module>
         <module>server</module>
+        <module>client</module>
         <module>upnp</module>
-        <module>example</module>
-    <module>network</module>
-  </modules>
+        <module>network</module>
+    </modules>
 </project>

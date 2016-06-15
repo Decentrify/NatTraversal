@@ -5,10 +5,18 @@
   <parent>
     <groupId>se.sics.nat.stun</groupId>
     <artifactId>client</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.3-SNAPSHOT</version>
   </parent>
   <groupId>se.sics.nat.stun.client</groupId>
   <artifactId>api</artifactId>
   <name>STUN Client API</name>
   <url>http://maven.apache.org</url>
+  
+  <dependencies>
+      <dependency>
+          <groupId>se.sics.nat.stun.common</groupId>
+          <artifactId>api</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+  </dependencies>
 </project>

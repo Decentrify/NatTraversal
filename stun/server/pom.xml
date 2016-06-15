@@ -4,7 +4,7 @@
   <parent>
     <artifactId>stun</artifactId>
     <groupId>se.sics.nat</groupId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.3-SNAPSHOT</version>
   </parent>
   <groupId>se.sics.nat.stun</groupId>
   <artifactId>server</artifactId>
@@ -12,5 +12,6 @@
   <name>STUN Server</name>
   <modules>
     <module>core</module>
+    <module>system</module>
   </modules>
 </project>

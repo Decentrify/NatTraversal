@@ -20,7 +20,6 @@ package se.sics.nat.stun.upnp.system;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,12 +29,11 @@ import se.sics.kompics.Fault;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Kompics;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
+import se.sics.nat.stun.upnp.UPnPPort;
 import se.sics.nat.stun.upnp.UpnpComp;
-import se.sics.nat.stun.upnp.UpnpPort;
-import se.sics.nat.stun.upnp.msg.MapPorts;
-import se.sics.nat.stun.upnp.msg.UnmapPorts;
-import se.sics.nat.stun.upnp.msg.UpnpReady;
+import se.sics.nat.stun.upnp.event.UPnPMap;
+import se.sics.nat.stun.upnp.event.UPnPReady;
+import se.sics.nat.stun.upnp.event.UPnPUnmap;
 import se.sics.nat.stun.upnp.util.Protocol;
 
 /**
@@ -51,7 +49,6 @@ public class Launcher extends ComponentDefinition {
         LOG.info("initiating...");
 
         subscribe(handleStart, control);
-        subscribe(handleStop, control);
     }
 
     public Handler<Start> handleStart = new Handler<Start>() {
@@ -59,19 +56,11 @@ public class Launcher extends ComponentDefinition {
         @Override
         public void handle(Start event) {
             LOG.info("starting...");
-            upnpComp = create(UpnpComp.class, new UpnpComp.UpnpInit(1234, "example"));
+            upnpComp = create(UpnpComp.class, new UpnpComp.Init(1234, "example"));
             trigger(Start.event, upnpComp.control());
-            subscribe(handleUpnpReady, upnpComp.getPositive(UpnpPort.class));
-            subscribe(handleMapPorts, upnpComp.getPositive(UpnpPort.class));
-            subscribe(handleUnmapPorts, upnpComp.getPositive(UpnpPort.class));
-        }
-    };
-
-    public Handler<Stop> handleStop = new Handler<Stop>() {
-
-        @Override
-        public void handle(Stop event) {
-            LOG.info("stopping...");
+            subscribe(handleUpnpReady, upnpComp.getPositive(UPnPPort.class));
+            subscribe(handleMapPorts, upnpComp.getPositive(UPnPPort.class));
+            subscribe(handleUnmapPorts, upnpComp.getPositive(UPnPPort.class));
         }
     };
 
@@ -81,32 +70,32 @@ public class Launcher extends ComponentDefinition {
         return Fault.ResolveAction.RESOLVED;
     }
 
-    Handler handleUpnpReady = new Handler<UpnpReady>() {
+    Handler handleUpnpReady = new Handler<UPnPReady>() {
         @Override
-        public void handle(UpnpReady ready) {
+        public void handle(UPnPReady ready) {
             if (ready.externalIp.isPresent()) {
                 LOG.info("upnp present:{}", ready.externalIp.get());
                 Map<Integer, Pair<Protocol, Integer>> portMapping = new HashMap<Integer, Pair<Protocol, Integer>>();
                 portMapping.put(54345, Pair.with(Protocol.UDP, 54345));
                 portMapping.put(54344, Pair.with(Protocol.TCP, 54344));
-                trigger(new MapPorts.Req(UUID.randomUUID(), portMapping), upnpComp.getPositive(UpnpPort.class));
+                trigger(new UPnPMap.Request(portMapping), upnpComp.getPositive(UPnPPort.class));
             } else {
                 LOG.info("no upnp");
             }
         }
     };
 
-    Handler handleMapPorts = new Handler<MapPorts.Resp>() {
+    Handler handleMapPorts = new Handler<UPnPMap.Response>() {
         @Override
-        public void handle(MapPorts.Resp resp) {
+        public void handle(UPnPMap.Response resp) {
             LOG.info("received map:{}", resp.ports);
-            trigger(new UnmapPorts.Req(UUID.randomUUID(), resp.ports), upnpComp.getPositive(UpnpPort.class));
+            trigger(new UPnPUnmap.Request(resp.ports), upnpComp.getPositive(UPnPPort.class));
         }
     };
 
-    Handler handleUnmapPorts = new Handler<UnmapPorts.Resp>() {
+    Handler handleUnmapPorts = new Handler<UPnPUnmap.Response>() {
         @Override
-        public void handle(UnmapPorts.Resp resp) {
+        public void handle(UPnPUnmap.Response resp) {
             LOG.info("received unmap:{}", resp.ports);
         }
     };

@@ -18,11 +18,9 @@
  */
 package se.sics.nat.emulator.util;
 
-import java.net.InetAddress;
-import java.util.Map;
 import java.util.Set;
-import se.sics.p2ptoolbox.util.nat.Nat;
-import se.sics.p2ptoolbox.util.network.impl.BasicAddress;
+import se.sics.ktoolbox.util.network.KAddress;
+import se.sics.ktoolbox.util.network.nat.Nat;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -42,34 +40,54 @@ public abstract class FilterPolicyImpl {
         }
     }
 
+    //**************************************************************************
+    public final Nat.FilteringPolicy policy;
+
+    public FilterPolicyImpl(Nat.FilteringPolicy policy) {
+        this.policy = policy;
+    }
+
     //******************************INTERFACE***********************************
-    public abstract boolean allow(BasicAddress target, Map<InetAddress, Set<Integer>> allowed);
+
+    public abstract boolean allow(KAddress outAdr, Set<KAddress> activeOut);
     //**************************************************************************
 
     public static class EIFilter extends FilterPolicyImpl {
+        public EIFilter() {
+            super(Nat.FilteringPolicy.ENDPOINT_INDEPENDENT);
+        }
 
         @Override
-        public boolean allow(BasicAddress target, Map<InetAddress, Set<Integer>> allowed) {
+        public boolean allow(KAddress outAdr, Set<KAddress> activeOut) {
             return true;
         }
     }
 
     public static class HDFilter extends FilterPolicyImpl {
-
+        public HDFilter() {
+            super(Nat.FilteringPolicy.HOST_DEPENDENT);
+        }
+        
         @Override
-        public boolean allow(BasicAddress target, Map<InetAddress, Set<Integer>> allowed) {
-            return allowed.containsKey(target.getIp());
+        public boolean allow(KAddress outAdr, Set<KAddress> activeOut) {
+            for(KAddress adr : activeOut) {
+                if(adr.getIp().equals(outAdr.getIp())) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
     public static class PDFilter extends FilterPolicyImpl {
+        
+        public PDFilter() {
+            super(Nat.FilteringPolicy.PORT_DEPENDENT);
+        }
+        
         @Override
-        public boolean allow(BasicAddress target, Map<InetAddress, Set<Integer>> allowed) {
-            Set<Integer> allowedPorts = allowed.get(target.getIp());
-            if(allowedPorts == null) {
-                return false;
-            }
-            return allowedPorts.contains(target.getPort());
+        public boolean allow(KAddress outAdr, Set<KAddress> activeOut) {
+            return activeOut.contains(outAdr);
         }
     }
 }

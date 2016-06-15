@@ -32,3 +32,14 @@
 /parent-maker/network/target/
 /hp/network/target/
 /helper/target/
+/example/lib/
+/network-mngr/api/target/
+/network-mngr/core/target/
+/network-mngr/example/target/
+/stun/common-api/target/
+/stun/common/common-api/target/
+/stun/common/api/target/
+/common/api/target/
+/common/core/target/
+/stun/common/core/target/
+/mngr/core/target/

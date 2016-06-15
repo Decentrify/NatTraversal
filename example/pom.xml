@@ -2,17 +2,48 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <artifactId>nat</artifactId>
         <groupId>se.sics</groupId>
-        <version>0.0.1-SNAPSHOT</version>
+        <artifactId>nat</artifactId>
+        <version>0.0.2-SNAPSHOT</version>
     </parent>
     <groupId>se.sics.nat</groupId>
     <artifactId>example</artifactId>
-    <packaging>pom</packaging>
     <name>NAT Example</name>
-    <modules>
-        <module>node</module>
-        <module>stunServer</module>
-        <!--<module>simulation</module>-->
-    </modules>
+    
+    <dependencies>
+        <dependency>
+            <groupId>se.sics.nat</groupId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.nat.stun.server</groupId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.networkmngr</groupId>
+            <artifactId>core</artifactId>
+            <version>${networkmngr.version}</version>
+        </dependency>
+        
+        <!-- serializers --> 
+        <dependency>
+            <groupId>se.sics.ktoolbox.util</groupId>
+            <artifactId>util-serializer</artifactId>
+            <version>${util.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>se.sics.nat.stun</groupId>
+            <artifactId>network</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- *** -->
+        
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${logger.version}</version>
+        </dependency>
+    </dependencies>
 </project>

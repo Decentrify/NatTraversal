@@ -19,8 +19,9 @@
 package se.sics.nat.pm;
 
 import se.sics.kompics.network.netty.serialization.Serializers;
-import se.sics.nat.pm.common.PMMsg;
 import se.sics.nat.pm.msg.PMMsgSerializer;
+import se.sics.nat.pm.util.ParentMakerView;
+import se.sics.nat.pm.util.ParentMakerViewSerializer;
 import se.sics.p2ptoolbox.croupier.CroupierSerializerSetup;
 import se.sics.p2ptoolbox.util.serializer.BasicSerializerSetup;
 
@@ -34,6 +35,7 @@ public class PMSerializerSetup {
 
     public static enum PMSerializers {
 
+        ParentMakerView(ParentMakerView.class, "pmViewSerializer"),
         RegisterReq(PMMsg.RegisterReq.class, "pmRegisterReqSerializer"),
         RegisterResp(PMMsg.RegisterResp.class, "pmRegisterRespSerializer"),
         UnRegister(PMMsg.UnRegister.class, "pmUnRegisterSerializer"),
@@ -60,6 +62,10 @@ public class PMSerializerSetup {
 
     public static int registerSerializers(int startingId) {
         int currentId = startingId;
+        
+        ParentMakerViewSerializer pmViewSerializer = new ParentMakerViewSerializer(currentId++);
+        Serializers.register(pmViewSerializer, PMSerializers.ParentMakerView.serializerName);
+        Serializers.register(PMSerializers.ParentMakerView.serializedClass, PMSerializers.ParentMakerView.serializerName);
 
         PMMsgSerializer.RegisterReq pmRegisterReqSerializer = new PMMsgSerializer.RegisterReq(currentId++);
         Serializers.register(pmRegisterReqSerializer, PMSerializers.RegisterReq.serializerName);
