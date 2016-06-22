@@ -14,7 +14,7 @@
         <!--<module>hp</module>-->
         <!--<module>core</module>-->
         <!--<module>network</module>-->
-<!--        <module>helper</module>
+        <!--        <module>helper</module>
         <module>example</module>-->
         <module>mngr</module>
     </modules>
@@ -82,4 +82,43 @@
             <version>${guava.version}</version>
         </dependency>
     </dependencies>
+    
+    <distributionManagement>
+        <repository>
+            <id>sics-release-repository</id>
+            <name>SICS Repository</name>
+            <url>scpexe://kompics.i.sics.se/home/maven/repository</url>
+        </repository>
+        <snapshotRepository>
+            <id>sics-snapshot-repository</id>
+            <name>SICS Snapshot Repository</name>
+            <url>scpexe://kompics.i.sics.se/home/maven/snapshotrepository</url>
+        </snapshotRepository>
+        <downloadUrl>http://kompics.sics.se/maven/repository</downloadUrl>
+    </distributionManagement>
+    
+    <repositories>
+        <repository>
+            <id>sics-release</id>
+            <name>SICS Release Repository</name>
+            <url>http://kompics.sics.se/maven/repository</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>sics-snapshot</id>
+            <name>SICS Snapshot Repository</name>
+            <url>http://kompics.sics.se/maven/snapshotrepository</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 </project>
