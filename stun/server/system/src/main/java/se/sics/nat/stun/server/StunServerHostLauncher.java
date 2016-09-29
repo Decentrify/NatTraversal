@@ -153,7 +153,7 @@ public class StunServerHostLauncher extends ComponentDefinition {
     }
 
     private static void systemSetup() {
-        BasicIdentifiers.registerDefaults(1234l);
+        BasicIdentifiers.registerDefaults2(1234l);
         OverlayRegistry.initiate(new OverlayId.BasicTypeFactory((byte)0), new OverlayId.BasicTypeComparator());
         
         serializerSetup();
