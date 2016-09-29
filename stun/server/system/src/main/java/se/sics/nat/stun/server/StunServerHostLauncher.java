@@ -179,7 +179,7 @@ public class StunServerHostLauncher extends ComponentDefinition {
     }
 
     public static void main(String[] args) {
-        serializerSetup();
+        systemSetup();
         start();
         try {
             Kompics.waitForTermination();
