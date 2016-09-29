@@ -24,8 +24,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import org.javatuples.Pair;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.nat.Nat;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
@@ -63,7 +63,7 @@ public class StunSession {
     
     public StunSession(Pair<BasicAddress, BasicAddress> self, 
             Pair<Pair<NatAwareAddress, NatAwareAddress>, Pair<NatAwareAddress, NatAwareAddress>> stunServers) {
-        this(UUIDIdentifier.randomId(), self, stunServers);
+        this(BasicIdentifiers.eventId(), self, stunServers);
     }
 
     private void setHandlers() {

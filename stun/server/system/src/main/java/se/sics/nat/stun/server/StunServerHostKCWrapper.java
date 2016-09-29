@@ -20,10 +20,9 @@ package se.sics.nat.stun.server;
 
 import se.sics.kompics.config.Config;
 import se.sics.ktoolbox.util.config.KConfigHelper;
-import se.sics.ktoolbox.util.overlays.id.OverlayIdRegistry;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayRegistry;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunServerHostKCWrapper {
@@ -34,11 +33,10 @@ public class StunServerHostKCWrapper {
     public StunServerHostKCWrapper(Config configCore) {
         this.configCore = configCore;
         int intPrefix = KConfigHelper.read(configCore, StunServerHostKConfig.natOverlayPrefix);
-        if(intPrefix > 15) {
-            throw new RuntimeException("Only allow 16 owners 0 - 4bits currently");
+        if(intPrefix > 255) {
+            throw new RuntimeException("Only allow 255 owners");
         }
-        byte ownerPrefix = (byte)intPrefix;
-        natOverlayPrefix = (byte)(ownerPrefix << 4);
-        OverlayIdRegistry.registerPrefix("nat", natOverlayPrefix);
+        natOverlayPrefix = (byte)intPrefix;
+        OverlayRegistry.registerPrefix("nat", natOverlayPrefix);
     }
 }

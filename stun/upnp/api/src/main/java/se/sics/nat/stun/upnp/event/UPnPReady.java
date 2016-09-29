@@ -20,8 +20,8 @@ package se.sics.nat.stun.upnp.event;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.nat.stun.event.StunEvent;
 
 /**
@@ -38,7 +38,7 @@ public class UPnPReady implements StunEvent {
     }
     
     public UPnPReady(InetAddress externalIp) {
-        this(UUIDIdentifier.randomId(), externalIp);
+        this(BasicIdentifiers.eventId(), externalIp);
     }
 
     @Override

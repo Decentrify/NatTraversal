@@ -36,8 +36,7 @@ import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.ktoolbox.croupier.event.CroupierSample;
-import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
 import se.sics.ktoolbox.util.network.KAddress;
 import se.sics.ktoolbox.util.network.KContentMsg;
 import se.sics.ktoolbox.util.network.KHeader;
@@ -48,7 +47,6 @@ import se.sics.ktoolbox.util.other.Container;
 import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdate;
 import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdatePort;
 import se.sics.nat.stun.event.StunEcho;
-import se.sics.nat.stun.event.StunEvent;
 import se.sics.nat.stun.event.StunPartner;
 import se.sics.nat.stun.util.StunView;
 
@@ -75,7 +73,7 @@ public class StunServerComp extends ComponentDefinition {
     //****************************CONFIGURATION*********************************
     private final StunServerKCWrapper stunServerConfig;
     private Pair<NatAwareAddress, NatAwareAddress> selfAdr;
-    private final Identifier croupierId;
+    private final OverlayId croupierId;
     //*****************************INTERNAL_STATE*******************************
     private final EchoMngr echoMngr;
     private final PartnerMngr partnerMngr;
@@ -307,9 +305,9 @@ public class StunServerComp extends ComponentDefinition {
     public static class Init extends se.sics.kompics.Init<StunServerComp> {
 
         public final Pair<NatAwareAddress, NatAwareAddress> selfAdr;
-        public final Identifier croupierId;
+        public final OverlayId croupierId;
 
-        public Init(Pair<NatAwareAddress, NatAwareAddress> selfAdr, Identifier stunOverlayId) {
+        public Init(Pair<NatAwareAddress, NatAwareAddress> selfAdr, OverlayId stunOverlayId) {
             this.selfAdr = selfAdr;
             this.croupierId = stunOverlayId;
         }
@@ -328,7 +326,7 @@ public class StunServerComp extends ComponentDefinition {
         trigger(cpt, timerPort);
     }
 
-    public class MsgTimeout extends Timeout implements StunEvent {
+    public class MsgTimeout extends Timeout {
 
         public MsgTimeout(ScheduleTimeout request) {
             super(request);
@@ -336,12 +334,7 @@ public class StunServerComp extends ComponentDefinition {
 
         @Override
         public String toString() {
-            return "StunPartnerTimeout<" + getId() + ">";
-        }
-
-        @Override
-        public Identifier getId() {
-            return new UUIDIdentifier(getTimeoutId());
+            return "StunPartnerTimeout<" + getTimeoutId()+ ">";
         }
     }
 }

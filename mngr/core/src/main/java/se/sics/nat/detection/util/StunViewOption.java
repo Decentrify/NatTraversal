@@ -27,7 +27,11 @@ import se.sics.kompics.config.Config;
 import se.sics.ktoolbox.util.config.KConfigOption;
 import se.sics.ktoolbox.util.config.KConfigOption.Basic;
 import se.sics.ktoolbox.util.config.options.InetAddressOption;
-import se.sics.ktoolbox.util.identifiable.basic.IntIdentifier;
+import se.sics.ktoolbox.util.identifiable.BasicBuilders;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistry;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
@@ -83,9 +87,11 @@ public class StunViewOption extends KConfigOption.Base<StunView> {
             LOG.debug("missing:{}", idOpt.name);
             return Optional.absent();
         }
+        IdentifierFactory nodeIdFactory = IdentifierRegistry.lookup(BasicIdentifiers.Values.NODE.toString());
+        Identifier nodeId = nodeIdFactory.id(new BasicBuilders.IntBuilder(id.get()));
         return Optional.of(Pair.with(
-                (NatAwareAddress)NatAwareAddressImpl.open(new BasicAddress(ip.get(), port1.get(), new IntIdentifier(id.get()))),
-                (NatAwareAddress)NatAwareAddressImpl.open(new BasicAddress(ip.get(), port2.get(), new IntIdentifier(id.get())))));
+                (NatAwareAddress)NatAwareAddressImpl.open(new BasicAddress(ip.get(), port1.get(), nodeId)),
+                (NatAwareAddress)NatAwareAddressImpl.open(new BasicAddress(ip.get(), port2.get(), nodeId))));
     }
     
 }

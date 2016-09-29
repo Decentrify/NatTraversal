@@ -23,14 +23,17 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import org.javatuples.Pair;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import se.sics.kompics.network.netty.serialization.Serializer;
 import se.sics.kompics.network.netty.serialization.Serializers;
-import se.sics.ktoolbox.util.identifiable.basic.IntIdentifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
+import se.sics.ktoolbox.util.identifiable.BasicBuilders;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistry;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayRegistry;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.nat.FullAddressEquivalence;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
@@ -44,13 +47,27 @@ import se.sics.nat.stun.StunSerializerSetup;
  */
 public class StunEchoSerializerTest {
 
+    private static IdentifierFactory nodeIdFactory;
+    
     @BeforeClass
     public static void setup() {
+        systemSetup();
+        testSetup();
+    }
+
+    private static void systemSetup() {
+        BasicIdentifiers.registerDefaults(1234l);
+        OverlayRegistry.initiate(new OverlayId.BasicTypeFactory((byte) 0), new OverlayId.BasicTypeComparator());
+
         int serializerId = 128;
         serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
         serializerId = StunSerializerSetup.registerSerializers(serializerId);
     }
 
+    private static void testSetup() {
+        nodeIdFactory = IdentifierRegistry.lookup(BasicIdentifiers.Values.NODE.toString());
+    }
+    
     private void compareRequest(StunEcho.Request original, StunEcho.Request copy) {
         Assert.assertEquals(original.eventId, copy.eventId);
         Assert.assertEquals(original.sessionId, copy.sessionId);
@@ -67,8 +84,8 @@ public class StunEchoSerializerTest {
         StunEcho.Request original, copy;
         ByteBuf serializedOriginal, serializedCopy;
 
-        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, new IntIdentifier(1)));
-        original = new StunEcho.Request(UUIDIdentifier.randomId(), StunEcho.Type.DIP_DP, adr1);
+        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
+        original = new StunEcho.Request(BasicIdentifiers.eventId(), StunEcho.Type.DIP_DP, adr1);
 
         serializedOriginal = Unpooled.buffer();
         serializer.toBinary(original, serializedOriginal);
@@ -87,7 +104,7 @@ public class StunEchoSerializerTest {
         StunEcho.Request original, copy;
         ByteBuf serializedOriginal, serializedCopy;
 
-        original = new StunEcho.Request(UUIDIdentifier.randomId(), StunEcho.Type.SIP_DP, null);
+        original = new StunEcho.Request(BasicIdentifiers.eventId(), StunEcho.Type.SIP_DP, null);
 
         serializedOriginal = Unpooled.buffer();
         serializer.toBinary(original, serializedOriginal);
@@ -119,8 +136,8 @@ public class StunEchoSerializerTest {
         StunEcho.Response original, copy;
         ByteBuf serializedOriginal, serializedCopy;
 
-        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, new IntIdentifier(1)));
-        original = new StunEcho.Response(UUIDIdentifier.randomId(), UUIDIdentifier.randomId(),
+        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
+        original = new StunEcho.Response(BasicIdentifiers.eventId(), BasicIdentifiers.eventId(),
                 StunEcho.Type.SIP_DP, Optional.of(adr1));
 
         serializedOriginal = Unpooled.buffer();
@@ -140,7 +157,7 @@ public class StunEchoSerializerTest {
         StunEcho.Response original, copy;
         ByteBuf serializedOriginal, serializedCopy;
 
-        original = new StunEcho.Response(UUIDIdentifier.randomId(), UUIDIdentifier.randomId(),
+        original = new StunEcho.Response(BasicIdentifiers.eventId(), BasicIdentifiers.eventId(),
                 StunEcho.Type.SIP_DP, Optional.absent());
 
         serializedOriginal = Unpooled.buffer();
@@ -166,7 +183,7 @@ public class StunEchoSerializerTest {
         StunEcho.Reset original, copy;
         ByteBuf serializedOriginal, serializedCopy;
 
-        original = new StunEcho.Reset(UUIDIdentifier.randomId(), UUIDIdentifier.randomId(), StunEcho.Type.SIP_DP);
+        original = new StunEcho.Reset(BasicIdentifiers.eventId(), BasicIdentifiers.eventId(), StunEcho.Type.SIP_DP);
 
         serializedOriginal = Unpooled.buffer();
         serializer.toBinary(original, serializedOriginal);

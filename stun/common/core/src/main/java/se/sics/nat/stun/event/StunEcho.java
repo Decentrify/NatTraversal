@@ -19,8 +19,8 @@
 package se.sics.nat.stun.event;
 
 import com.google.common.base.Optional;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.ktoolbox.util.network.KAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 
@@ -66,7 +66,7 @@ public abstract class StunEcho implements StunEvent {
         }
 
         public Request(Identifier sessionId, Type type, NatAwareAddress target) {
-            this(UUIDIdentifier.randomId(), sessionId, type, target);
+            this(BasicIdentifiers.eventId(), sessionId, type, target);
         }
 
         public Response answer(KAddress src) {

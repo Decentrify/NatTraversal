@@ -21,8 +21,8 @@ package se.sics.nat.stun;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.ktoolbox.util.network.nat.NatType;
 import se.sics.nat.stun.event.StunEvent;
 
@@ -49,7 +49,7 @@ public class StunNatDetected implements StunEvent {
      * @param publicIp - optional - missing only if natType - udpBlocked
      */
     public StunNatDetected(NatType natType, Optional<InetAddress> publicIp) {
-        this(UUIDIdentifier.randomId(), natType, publicIp);
+        this(BasicIdentifiers.eventId(), natType, publicIp);
     }
 
     @Override

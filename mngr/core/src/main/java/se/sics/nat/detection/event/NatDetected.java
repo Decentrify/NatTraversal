@@ -21,9 +21,9 @@ package se.sics.nat.detection.event;
 import com.google.common.base.Optional;
 import java.net.InetAddress;
 import se.sics.kompics.KompicsEvent;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.Identifiable;
 import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.ktoolbox.util.network.nat.NatType;
 
 /**
@@ -49,7 +49,7 @@ public class NatDetected implements KompicsEvent, Identifiable<Identifier> {
      * @param publicIp - optional - missing only if natType - udpBlocked
      */
     public NatDetected(NatType natType, Optional<InetAddress> publicIp) {
-        this(UUIDIdentifier.randomId(), natType, publicIp);
+        this(BasicIdentifiers.eventId(), natType, publicIp);
     }
 
     @Override

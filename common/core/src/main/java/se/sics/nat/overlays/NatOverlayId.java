@@ -18,19 +18,28 @@
  */
 package se.sics.nat.overlays;
 
+import se.sics.ktoolbox.util.identifiable.BasicBuilders;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.OverlayIdFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistry;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayIdFactory;
 
 /**
  *
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatOverlayId {
-    public static Identifier getStunCroupierId(byte owner) {
-        return OverlayIdFactory.getId(owner, OverlayIdFactory.Type.CROUPIER, new byte[]{0,0,1});
+    public static OverlayId getStunCroupierId(byte owner) {
+        IdentifierFactory baseIdFactory = IdentifierRegistry.lookup(BasicIdentifiers.Values.OVERLAY.toString());
+        OverlayIdFactory overlayIdFactory = new OverlayIdFactory(baseIdFactory, OverlayId.BasicTypes.CROUPIER, owner);
+        return overlayIdFactory.id(new BasicBuilders.IntBuilder(1));
     }
     
     public static Identifier getParentMakerCroupierId(byte owner) {
-        return OverlayIdFactory.getId(owner, OverlayIdFactory.Type.CROUPIER, new byte[]{0,0,2});
+        IdentifierFactory baseIdFactory = IdentifierRegistry.lookup(BasicIdentifiers.Values.OVERLAY.toString());
+        OverlayIdFactory overlayIdFactory = new OverlayIdFactory(baseIdFactory, OverlayId.BasicTypes.CROUPIER, owner);
+        return overlayIdFactory.id(new BasicBuilders.IntBuilder(2));
     }
 }
