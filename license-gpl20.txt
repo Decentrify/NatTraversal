@@ -4,7 +4,7 @@ ${licenseFirst}
 ${licensePrefix}Copyright (C) 2009 Swedish Institute of Computer Science (SICS) Copyright (C)
 ${licensePrefix}2009 Royal Institute of Technology (KTH)
 ${licensePrefix?replace(" +$", "", "r")}
-${licensePrefix}GVoD is free software; you can redistribute it and/or
+${licensePrefix}NatTraverser is free software; you can redistribute it and/or
 ${licensePrefix}modify it under the terms of the GNU General Public License
 ${licensePrefix}as published by the Free Software Foundation; either version 2
 ${licensePrefix}of the License, or (at your option) any later version.

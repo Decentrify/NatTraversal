@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>se.sics.nat.stun</groupId>
+    <artifactId>upnp</artifactId>
+    <version>0.0.3-SNAPSHOT</version>
+  </parent>
+  <groupId>se.sics.nat.stun.upnp</groupId>
+  <artifactId>core</artifactId>
+  <name>STUN UPnP Core</name>
+  <url>http://maven.apache.org</url>
+  
+  <dependencies>
+      <dependency>
+          <groupId>se.sics.nat.stun.upnp</groupId>
+          <artifactId>api</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+      
+      <dependency>
+            <groupId>xerces</groupId>
+            <artifactId>xerces</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.kxml</groupId>
+            <artifactId>kxml2</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+  </dependencies>
+</project>

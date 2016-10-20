@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>se.sics.nat</groupId>
+    <artifactId>hp</artifactId>
+    <version>0.0.3-SNAPSHOT</version>
+  </parent>
+  <groupId>se.sics.nat.hp</groupId>
+  <artifactId>network</artifactId>
+  <name>HP Network</name>
+  <url>http://maven.apache.org</url>
+  
+  <dependencies>
+      <dependency>
+          <groupId>se.sics.nat.hp</groupId>
+          <artifactId>common</artifactId>
+          <version>${project.version}</version>
+      </dependency>
+      
+      <dependency>
+          <groupId>se.sics.ktoolbox.util</groupId>
+          <artifactId>network</artifactId>
+          <version>${ktoolbox.version}</version>
+      </dependency>
+  </dependencies>
+</project>
