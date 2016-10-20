@@ -37,7 +37,7 @@ import se.sics.ktoolbox.netmngr.event.NetMngrPort;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
-import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdatePort;
 import se.sics.nat.overlays.NatOverlayId;
@@ -110,7 +110,7 @@ public class StunServerHostComp extends ComponentDefinition {
                 stunServerAdr = stunServerAdr.setAt1((NatAwareAddress) resp.boundAdr);
             }
             if (ready()) {
-                Identifier croupierId = NatOverlayId.getStunCroupierId(stunServerHostConfig.natOverlayPrefix);
+                OverlayId croupierId = NatOverlayId.getStunCroupierId(stunServerHostConfig.natOverlayPrefix);
                 LOG.info("{}connecting stun server", logPrefix);
                 connectStunServer(croupierId);
                 LOG.info("{}connecting overlays");
@@ -120,7 +120,7 @@ public class StunServerHostComp extends ComponentDefinition {
         }
     };
 
-    private void connectStunServer(Identifier croupierId) {
+    private void connectStunServer(OverlayId croupierId) {
         stunServerComp = create(StunServerComp.class, new StunServerComp.Init(stunServerAdr, croupierId));
         connect(stunServerComp.getNegative(Timer.class), extPorts.timerPort, Channel.TWO_WAY);
         connect(stunServerComp.getNegative(Network.class), extPorts.networkPort, Channel.TWO_WAY);

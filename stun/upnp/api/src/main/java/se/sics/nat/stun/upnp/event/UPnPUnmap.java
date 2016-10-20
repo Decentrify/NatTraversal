@@ -22,8 +22,8 @@ package se.sics.nat.stun.upnp.event;
 import java.util.Map;
 import org.javatuples.Pair;
 import se.sics.kompics.Direct;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.nat.stun.event.StunEvent;
 import se.sics.nat.stun.upnp.util.Protocol;
 
@@ -41,7 +41,7 @@ public class UPnPUnmap {
         }
         
         public Request(Map<Integer, Pair<Protocol, Integer>> ports) {
-            this(UUIDIdentifier.randomId(), ports);
+            this(BasicIdentifiers.eventId(), ports);
         }
         
         public Response answer(Map<Integer, Pair<Protocol, Integer>> ports) {

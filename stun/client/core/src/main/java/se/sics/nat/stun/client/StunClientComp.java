@@ -37,8 +37,6 @@ import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
-import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.ktoolbox.util.network.KContentMsg;
 import se.sics.ktoolbox.util.network.KHeader;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
@@ -47,11 +45,10 @@ import se.sics.ktoolbox.util.network.basic.BasicHeader;
 import se.sics.ktoolbox.util.network.nat.Nat;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.network.nat.NatType;
-import se.sics.nat.stun.StunNatDetected;
 import se.sics.nat.stun.StunClientPort;
+import se.sics.nat.stun.StunNatDetected;
 import se.sics.nat.stun.client.util.StunSession;
 import se.sics.nat.stun.event.StunEcho;
-import se.sics.nat.stun.event.StunEvent;
 import se.sics.nat.stun.util.StunView;
 
 /**
@@ -263,7 +260,7 @@ public class StunClientComp extends ComponentDefinition {
         echoTId = null;
     }
 
-    private static class EchoTimeout extends Timeout implements StunEvent {
+    private static class EchoTimeout extends Timeout {
 
         Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo;
 
@@ -274,12 +271,7 @@ public class StunClientComp extends ComponentDefinition {
 
         @Override
         public String toString() {
-            return "EchoTimeout<s:" + echo.getValue0().sessionId + ", t:" + getId() + ">";
-        }
-
-        @Override
-        public Identifier getId() {
-            return new UUIDIdentifier(getTimeoutId());
+            return "EchoTimeout<s:" + echo.getValue0().sessionId + ", t:" + getTimeoutId()+ ">";
         }
     }
 }

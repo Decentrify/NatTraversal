@@ -20,8 +20,8 @@ package se.sics.nat.stun.event;
 
 import com.google.common.base.Optional;
 import org.javatuples.Pair;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.Identifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 
 /**
@@ -40,7 +40,7 @@ public class StunPartner {
         }
         
         public Request(Pair<NatAwareAddress, NatAwareAddress> partnerAdr) {
-            this(UUIDIdentifier.randomId(), partnerAdr);
+            this(BasicIdentifiers.eventId(), partnerAdr);
         }
 
         public Response accept(Pair<NatAwareAddress, NatAwareAddress> partnerAdr) {

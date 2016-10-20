@@ -46,6 +46,9 @@ import se.sics.ktoolbox.netmngr.event.NetMngrReady;
 import se.sics.ktoolbox.overlaymngr.OMngrSerializerSetup;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrComp;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayRegistry;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdatePort;
 import se.sics.ktoolbox.util.setup.BasicSerializerSetup;
@@ -150,6 +153,13 @@ public class StunServerHostLauncher extends ComponentDefinition {
     }
 
     private static void systemSetup() {
+        BasicIdentifiers.registerDefaults2(1234l);
+        OverlayRegistry.initiate(new OverlayId.BasicTypeFactory((byte)0), new OverlayId.BasicTypeComparator());
+        
+        serializerSetup();
+    }
+    
+    private static void serializerSetup() {
         //serializers setup
         int serializerId = 128;
         MessageRegistrator.register();

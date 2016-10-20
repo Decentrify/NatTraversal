@@ -29,8 +29,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import se.sics.kompics.network.netty.serialization.Serializer;
 import se.sics.kompics.network.netty.serialization.Serializers;
-import se.sics.ktoolbox.util.identifiable.basic.IntIdentifier;
-import se.sics.ktoolbox.util.identifiable.basic.UUIDIdentifier;
+import se.sics.ktoolbox.util.identifiable.BasicBuilders;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistry;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayRegistry;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.nat.FullAddressEquivalence;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
@@ -44,11 +48,25 @@ import se.sics.nat.stun.StunSerializerSetup;
  */
 public class StunPartnerSerializerTest {
 
+    private static IdentifierFactory nodeIdFactory;
+    
     @BeforeClass
     public static void setup() {
+        systemSetup();
+        testSetup();
+    }
+
+    private static void systemSetup() {
+        BasicIdentifiers.registerDefaults(1234l);
+        OverlayRegistry.initiate(new OverlayId.BasicTypeFactory((byte) 0), new OverlayId.BasicTypeComparator());
+
         int serializerId = 128;
         serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
         serializerId = StunSerializerSetup.registerSerializers(serializerId);
+    }
+
+    private static void testSetup() {
+        nodeIdFactory = IdentifierRegistry.lookup(BasicIdentifiers.Values.NODE.toString());
     }
 
     private void compareRequest(StunPartner.Request original, StunPartner.Request copy) {
@@ -68,8 +86,8 @@ public class StunPartnerSerializerTest {
         StunPartner.Request original, copy;
         ByteBuf serializedOriginal, serializedCopy;
 
-        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, new IntIdentifier(1)));
-        NatAwareAddress adr2 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30001, new IntIdentifier(1)));
+        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
+        NatAwareAddress adr2 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30001, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
         original = new StunPartner.Request(Pair.with(adr1, adr2));
 
         serializedOriginal = Unpooled.buffer();
@@ -104,9 +122,9 @@ public class StunPartnerSerializerTest {
         StunPartner.Response original, copy;
         ByteBuf serializedOriginal, serializedCopy;
 
-        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, new IntIdentifier(1)));
-        NatAwareAddress adr2 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30001, new IntIdentifier(1)));
-        original = new StunPartner.Response(UUIDIdentifier.randomId(), true, Optional.of(Pair.with(adr1, adr2)));
+        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
+        NatAwareAddress adr2 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30001, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
+        original = new StunPartner.Response(BasicIdentifiers.eventId(), true, Optional.of(Pair.with(adr1, adr2)));
 
         serializedOriginal = Unpooled.buffer();
         serializer.toBinary(original, serializedOriginal);
@@ -126,7 +144,7 @@ public class StunPartnerSerializerTest {
         ByteBuf serializedOriginal, serializedCopy;
 
         Optional<Pair<NatAwareAddress, NatAwareAddress>> partner = Optional.absent();
-        original = new StunPartner.Response(UUIDIdentifier.randomId(), false, partner);
+        original = new StunPartner.Response(BasicIdentifiers.eventId(), false, partner);
 
         serializedOriginal = Unpooled.buffer();
         serializer.toBinary(original, serializedOriginal);
