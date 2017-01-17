@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package se.sics.nat.stun.server;
+package se.sics.nat.stun.ccserver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +34,8 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 import se.sics.kompics.timer.java.JavaTimer;
 import se.sics.ktoolbox.cc.heartbeat.CCHeartbeatPort;
+import se.sics.ktoolbox.cc.mngr.CCMngrComp;
+import se.sics.ktoolbox.cc.mngr.event.CCMngrStatus;
 import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.ktoolbox.croupier.CroupierSerializerSetup;
 import se.sics.ktoolbox.gradient.GradientSerializerSetup;
@@ -41,7 +43,6 @@ import se.sics.ktoolbox.netmngr.NetworkMngrComp;
 import se.sics.ktoolbox.netmngr.NetworkMngrSerializerSetup;
 import se.sics.ktoolbox.netmngr.event.NetMngrPort;
 import se.sics.ktoolbox.netmngr.event.NetMngrReady;
-import se.sics.ktoolbox.omngr.bootstrap.BootstrapClientComp;
 import se.sics.ktoolbox.omngr.OMngrSerializerSetup;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrComp;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
@@ -72,7 +73,7 @@ public class StunServerHostLauncher extends ComponentDefinition {
     //********************************CLEANUP***********************************
     private Component timerComp;
     private Component netMngrComp;
-    private Component bootstrapClientComp;
+    private Component ccMngrComp;
     private Component oMngrComp;
     private Component hostComp;
 
@@ -81,6 +82,7 @@ public class StunServerHostLauncher extends ComponentDefinition {
 
         subscribe(handleStart, control);
         subscribe(handleNetReady, externalStatusPort);
+        subscribe(handleCCReady, externalStatusPort);
     }
 
     private Handler handleStart = new Handler<Start>() {
@@ -108,27 +110,35 @@ public class StunServerHostLauncher extends ComponentDefinition {
                 public void handle(NetMngrReady content, Status.Internal<NetMngrReady> container) {
                     LOG.info("{}network mngr ready", logPrefix);
                     systemAdr = content.systemAdr;
-                    setBootstrapClient();
+                    setCCMngr();
+                    trigger(Start.event, ccMngrComp.control());
+                }
+            };
+
+    private void setCCMngr() {
+        LOG.info("{}setting up caracal client", logPrefix);
+        CCMngrComp.ExtPort ccMngrExtPorts = new CCMngrComp.ExtPort(timerComp.getPositive(Timer.class),
+                netMngrComp.getPositive(Network.class));
+        ccMngrComp = create(CCMngrComp.class, new CCMngrComp.Init(systemAdr, ccMngrExtPorts));
+        connect(ccMngrComp.getPositive(StatusPort.class), externalStatusPort.getPair(), Channel.TWO_WAY);
+    }
+
+    ClassMatchedHandler handleCCReady
+            = new ClassMatchedHandler<CCMngrStatus.Ready, Status.Internal<CCMngrStatus.Ready>>() {
+                @Override
+                public void handle(CCMngrStatus.Ready content, Status.Internal<CCMngrStatus.Ready> container) {
+                    LOG.info("{}caracal client ready", logPrefix);
                     setOMngr();
                     setHost();
-                    trigger(Start.event, bootstrapClientComp.control());
                     trigger(Start.event, oMngrComp.control());
                     trigger(Start.event, hostComp.control());
                 }
             };
 
-    private void setBootstrapClient() {
-        LOG.info("{}setting up caracal client", logPrefix);
-        StunServerLauncherKCWrapper config = new StunServerLauncherKCWrapper(config());
-        bootstrapClientComp = create(BootstrapClientComp.class, new BootstrapClientComp.Init(systemAdr, config.bootstrapServer));
-        connect(bootstrapClientComp.getNegative(Timer.class), timerComp.getPositive(Timer.class), Channel.TWO_WAY);
-        connect(bootstrapClientComp.getNegative(Network.class), netMngrComp.getPositive(Network.class), Channel.TWO_WAY);
-    }
-
     private void setOMngr() {
         LOG.info("{}setting up overlay mngr", logPrefix);
         OverlayMngrComp.ExtPort oMngrExtPorts = new OverlayMngrComp.ExtPort(timerComp.getPositive(Timer.class),
-                netMngrComp.getPositive(Network.class), bootstrapClientComp.getPositive(CCHeartbeatPort.class));
+                netMngrComp.getPositive(Network.class), ccMngrComp.getPositive(CCHeartbeatPort.class));
         oMngrComp = create(OverlayMngrComp.class, new OverlayMngrComp.Init(systemAdr, oMngrExtPorts));
     }
 

@@ -34,6 +34,11 @@
             <artifactId>core</artifactId>
             <version>${ktoolbox.version}</version>
         </dependency>
+        <dependency>
+            <groupId>se.sics.ktoolbox.overlaymngr.bootstrap</groupId>
+            <artifactId>client</artifactId>
+            <version>${ktoolbox.version}</version>
+        </dependency>
         
          <!-- network -->
          <dependency>

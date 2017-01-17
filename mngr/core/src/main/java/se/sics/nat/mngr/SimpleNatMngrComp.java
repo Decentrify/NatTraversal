@@ -174,11 +174,14 @@ public class SimpleNatMngrComp extends ComponentDefinition {
             cb.setValue("netty.bindInterface", privateIp);
             cb.finalise();
             updateConfig(cb.finalise());
+        } else {
+            //TODO Alex - fix this - hack 
+            selfAdr = NatAwareAddressImpl.unknown(new BasicAddress(privateIp, systemConfig.port, systemConfig.id));
         }
         NxNetBind.Request bindReq = new NxNetBind.Request(selfAdr);
         trigger(bindReq, nxNetPort);
     }
-    
+
     //******************************DETECTION***********************************
     Handler handlePrivateIpDetected = new Handler<IpSolve.Response>() {
         @Override
@@ -201,9 +204,12 @@ public class SimpleNatMngrComp extends ComponentDefinition {
             natType = event.natType;
             if (!(natType.isSimpleNat() || natType.isOpen())) {
                 LOG.error("{}currently only open or simple nats allowed");
-                throw new RuntimeException("only open or simple nats allowed");
+                //TODO Alex - fix this - hack 
+//                throw new RuntimeException("only open or simple nats allowed");
+                publicIp = privateIp;
+            } else {
+                publicIp = event.publicIp.get();
             }
-            publicIp = event.publicIp.get();
             cleanupNatDetection();
             bindAppNetwork();
         }
