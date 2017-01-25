@@ -21,6 +21,7 @@ package se.sics.nat.mngr;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,9 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.config.Config;
 import se.sics.kompics.network.Network;
+import se.sics.kompics.timer.CancelTimeout;
+import se.sics.kompics.timer.ScheduleTimeout;
+import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.netmngr.NetMngrBind;
 import se.sics.ktoolbox.netmngr.NetworkKCWrapper;
@@ -95,6 +99,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
     private Pair<Component, Channel[]> natDetection;
     private Component chunkMngrComp;
     //****************************AUX_STATE*************************************
+    private UUID natDetectionRetryTid;
     //proxied
     private Map<Identifier, NetMngrBind.Request> proxiedPendingBind = new HashMap<>();
     private Map<Identifier, NetMngrUnbind.Request> proxiedPendingUnbind = new HashMap<>();
@@ -110,6 +115,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
 
         subscribe(handleStart, control);
         subscribe(handlePrivateIpDetected, ipSolverPort);
+        subscribe(handleNatDetectionRetry, extPorts.timerPort);
         subscribe(handleNatDetected, natDetectionPort);
         subscribe(handleBindReq, netMngrPort);
         subscribe(handleBindResp, nxNetPort);
@@ -130,6 +136,11 @@ public class SimpleNatMngrComp extends ComponentDefinition {
             trigger(new IpSolve.Request(netConfig.ipTypes), ipSolverPort);
         }
     };
+    
+    @Override
+    public void tearDown() {
+        cancelNatDetectionRetry();
+    }
 
     private void setIpSolver() {
         ipSolverComp = create(IpSolverComp.class, new IpSolverComp.IpSolverInit());
@@ -196,12 +207,26 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         }
     };
 
+    Handler handleNatDetectionRetry = new Handler<NatDetectionRetry>() {
+        @Override
+        public void handle(NatDetectionRetry timeout) {
+            setNatDetection();
+            trigger(Start.event, natDetection.getValue0().control());
+        }
+    };
+    
     Handler handleNatDetected = new Handler<NatDetected>() {
         @Override
         public void handle(NatDetected event) {
             LOG.info("{}detected nat - public ip:{} nat type:{}",
                     new Object[]{logPrefix, (event.publicIp.isPresent() ? event.publicIp.get() : "x"), event.natType});
             natType = event.natType;
+            if (natType.isBlocked()) {
+                LOG.warn("{}detected UDP blocked - might mean I could not connect to stun servers - retrying", logPrefix);
+                cleanupNatDetection();
+                scheduleNatDetectionRetry(30000);
+                return;
+            }
             if (!(natType.isSimpleNat() || natType.isOpen())) {
                 LOG.error("{}currently only open or simple nats allowed");
                 //TODO Alex - fix this - hack 
@@ -214,6 +239,40 @@ public class SimpleNatMngrComp extends ComponentDefinition {
             bindAppNetwork();
         }
     };
+        
+    private void scheduleNatDetectionRetry(long period) {
+        if (natDetectionRetryTid != null) {
+            LOG.warn("{}double starting nat detection timeout", logPrefix);
+            return;
+        }
+        ScheduleTimeout st = new ScheduleTimeout(period);
+        NatDetectionRetry sc = new NatDetectionRetry(st);
+        st.setTimeoutEvent(sc);
+        trigger(st, extPorts.timerPort);
+
+        natDetectionRetryTid = sc.getTimeoutId();
+    }
+    
+    private void cancelNatDetectionRetry() {
+        if (natDetectionRetryTid == null) {
+            return;
+        }
+        CancelTimeout cpt = new CancelTimeout(natDetectionRetryTid);
+        natDetectionRetryTid = null;
+        trigger(cpt, extPorts.timerPort);
+    }
+
+    private static class NatDetectionRetry extends Timeout {
+
+        NatDetectionRetry(ScheduleTimeout request) {
+            super(request);
+        }
+
+        @Override
+        public String toString() {
+            return "NatDetectionTimeout";
+        }
+    }
 
     //****************************NXNET_CONTROL*********************************
     private Handler handleBindResp = new Handler<NxNetBind.Response>() {
