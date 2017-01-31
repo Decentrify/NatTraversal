@@ -94,7 +94,6 @@ import se.sics.nat.stun.util.StunView;
  * conservative in setting the NAT binding timeout.
  *
  */
-
 //TODO Alex - currently Stun does one session 
 public class StunClientComp extends ComponentDefinition {
 
@@ -117,7 +116,6 @@ public class StunClientComp extends ComponentDefinition {
         this.logPrefix = "<nid:" + systemConfig.id + " > ";
         LOG.info("{}initiating...", logPrefix);
 
-        
         session = new StunSession(init.selfAdr, Pair.with(init.stunView.selfStunAdr, init.stunView.partnerStunAdr.get()));
 
         subscribe(handleStart, control);
@@ -132,7 +130,7 @@ public class StunClientComp extends ComponentDefinition {
             startEchoSession();
         }
     };
-    
+
     @Override
     public void tearDown() {
         LOG.info("{}tearing down...", logPrefix);
@@ -161,7 +159,10 @@ public class StunClientComp extends ComponentDefinition {
         StunSession.Result sessionResult = session.getResult();
         if (sessionResult.isFailed()) {
             LOG.warn("{}result failed with:{}", logPrefix, sessionResult.failureDescription.get());
-            throw new RuntimeException("stun session failed with:" + sessionResult.failureDescription.get());
+            //TODO Alex - act like udp blocked or unknown?
+            Optional<InetAddress> missing = Optional.absent();
+            trigger(new StunNatDetected(NatType.udpBlocked(), missing), stunPort);
+            return;
         } else {
             LOG.info("{}result:{}", logPrefix, sessionResult.natState.get());
             switch (sessionResult.natState.get()) {
@@ -271,7 +272,7 @@ public class StunClientComp extends ComponentDefinition {
 
         @Override
         public String toString() {
-            return "EchoTimeout<s:" + echo.getValue0().sessionId + ", t:" + getTimeoutId()+ ">";
+            return "EchoTimeout<s:" + echo.getValue0().sessionId + ", t:" + getTimeoutId() + ">";
         }
     }
 }

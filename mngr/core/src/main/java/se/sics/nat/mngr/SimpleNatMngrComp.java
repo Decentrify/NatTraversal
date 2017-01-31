@@ -80,6 +80,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
     Negative<NetMngrPort> netMngrPort = provides(NetMngrPort.class);
     Negative<Network> networkPort = provides(Network.class);
     Negative<StatusPort> statusPort = provides(StatusPort.class);
+    Positive<Timer> timerPort = requires(Timer.class);
     //*************************INTERNAL_NO_CONNECT******************************
     Positive<IpSolverPort> ipSolverPort = requires(IpSolverPort.class);
     Positive<NxNetPort> nxNetPort = requires(NxNetPort.class);
@@ -112,10 +113,12 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         netConfig = new NetworkKCWrapper(config());
         netAuxConfig = new NetworkAuxKCWrapper(config());
         extPorts = init.extPorts;
+        
+        connect(timerPort.getPair(), extPorts.timerPort, Channel.TWO_WAY);
 
         subscribe(handleStart, control);
         subscribe(handlePrivateIpDetected, ipSolverPort);
-        subscribe(handleNatDetectionRetry, extPorts.timerPort);
+        subscribe(handleNatDetectionRetry, timerPort);
         subscribe(handleNatDetected, natDetectionPort);
         subscribe(handleBindReq, netMngrPort);
         subscribe(handleBindResp, nxNetPort);
@@ -210,6 +213,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
     Handler handleNatDetectionRetry = new Handler<NatDetectionRetry>() {
         @Override
         public void handle(NatDetectionRetry timeout) {
+            natDetectionRetryTid = null;
             setNatDetection();
             trigger(Start.event, natDetection.getValue0().control());
         }
@@ -248,7 +252,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         ScheduleTimeout st = new ScheduleTimeout(period);
         NatDetectionRetry sc = new NatDetectionRetry(st);
         st.setTimeoutEvent(sc);
-        trigger(st, extPorts.timerPort);
+        trigger(st, timerPort);
 
         natDetectionRetryTid = sc.getTimeoutId();
     }
@@ -259,7 +263,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         }
         CancelTimeout cpt = new CancelTimeout(natDetectionRetryTid);
         natDetectionRetryTid = null;
-        trigger(cpt, extPorts.timerPort);
+        trigger(cpt, timerPort);
     }
 
     private static class NatDetectionRetry extends Timeout {
