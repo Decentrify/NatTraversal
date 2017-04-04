@@ -302,7 +302,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         boundAdr--;
         if (boundAdr == 0) {
           //tell everyone
-          NetMngrReady ready = new NetMngrReady((NatAwareAddress) resp.req.bindAdr);
+          NetMngrReady ready = new NetMngrReady(selfAdr);
           LOG.info("{}ready", logPrefix);
           trigger(new Status.Internal(ready), statusPort);
         }
