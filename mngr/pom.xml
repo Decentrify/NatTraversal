@@ -4,7 +4,7 @@
     <parent>
         <groupId>se.sics</groupId>
         <artifactId>nat</artifactId>
-        <version>0.0.4-SNAPSHOT</version>
+        <version>0.0.5-SNAPSHOT</version>
     </parent>
     <groupId>se.sics.nat</groupId>
     <artifactId>mngr</artifactId>
