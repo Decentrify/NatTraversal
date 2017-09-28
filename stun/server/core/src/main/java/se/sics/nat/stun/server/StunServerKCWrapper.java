@@ -21,7 +21,6 @@ package se.sics.nat.stun.server;
 import org.javatuples.Pair;
 import se.sics.kompics.config.Config;
 import se.sics.ktoolbox.util.config.KConfigHelper;
-import se.sics.ktoolbox.util.identifiable.Identifier;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>

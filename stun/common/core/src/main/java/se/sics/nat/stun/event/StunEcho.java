@@ -19,8 +19,8 @@
 package se.sics.nat.stun.event;
 
 import com.google.common.base.Optional;
+import se.sics.kompics.id.Identifier;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
-import se.sics.ktoolbox.util.identifiable.Identifier;
 import se.sics.ktoolbox.util.network.KAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 

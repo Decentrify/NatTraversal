@@ -20,8 +20,8 @@ package se.sics.nat.stun.event;
 
 import com.google.common.base.Optional;
 import org.javatuples.Pair;
+import se.sics.kompics.id.Identifier;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
-import se.sics.ktoolbox.util.identifiable.Identifier;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 
 /**

@@ -20,11 +20,10 @@ package se.sics.nat.stun.event;
 
 import com.google.common.base.Optional;
 import io.netty.buffer.ByteBuf;
-import java.util.UUID;
 import org.javatuples.Pair;
 import se.sics.kompics.network.netty.serialization.Serializer;
 import se.sics.kompics.network.netty.serialization.Serializers;
-import se.sics.ktoolbox.util.identifiable.Identifier;
+import se.sics.kompics.id.Identifier;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
 

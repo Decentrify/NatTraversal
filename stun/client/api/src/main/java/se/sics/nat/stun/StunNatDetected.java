@@ -21,8 +21,8 @@ package se.sics.nat.stun;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
+import se.sics.kompics.id.Identifier;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
-import se.sics.ktoolbox.util.identifiable.Identifier;
 import se.sics.ktoolbox.util.network.nat.NatType;
 import se.sics.nat.stun.event.StunEvent;
 
