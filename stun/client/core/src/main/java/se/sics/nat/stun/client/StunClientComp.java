@@ -113,7 +113,7 @@ public class StunClientComp extends ComponentDefinition {
         SystemKCWrapper systemConfig = new SystemKCWrapper(config());
         stunClientConfig = new StunClientKCWrapper(config());
         this.logPrefix = "<nid:" + systemConfig.id + " > ";
-        LOG.info("{}initiating...", logPrefix);
+        LOG.info("{}initiating:<{},{}>", new Object[]{logPrefix, init.selfAdr.getValue0(), init.selfAdr.getValue1()});
 
         session = new StunSession(init.selfAdr, Pair.with(init.stunView.selfStunAdr, init.stunView.partnerStunAdr.get()));
 
