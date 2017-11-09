@@ -84,9 +84,9 @@ public class StunServerHostComp extends ComponentDefinition {
             LOG.info("{}starting...", logPrefix);
             StunServerKCWrapper stunServerConfig = new StunServerKCWrapper(config());
             LOG.info("{}binding stun ports", logPrefix);
-            NetMngrBind.Request bindReq1 = new NetMngrBind.Request(stunServerConfig.stunServerPorts.getValue0());
+            NetMngrBind.Request bindReq1 = NetMngrBind.Request.useLocal(stunServerConfig.stunServerPorts.getValue0());
             trigger(bindReq1, netMngrPort);
-            NetMngrBind.Request bindReq2 = new NetMngrBind.Request(stunServerConfig.stunServerPorts.getValue1());
+            NetMngrBind.Request bindReq2 = NetMngrBind.Request.useLocal(stunServerConfig.stunServerPorts.getValue1());
             trigger(bindReq2, netMngrPort);
             bindReq = Pair.with(bindReq1, bindReq2);
         }

@@ -33,7 +33,6 @@ import se.sics.kompics.Kill;
 import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.config.Config;
 import se.sics.kompics.id.Identifier;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.CancelTimeout;
@@ -55,7 +54,6 @@ import se.sics.ktoolbox.netmngr.nxnet.NxNetComp;
 import se.sics.ktoolbox.netmngr.nxnet.NxNetPort;
 import se.sics.ktoolbox.netmngr.nxnet.NxNetUnbind;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
-import se.sics.ktoolbox.util.network.KAddress;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
@@ -184,25 +182,23 @@ public class SimpleNatMngrComp extends ComponentDefinition {
   }
 
   private void bindAppNetwork() {
+    NxNetBind.Request mainReq;
     if (natType.isOpen()) {
       selfAdr = NatAwareAddressImpl.open(new BasicAddress(privateIp, systemConfig.port, systemConfig.id));
+      mainReq = NxNetBind.Request.localAdr(selfAdr);
     } else if (natType.isSimpleNat()) {
       selfAdr = NatAwareAddressImpl.open(new BasicAddress(publicIp, systemConfig.port, systemConfig.id));
-      Config.Builder cb = config().modify(id());
-      cb.setValue("netty.bindInterface", privateIp);
-      cb.finalise();
-      updateConfig(cb.finalise());
+      mainReq = NxNetBind.Request.providedAdr(selfAdr, privateIp);
     } else {
       //TODO Alex - fix this - hack 
       selfAdr = NatAwareAddressImpl.unknown(new BasicAddress(privateIp, systemConfig.port, systemConfig.id));
+      mainReq = NxNetBind.Request.providedAdr(selfAdr, privateIp);
     }
-    NxNetBind.Request bindReq = new NxNetBind.Request(selfAdr);
-    trigger(bindReq, nxNetPort);
+    trigger(mainReq, nxNetPort);
     if (systemConfig.parallelPorts.isPresent()) {
       for (int i = 1; i < systemConfig.parallelPorts.get(); i++) {
-        KAddress adr = selfAdr.withPort(selfAdr.getPort() + i);
-        NxNetBind.Request bReq = new NxNetBind.Request(adr);
-        trigger(bReq, nxNetPort);
+        NxNetBind.Request secReq = mainReq.withPort(selfAdr.getPort() + i);
+        trigger(secReq, nxNetPort);
         boundAdr++;
       }
     }
@@ -298,7 +294,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
 
       int fp = systemConfig.port;
       int lp = systemConfig.port + (systemConfig.parallelPorts.isPresent() ? systemConfig.parallelPorts.get() : 1);
-      if (resp.req.bindAdr.getPort() >= fp && resp.req.bindAdr.getPort() < lp) {
+      if (resp.req.adr.getPort() >= fp && resp.req.adr.getPort() < lp) {
         boundAdr--;
         if (boundAdr == 0) {
           //tell everyone
@@ -311,7 +307,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         if (req == null) {
           throw new RuntimeException("logic error - cleanup problems");
         }
-        answer(req, req.answer(resp.req.bindAdr));
+        answer(req, req.answer(resp.req.adr));
       }
     }
   };
@@ -320,8 +316,14 @@ public class SimpleNatMngrComp extends ComponentDefinition {
     @Override
     public void handle(NetMngrBind.Request req) {
       LOG.trace("{}received:{}", logPrefix, req);
-      NatAwareAddress adr = NatAwareAddressImpl.open(new BasicAddress(privateIp, req.port, systemConfig.id));
-      NxNetBind.Request bindReq = new NxNetBind.Request(adr);
+      NxNetBind.Request bindReq;
+      if (req.useAddress.isRight()) {
+        int port = req.useAddress.getLeft();
+        NatAwareAddress adr = NatAwareAddressImpl.open(new BasicAddress(privateIp, port, systemConfig.id));
+        bindReq = NxNetBind.Request.localAdr(adr);
+      } else {
+        bindReq = NxNetBind.Request.providedAdr(req.useAddress.getRight(), privateIp);
+      }
       trigger(bindReq, nxNetPort);
       proxiedPendingBind.put(bindReq.getId(), req);
     }

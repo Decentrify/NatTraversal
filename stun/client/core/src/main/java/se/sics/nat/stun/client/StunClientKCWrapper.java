@@ -18,6 +18,8 @@
  */
 package se.sics.nat.stun.client;
 
+import com.google.common.base.Optional;
+import java.net.InetAddress;
 import org.javatuples.Pair;
 import se.sics.kompics.config.Config;
 import se.sics.ktoolbox.util.config.KConfigHelper;
@@ -26,17 +28,19 @@ import se.sics.ktoolbox.util.config.KConfigHelper;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunClientKCWrapper {
-    
-    public final Config configCore;
-    public final Pair<Integer, Integer> stunClientPorts;
-    public final boolean hardBind = true;
-    public final long rtt = 2000;
-    public final long CONFIG_TIMEOUT = 2000;
-    public final long ECHO_TIMEOUT = 2000;
-    
-    public StunClientKCWrapper(Config configCore) {
-        this.configCore = configCore;
-        stunClientPorts = Pair.with(KConfigHelper.read(configCore, StunClientKConfig.stunClientPort1),
-                KConfigHelper.read(configCore, StunClientKConfig.stunClientPort2));
-    }
+
+  public final Config configCore;
+  public final Pair<Integer, Integer> stunClientPorts;
+  public final Optional<InetAddress> stunClientIp;
+  public final boolean hardBind = true;
+  public final long rtt = 2000;
+  public final long CONFIG_TIMEOUT = 2000;
+  public final long ECHO_TIMEOUT = 2000;
+
+  public StunClientKCWrapper(Config configCore) {
+    this.configCore = configCore;
+    stunClientPorts = Pair.with(KConfigHelper.read(configCore, StunClientKConfig.stunClientPort1),
+      KConfigHelper.read(configCore, StunClientKConfig.stunClientPort2));
+    stunClientIp = configCore.readValue(StunClientKConfig.stunClientIp.name, StunClientKConfig.stunClientIp.type);
+  }
 }
