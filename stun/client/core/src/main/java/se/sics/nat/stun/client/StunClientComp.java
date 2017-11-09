@@ -165,7 +165,7 @@ public class StunClientComp extends ComponentDefinition {
       return;
     } else {
       if (stunClientConfig.stunClientOpenPorts.isPresent() && stunClientConfig.stunClientOpenPorts.get()) {
-        if (Nat.Type.NAT.equals(sessionResult.natState.get())
+        if (StunSession.NatState.NAT.equals(sessionResult.natState.get())
           && Nat.FilteringPolicy.ENDPOINT_INDEPENDENT.equals(sessionResult.filterPolicy.get())
           && Nat.MappingPolicy.PORT_DEPENDENT.equals(sessionResult.mappingPolicy.get())
           && Nat.AllocationPolicy.PORT_PRESERVATION.equals(sessionResult.allocationPolicy.get())) {
