@@ -96,182 +96,192 @@ import se.sics.nat.stun.util.StunView;
 //TODO Alex - currently Stun does one session 
 public class StunClientComp extends ComponentDefinition {
 
-    private static final Logger LOG = LoggerFactory.getLogger(StunClientComp.class);
-    private String logPrefix = "";
+  private static final Logger LOG = LoggerFactory.getLogger(StunClientComp.class);
+  private String logPrefix = "";
 
-    //******************************CONNECTIONS*********************************
-    private final Negative<StunClientPort> stunPort = provides(StunClientPort.class);
-    private final Positive<Timer> timer = requires(Timer.class);
-    private final Positive<Network> network = requires(Network.class);
-    //*******************************CONFIG*************************************
-    private final StunClientKCWrapper stunClientConfig;
-    //****************************STATE_INTERNAL********************************
-    private StunSession session;
-    private UUID echoTId;
+  //******************************CONNECTIONS*********************************
+  private final Negative<StunClientPort> stunPort = provides(StunClientPort.class);
+  private final Positive<Timer> timer = requires(Timer.class);
+  private final Positive<Network> network = requires(Network.class);
+  //*******************************CONFIG*************************************
+  private final StunClientKCWrapper stunClientConfig;
+  //****************************STATE_INTERNAL********************************
+  private StunSession session;
+  private UUID echoTId;
 
-    public StunClientComp(Init init) {
-        SystemKCWrapper systemConfig = new SystemKCWrapper(config());
-        stunClientConfig = new StunClientKCWrapper(config());
-        this.logPrefix = "<nid:" + systemConfig.id + " > ";
-        LOG.info("{}initiating:<{},{}>", new Object[]{logPrefix, init.selfAdr.getValue0(), init.selfAdr.getValue1()});
+  public StunClientComp(Init init) {
+    SystemKCWrapper systemConfig = new SystemKCWrapper(config());
+    stunClientConfig = new StunClientKCWrapper(config());
+    this.logPrefix = "<nid:" + systemConfig.id + " > ";
+    LOG.info("{}initiating:<{},{}>", new Object[]{logPrefix, init.selfAdr.getValue0(), init.selfAdr.getValue1()});
 
-        session = new StunSession(init.selfAdr, Pair.with(init.stunView.selfStunAdr, init.stunView.partnerStunAdr.get()));
+    session = new StunSession(init.selfAdr, Pair.with(init.stunView.selfStunAdr, init.stunView.partnerStunAdr.get()));
 
-        subscribe(handleStart, control);
-        subscribe(handleEchoResponse, network);
-        subscribe(handleEchoTimeout, timer);
+    subscribe(handleStart, control);
+    subscribe(handleEchoResponse, network);
+    subscribe(handleEchoTimeout, timer);
+  }
+  //*******************************CONTROL************************************
+  Handler handleStart = new Handler<Start>() {
+    @Override
+    public void handle(Start event) {
+      LOG.info("{}starting...", logPrefix);
+      startEchoSession();
     }
-    //*******************************CONTROL************************************
-    Handler handleStart = new Handler<Start>() {
-        @Override
-        public void handle(Start event) {
-            LOG.info("{}starting...", logPrefix);
-            startEchoSession();
+  };
+
+  @Override
+  public void tearDown() {
+    LOG.info("{}tearing down...", logPrefix);
+  }
+
+  //********************************ECHO**************************************
+  private void startEchoSession() {
+    LOG.info("{}starting new echo session:{}", logPrefix, session.sessionId);
+    LOG.info("{}stun server1:{} {}", new Object[]{logPrefix,
+      session.stunServers.getValue0().getValue0(), session.stunServers.getValue0().getValue1()});
+    LOG.info("{}stun server2:{} {}", new Object[]{logPrefix,
+      session.stunServers.getValue1().getValue0(), session.stunServers.getValue1().getValue1()});
+    processSession(session);
+  }
+
+  private void processSession(StunSession session) {
+    Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next = session.next();
+    KHeader<NatAwareAddress> requestHeader = new BasicHeader(next.getValue1().getValue0(), next.getValue1().getValue1(),
+      Transport.UDP);
+    KContentMsg request = new BasicContentMsg(requestHeader, next.getValue0());
+    LOG.trace("{}sending:{}", new Object[]{logPrefix, request});
+    trigger(request, network);
+    scheduleTimeout(next);
+  }
+
+  private void processResult(StunSession session) {
+    StunSession.Result sessionResult = session.getResult();
+    if (sessionResult.isFailed()) {
+      LOG.warn("{}result failed with:{}", logPrefix, sessionResult.failureDescription.get());
+      //TODO Alex - act like udp blocked or unknown?
+      Optional<InetAddress> missing = Optional.absent();
+      trigger(new StunNatDetected(NatType.udpBlocked(), missing), stunPort);
+      return;
+    } else {
+      if (stunClientConfig.stunClientOpenPorts.isPresent() && stunClientConfig.stunClientOpenPorts.get()) {
+        if(sessionResult.natState.get().equals(Nat.Type.NAT)
+          && sessionResult.filterPolicy.equals(Nat.FilteringPolicy.ENDPOINT_INDEPENDENT)
+          && sessionResult.mappingPolicy.equals(Nat.MappingPolicy.PORT_DEPENDENT)
+          && sessionResult.allocationPolicy.equals(Nat.AllocationPolicy.PORT_PRESERVATION)) {
+          trigger(new StunNatDetected(NatType.natOpenPorts(), sessionResult.publicIp), stunPort);
         }
+      }
+      LOG.info("{}result:{}", logPrefix, sessionResult.natState.get());
+      switch (sessionResult.natState.get()) {
+        case UDP_BLOCKED:
+          Optional<InetAddress> missing = Optional.absent();
+          trigger(new StunNatDetected(NatType.udpBlocked(), missing), stunPort);
+          break;
+        case OPEN:
+          trigger(new StunNatDetected(NatType.open(), sessionResult.publicIp), stunPort);
+          break;
+        case FIREWALL:
+          trigger(new StunNatDetected(NatType.firewall(), sessionResult.publicIp), stunPort);
+          break;
+        case NAT:
+          LOG.info("{}result:NAT filter:{} mapping:{} allocation:{}",
+            new Object[]{logPrefix, sessionResult.filterPolicy.get(), sessionResult.mappingPolicy.get(),
+              sessionResult.allocationPolicy.get()});
+          NatType nat;
+          if (sessionResult.allocationPolicy.get().equals(Nat.AllocationPolicy.PORT_CONTIGUITY)) {
+            LOG.info("{}session result:NAT delta:{}", logPrefix, sessionResult.delta.get());
+            nat = NatType.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
+              sessionResult.delta.get(), sessionResult.filterPolicy.get(), 0);
+          } else {
+            nat = NatType.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
+              0, sessionResult.filterPolicy.get(), 10000);
+          }
+          trigger(new StunNatDetected(nat, sessionResult.publicIp), stunPort);
+          break;
+        default:
+          LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());
+      }
+    }
+  }
+
+  Handler handleEchoTimeout = new Handler<EchoTimeout>() {
+    @Override
+    public void handle(EchoTimeout timeout) {
+      if (echoTId == null || !timeout.getTimeoutId().equals(echoTId)) {
+        //junk timeout - either late or someone elses
+        return;
+      }
+      LOG.trace("{}timeout echo:{} to:{}",
+        new Object[]{logPrefix, timeout.echo.getValue0(), timeout.echo.getValue1().getValue1()});
+      echoTId = null;
+
+      session.timeout();
+      if (!session.finished()) {
+        processSession(session);
+      } else {
+        processResult(session);
+      }
+    }
+  };
+
+  ClassMatchedHandler handleEchoResponse
+    = new ClassMatchedHandler<StunEcho.Response, KContentMsg<NatAwareAddress, ?, StunEcho.Response>>() {
+
+      @Override
+      public void handle(StunEcho.Response content, KContentMsg<NatAwareAddress, ?, StunEcho.Response> container) {
+        LOG.trace("{}received:{}", new Object[]{logPrefix, container});
+        cancelEchoTimeout();
+        session.receivedResponse(content, container.getHeader().getSource());
+        if (!session.finished()) {
+          processSession(session);
+        } else {
+          processResult(session);
+        }
+      }
     };
+
+  public static class Init extends se.sics.kompics.Init<StunClientComp> {
+
+    public final Pair<NatAwareAddress, NatAwareAddress> selfAdr;
+    public final StunView stunView;
+
+    public Init(Pair<NatAwareAddress, NatAwareAddress> selfAdr,
+      StunView stunView) {
+      this.selfAdr = selfAdr;
+      this.stunView = stunView;
+    }
+  }
+
+  private void scheduleTimeout(Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo) {
+    ScheduleTimeout st = new ScheduleTimeout(stunClientConfig.ECHO_TIMEOUT);
+    EchoTimeout timeout = new EchoTimeout(st, echo);
+    st.setTimeoutEvent(timeout);
+    trigger(st, timer);
+    echoTId = timeout.getTimeoutId();
+  }
+
+  private void cancelEchoTimeout() {
+    if (echoTId == null) {
+      return;
+    }
+    CancelTimeout ct = new CancelTimeout(echoTId);
+    trigger(ct, timer);
+    echoTId = null;
+  }
+
+  private static class EchoTimeout extends Timeout {
+
+    Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo;
+
+    public EchoTimeout(ScheduleTimeout request, Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo) {
+      super(request);
+      this.echo = echo;
+    }
 
     @Override
-    public void tearDown() {
-        LOG.info("{}tearing down...", logPrefix);
+    public String toString() {
+      return "EchoTimeout<s:" + echo.getValue0().sessionId + ", t:" + getTimeoutId() + ">";
     }
-
-    //********************************ECHO**************************************
-    private void startEchoSession() {
-        LOG.info("{}starting new echo session:{}", logPrefix, session.sessionId);
-        LOG.info("{}stun server1:{} {}", new Object[]{logPrefix,
-            session.stunServers.getValue0().getValue0(), session.stunServers.getValue0().getValue1()});
-        LOG.info("{}stun server2:{} {}", new Object[]{logPrefix,
-            session.stunServers.getValue1().getValue0(), session.stunServers.getValue1().getValue1()});
-        processSession(session);
-    }
-
-    private void processSession(StunSession session) {
-        Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next = session.next();
-        KHeader<NatAwareAddress> requestHeader = new BasicHeader(next.getValue1().getValue0(), next.getValue1().getValue1(), Transport.UDP);
-        KContentMsg request = new BasicContentMsg(requestHeader, next.getValue0());
-        LOG.trace("{}sending:{}", new Object[]{logPrefix, request});
-        trigger(request, network);
-        scheduleTimeout(next);
-    }
-
-    private void processResult(StunSession session) {
-        StunSession.Result sessionResult = session.getResult();
-        if (sessionResult.isFailed()) {
-            LOG.warn("{}result failed with:{}", logPrefix, sessionResult.failureDescription.get());
-            //TODO Alex - act like udp blocked or unknown?
-            Optional<InetAddress> missing = Optional.absent();
-            trigger(new StunNatDetected(NatType.udpBlocked(), missing), stunPort);
-            return;
-        } else {
-            LOG.info("{}result:{}", logPrefix, sessionResult.natState.get());
-            switch (sessionResult.natState.get()) {
-                case UDP_BLOCKED:
-                    Optional<InetAddress> missing = Optional.absent();
-                    trigger(new StunNatDetected(NatType.udpBlocked(), missing), stunPort);
-                    break;
-                case OPEN:
-                    trigger(new StunNatDetected(NatType.open(), sessionResult.publicIp), stunPort);
-                    break;
-                case FIREWALL:
-                    trigger(new StunNatDetected(NatType.firewall(), sessionResult.publicIp), stunPort);
-                    break;
-                case NAT:
-                    LOG.info("{}result:NAT filter:{} mapping:{} allocation:{}",
-                            new Object[]{logPrefix, sessionResult.filterPolicy.get(), sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get()});
-                    NatType nat;
-                    if (sessionResult.allocationPolicy.get().equals(Nat.AllocationPolicy.PORT_CONTIGUITY)) {
-                        LOG.info("{}session result:NAT delta:{}", logPrefix, sessionResult.delta.get());
-                        nat = NatType.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
-                                sessionResult.delta.get(), sessionResult.filterPolicy.get(), 0);
-                    } else {
-                        nat = NatType.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
-                                0, sessionResult.filterPolicy.get(), 10000);
-                    }
-                    trigger(new StunNatDetected(nat, sessionResult.publicIp), stunPort);
-                    break;
-                default:
-                    LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());
-            }
-        }
-    }
-
-    Handler handleEchoTimeout = new Handler<EchoTimeout>() {
-        @Override
-        public void handle(EchoTimeout timeout) {
-            if (echoTId == null || !timeout.getTimeoutId().equals(echoTId)) {
-                //junk timeout - either late or someone elses
-                return;
-            }
-            LOG.trace("{}timeout echo:{} to:{}",
-                    new Object[]{logPrefix, timeout.echo.getValue0(), timeout.echo.getValue1().getValue1()});
-            echoTId = null;
-
-            session.timeout();
-            if (!session.finished()) {
-                processSession(session);
-            } else {
-                processResult(session);
-            }
-        }
-    };
-
-    ClassMatchedHandler handleEchoResponse
-            = new ClassMatchedHandler<StunEcho.Response, KContentMsg<NatAwareAddress, ?, StunEcho.Response>>() {
-
-                @Override
-                public void handle(StunEcho.Response content, KContentMsg<NatAwareAddress, ?, StunEcho.Response> container) {
-                    LOG.trace("{}received:{}", new Object[]{logPrefix, container});
-                    cancelEchoTimeout();
-                    session.receivedResponse(content, container.getHeader().getSource());
-                    if (!session.finished()) {
-                        processSession(session);
-                    } else {
-                        processResult(session);
-                    }
-                }
-            };
-
-    public static class Init extends se.sics.kompics.Init<StunClientComp> {
-
-        public final Pair<NatAwareAddress, NatAwareAddress> selfAdr;
-        public final StunView stunView;
-
-        public Init(Pair<NatAwareAddress, NatAwareAddress> selfAdr,
-                StunView stunView) {
-            this.selfAdr = selfAdr;
-            this.stunView = stunView;
-        }
-    }
-
-    private void scheduleTimeout(Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo) {
-        ScheduleTimeout st = new ScheduleTimeout(stunClientConfig.ECHO_TIMEOUT);
-        EchoTimeout timeout = new EchoTimeout(st, echo);
-        st.setTimeoutEvent(timeout);
-        trigger(st, timer);
-        echoTId = timeout.getTimeoutId();
-    }
-
-    private void cancelEchoTimeout() {
-        if (echoTId == null) {
-            return;
-        }
-        CancelTimeout ct = new CancelTimeout(echoTId);
-        trigger(ct, timer);
-        echoTId = null;
-    }
-
-    private static class EchoTimeout extends Timeout {
-
-        Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo;
-
-        public EchoTimeout(ScheduleTimeout request, Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> echo) {
-            super(request);
-            this.echo = echo;
-        }
-
-        @Override
-        public String toString() {
-            return "EchoTimeout<s:" + echo.getValue0().sessionId + ", t:" + getTimeoutId() + ">";
-        }
-    }
+  }
 }
