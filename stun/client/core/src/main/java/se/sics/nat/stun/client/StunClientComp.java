@@ -39,7 +39,6 @@ import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
 import se.sics.ktoolbox.util.network.KContentMsg;
 import se.sics.ktoolbox.util.network.KHeader;
-import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.basic.BasicContentMsg;
 import se.sics.ktoolbox.util.network.basic.BasicHeader;
 import se.sics.ktoolbox.util.network.nat.Nat;
@@ -234,10 +233,10 @@ public class StunClientComp extends ComponentDefinition {
 
     public static class Init extends se.sics.kompics.Init<StunClientComp> {
 
-        public final Pair<BasicAddress, BasicAddress> selfAdr;
+        public final Pair<NatAwareAddress, NatAwareAddress> selfAdr;
         public final StunView stunView;
 
-        public Init(Pair<BasicAddress, BasicAddress> selfAdr,
+        public Init(Pair<NatAwareAddress, NatAwareAddress> selfAdr,
                 StunView stunView) {
             this.selfAdr = selfAdr;
             this.stunView = stunView;

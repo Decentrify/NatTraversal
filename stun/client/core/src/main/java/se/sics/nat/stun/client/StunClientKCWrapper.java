@@ -32,6 +32,7 @@ public class StunClientKCWrapper {
   public final Config configCore;
   public final Pair<Integer, Integer> stunClientPorts;
   public final Optional<InetAddress> stunClientIp;
+  public final Optional<Boolean> stunClientOpenPorts;
   public final boolean hardBind = true;
   public final long rtt = 2000;
   public final long CONFIG_TIMEOUT = 2000;
@@ -42,5 +43,6 @@ public class StunClientKCWrapper {
     stunClientPorts = Pair.with(KConfigHelper.read(configCore, StunClientKConfig.stunClientPort1),
       KConfigHelper.read(configCore, StunClientKConfig.stunClientPort2));
     stunClientIp = configCore.readValue(StunClientKConfig.stunClientIp.name, StunClientKConfig.stunClientIp.type);
+    stunClientOpenPorts = configCore.readValue(StunClientKConfig.stunClientOpenPorts.name, StunClientKConfig.stunClientOpenPorts.type);
   }
 }

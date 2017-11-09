@@ -26,10 +26,8 @@ import java.util.List;
 import org.javatuples.Pair;
 import se.sics.kompics.id.Identifier;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
-import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.nat.Nat;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
-import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
 import se.sics.nat.stun.event.StunEcho;
 
 /**
@@ -49,11 +47,10 @@ public class StunSession {
     private final NatAwareAddress[] echoResps;
     private final Result sessionResult;
 
-    public StunSession(Identifier sessionId, Pair<BasicAddress, BasicAddress> self, 
+    public StunSession(Identifier sessionId, Pair<NatAwareAddress, NatAwareAddress> self, 
             Pair<Pair<NatAwareAddress, NatAwareAddress>, Pair<NatAwareAddress, NatAwareAddress>> stunServers) {
         this.sessionId = sessionId;
-        this.self = Pair.with((NatAwareAddress)NatAwareAddressImpl.unknown(self.getValue0()), 
-                (NatAwareAddress)NatAwareAddressImpl.unknown(self.getValue1()));
+        this.self = self;
         this.stunServers = stunServers;
         this.phase = new Phase();
         this.echoResps = new NatAwareAddress[8];
@@ -61,7 +58,7 @@ public class StunSession {
         setHandlers();
     }
     
-    public StunSession(Pair<BasicAddress, BasicAddress> self, 
+    public StunSession(Pair<NatAwareAddress, NatAwareAddress> self, 
             Pair<Pair<NatAwareAddress, NatAwareAddress>, Pair<NatAwareAddress, NatAwareAddress>> stunServers) {
         this(BasicIdentifiers.eventId(), self, stunServers);
     }

@@ -28,6 +28,7 @@ public class StunClientKConfig {
     public final static KConfigOption.Basic<Integer> stunClientPort1 = new KConfigOption.Basic("stun.client.address.port1", Integer.class);
     public final static KConfigOption.Basic<Integer> stunClientPort2 = new KConfigOption.Basic("stun.client.address.port2", Integer.class);
     public final static InetAddressOption stunClientIp = new InetAddressOption("stun.client.address.ip");
+    public final static KConfigOption.Basic<Boolean> stunClientOpenPorts = new KConfigOption.Basic("stun.client.openports", Boolean.class);
     public final static KConfigOption.Basic<Integer> globalCroupier = new KConfigOption.Basic("services.globalCroupier", Integer.class);
     public final static KConfigOption.Basic<Integer> stunService = new KConfigOption.Basic("services.stun", Integer.class);
 }

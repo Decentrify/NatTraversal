@@ -40,6 +40,8 @@ import se.sics.ktoolbox.netmngr.nxnet.NxNetPort;
 import se.sics.ktoolbox.netmngr.nxnet.NxNetUnbind;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
+import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
 import se.sics.ktoolbox.util.network.nat.NatType;
 import se.sics.nat.detection.event.NatDetected;
 import se.sics.nat.stun.StunClientPort;
@@ -69,7 +71,7 @@ public class NatDetectionComp extends ComponentDefinition {
   private final ExtPort extPorts;
   private InetAddress privateIp;
   //****************************INTERNAL_STATE********************************
-  private Pair<BasicAddress, BasicAddress> stunAdr = Pair.with(null, null);
+  private Pair<NatAwareAddress, NatAwareAddress> stunAdr = Pair.with(null, null);
   private NatType natType;
   private Optional<InetAddress> publicIp;
   //******************************COMPONENTS**********************************
@@ -179,13 +181,19 @@ public class NatDetectionComp extends ComponentDefinition {
     @Override
     public void handle(NxNetBind.Response resp) {
       LOG.trace("{}received:{}", logPrefix, resp);
+      NatAwareAddress adr;
+      if(stunClientConfig.stunClientOpenPorts.isPresent() && stunClientConfig.stunClientOpenPorts.get()) {
+        adr = NatAwareAddressImpl.natOpenPorts((BasicAddress)resp.req.adr);
+      } else {
+        adr = NatAwareAddressImpl.unknown((BasicAddress)resp.req.adr);
+      }
       if (resp.getId().equals(stun1BindReq.getId())) {
-        stunAdr = stunAdr.setAt0((BasicAddress) resp.req.adr);
+        stunAdr = stunAdr.setAt0(adr);
         setupStunClient2();
         return;
       }
       if (resp.getId().equals(stun2BindReq.getId())) {
-        stunAdr = stunAdr.setAt1((BasicAddress) resp.req.adr);
+        stunAdr = stunAdr.setAt1(adr);
         setupStunClient2();
         return;
       }
@@ -197,12 +205,12 @@ public class NatDetectionComp extends ComponentDefinition {
     public void handle(NxNetUnbind.Response resp) {
       LOG.trace("{}received:{}", logPrefix, resp);
       if (resp.getId().equals(stun1UnbindReq.getId())) {
-        stunAdr = stunAdr.setAt0((BasicAddress) null);
+        stunAdr = stunAdr.setAt0((NatAwareAddress) null);
         cleanupStunClient2();
         return;
       }
       if (resp.getId().equals(stun2UnbindReq.getId())) {
-        stunAdr = stunAdr.setAt1((BasicAddress) null);
+        stunAdr = stunAdr.setAt1((NatAwareAddress) null);
         cleanupStunClient2();
         return;
       }
