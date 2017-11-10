@@ -169,7 +169,7 @@ public class StunClientComp extends ComponentDefinition {
           && Nat.FilteringPolicy.ENDPOINT_INDEPENDENT.equals(sessionResult.filterPolicy.get())
           && Nat.MappingPolicy.PORT_DEPENDENT.equals(sessionResult.mappingPolicy.get())
           && Nat.AllocationPolicy.PORT_PRESERVATION.equals(sessionResult.allocationPolicy.get())) {
-          trigger(new StunNatDetected(NatType.natOpenPorts(), sessionResult.publicIp), stunPort);
+          trigger(new StunNatDetected(NatType.natPortForwarding(), sessionResult.publicIp), stunPort);
           return;
         }
       }
