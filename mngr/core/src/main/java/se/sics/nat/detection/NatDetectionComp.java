@@ -183,7 +183,7 @@ public class NatDetectionComp extends ComponentDefinition {
       LOG.trace("{}received:{}", logPrefix, resp);
       NatAwareAddress adr;
       if(stunClientConfig.stunClientOpenPorts.isPresent() && stunClientConfig.stunClientOpenPorts.get()) {
-        adr = NatAwareAddressImpl.natOpenPorts((BasicAddress)resp.req.adr);
+        adr = NatAwareAddressImpl.natForwardedPorts((BasicAddress)resp.req.adr);
       } else {
         adr = NatAwareAddressImpl.unknown((BasicAddress)resp.req.adr);
       }
