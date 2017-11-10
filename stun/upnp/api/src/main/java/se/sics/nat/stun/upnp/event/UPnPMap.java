@@ -21,7 +21,7 @@ package se.sics.nat.stun.upnp.event;
 import java.util.Map;
 import org.javatuples.Pair;
 import se.sics.kompics.Direct;
-import se.sics.kompics.id.Identifier;
+import se.sics.kompics.util.Identifier;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.nat.stun.event.StunEvent;
 import se.sics.nat.stun.upnp.util.Protocol;

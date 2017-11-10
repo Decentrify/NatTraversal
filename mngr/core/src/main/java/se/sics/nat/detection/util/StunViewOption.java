@@ -24,7 +24,7 @@ import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sics.kompics.config.Config;
-import se.sics.kompics.id.Identifier;
+import se.sics.kompics.util.Identifier;
 import se.sics.ktoolbox.util.config.KConfigOption;
 import se.sics.ktoolbox.util.config.KConfigOption.Basic;
 import se.sics.ktoolbox.util.config.options.InetAddressOption;

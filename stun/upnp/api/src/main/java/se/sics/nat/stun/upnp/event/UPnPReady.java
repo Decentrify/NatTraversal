@@ -20,7 +20,7 @@ package se.sics.nat.stun.upnp.event;
 
 import com.google.common.base.Optional;
 import java.net.InetAddress;
-import se.sics.kompics.id.Identifier;
+import se.sics.kompics.util.Identifier;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.nat.stun.event.StunEvent;
 
