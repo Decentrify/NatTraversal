@@ -242,10 +242,8 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         scheduleNatDetectionRetry(30000);
         return;
       }
-      if (!(natType.isSimpleNat() || natType.isOpen())) {
-        LOG.error("{}currently only open or simple nats allowed");
-        //TODO Alex - fix this - hack 
-//                throw new RuntimeException("only open or simple nats allowed");
+      if (!(natType.isSimpleNat() || natType.isOpen() || natType.isNatPortForwarding())) {
+        LOG.error("{}currently only open, simple nats or port forwarding allowed");
         publicIp = privateIp;
       } else {
         publicIp = event.publicIp.get();
