@@ -33,12 +33,12 @@ import se.sics.kompics.Kill;
 import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.util.Identifier;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
+import se.sics.kompics.util.Identifier;
 import se.sics.ktoolbox.netmngr.NetMngrBind;
 import se.sics.ktoolbox.netmngr.NetworkKCWrapper;
 import se.sics.ktoolbox.netmngr.chunk.ChunkMngrComp;
@@ -188,6 +188,9 @@ public class SimpleNatMngrComp extends ComponentDefinition {
       mainReq = NxNetBind.Request.localAdr(selfAdr);
     } else if (natType.isSimpleNat()) {
       selfAdr = NatAwareAddressImpl.open(new BasicAddress(publicIp, systemConfig.port, systemConfig.id));
+      mainReq = NxNetBind.Request.providedAdr(selfAdr, privateIp);
+    } else if(natType.isNatPortForwarding()){
+      selfAdr = NatAwareAddressImpl.natPortForwarding(new BasicAddress(publicIp, systemConfig.port, systemConfig.id));
       mainReq = NxNetBind.Request.providedAdr(selfAdr, privateIp);
     } else {
       //TODO Alex - fix this - hack 
