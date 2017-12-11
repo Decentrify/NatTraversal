@@ -195,11 +195,10 @@ public class SimpleNatMngrComp extends ComponentDefinition {
       selfAdr = NatAwareAddressImpl.natPortForwarding(new BasicAddress(publicIp, systemConfig.port, systemConfig.id));
       mainReq = NxNetBind.Request.providedAdr(selfAdr, privateIp);
     } else if (natType.isNat()) {
-      BasicAddress privateAddress = new BasicAddress(privateIp, systemConfig.port, systemConfig.id);
       //TODO Alex - public port and parents
-      BasicAddress publicAddress = new BasicAddress(publicIp, 0, systemConfig.id);
+      BasicAddress publicAddress = new BasicAddress(publicIp, systemConfig.port, systemConfig.id);
       List<BasicAddress> parents = new LinkedList<>();
-      selfAdr = NatAwareAddressImpl.nated(privateAddress, publicAddress, natType, parents);
+      selfAdr = NatAwareAddressImpl.nated(publicAddress, natType, parents);
       mainReq = NxNetBind.Request.providedAdr(selfAdr, privateIp);
     } else {
       //TODO Alex - fix this - hack 
@@ -327,7 +326,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
     public void handle(NetMngrBind.Request req) {
       LOG.trace("{}received:{}", logPrefix, req);
       NxNetBind.Request bindReq;
-      if (req.useAddress.isRight()) {
+      if (req.useAddress.isLeft()) {
         int port = req.useAddress.getLeft();
         NatAwareAddress adr = NatAwareAddressImpl.open(new BasicAddress(privateIp, port, systemConfig.id));
         bindReq = NxNetBind.Request.localAdr(adr);
