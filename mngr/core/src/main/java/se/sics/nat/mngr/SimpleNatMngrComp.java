@@ -20,6 +20,8 @@ package se.sics.nat.mngr;
 
 import java.net.InetAddress;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.javatuples.Pair;
@@ -192,6 +194,12 @@ public class SimpleNatMngrComp extends ComponentDefinition {
     } else if(natType.isNatPortForwarding()){
       selfAdr = NatAwareAddressImpl.natPortForwarding(new BasicAddress(publicIp, systemConfig.port, systemConfig.id));
       mainReq = NxNetBind.Request.providedAdr(selfAdr, privateIp);
+    } else if (natType.isNat()) {
+      //TODO Alex - public port and parents
+      BasicAddress publicAddress = new BasicAddress(publicIp, systemConfig.port, systemConfig.id);
+      List<BasicAddress> parents = new LinkedList<>();
+      selfAdr = NatAwareAddressImpl.nated(publicAddress, natType, parents);
+      mainReq = NxNetBind.Request.providedAdr(selfAdr, privateIp);
     } else {
       //TODO Alex - fix this - hack 
       selfAdr = NatAwareAddressImpl.unknown(new BasicAddress(privateIp, systemConfig.port, systemConfig.id));
@@ -242,7 +250,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
         scheduleNatDetectionRetry(30000);
         return;
       }
-      if (!(natType.isSimpleNat() || natType.isOpen() || natType.isNatPortForwarding())) {
+      if (!(natType.isSimpleNat() || natType.isOpen() || natType.isNatPortForwarding() || natType.isNat())) {
         LOG.error("{}currently only open, simple nats or port forwarding allowed");
         publicIp = privateIp;
       } else {
@@ -318,7 +326,7 @@ public class SimpleNatMngrComp extends ComponentDefinition {
     public void handle(NetMngrBind.Request req) {
       LOG.trace("{}received:{}", logPrefix, req);
       NxNetBind.Request bindReq;
-      if (req.useAddress.isRight()) {
+      if (req.useAddress.isLeft()) {
         int port = req.useAddress.getLeft();
         NatAwareAddress adr = NatAwareAddressImpl.open(new BasicAddress(privateIp, port, systemConfig.id));
         bindReq = NxNetBind.Request.localAdr(adr);

@@ -85,7 +85,7 @@ public class NatDetectionComp extends ComponentDefinition {
   public NatDetectionComp(Init init) {
     systemConfig = new SystemKCWrapper(config());
     logPrefix = "<nid:" + systemConfig.id + "> ";
-    LOG.info("{}initiating...", logPrefix);
+    LOG.debug("{}initiating...", logPrefix);
 
     stunClientConfig = new StunClientKCWrapper(config());
     natDetectionConfig = new NatDetectionKCWrapper(config());
@@ -108,13 +108,13 @@ public class NatDetectionComp extends ComponentDefinition {
   Handler handleStart = new Handler<Start>() {
     @Override
     public void handle(Start event) {
-      LOG.info("{}starting...", logPrefix);
+      LOG.debug("{}starting...", logPrefix);
       setupStunClient1();
     }
   };
 
   private void setupStunClient1() {
-    LOG.info("{}setting up public ip detection", logPrefix);
+    LOG.debug("{}setting up public ip detection", logPrefix);
     int stunClientPort1 = stunClientConfig.stunClientPorts.getValue0();
     int stunClientPort2 = stunClientConfig.stunClientPorts.getValue1();
     if (stunClientConfig.stunClientIp.isPresent()) {
@@ -153,7 +153,7 @@ public class NatDetectionComp extends ComponentDefinition {
   }
 
   private void cleanupStunClient1() {
-    LOG.info("{}clean up stun client", logPrefix);
+    LOG.debug("{}clean up stun client", logPrefix);
 
     disconnect(stunClient.getValue1()[0]);
     disconnect(stunClient.getValue1()[1]);
