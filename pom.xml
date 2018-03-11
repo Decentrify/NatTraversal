@@ -24,7 +24,7 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kompics.version>1.0.0-SNAPSHOT</kompics.version>
+        <kompics.version>1.0.0</kompics.version>
         <ktoolbox.version>2.0.4-SNAPSHOT</ktoolbox.version>
         
         <logger.version>1.7.5</logger.version>
