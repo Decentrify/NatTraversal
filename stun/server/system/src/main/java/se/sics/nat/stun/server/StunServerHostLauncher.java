@@ -20,7 +20,6 @@ package se.sics.nat.stun.server;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.sics.caracaldb.MessageRegistrator;
 import se.sics.kompics.Channel;
 import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.Component;
@@ -33,7 +32,6 @@ import se.sics.kompics.Start;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 import se.sics.kompics.timer.java.JavaTimer;
-import se.sics.ktoolbox.cc.heartbeat.CCHeartbeatPort;
 import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.ktoolbox.croupier.CroupierSerializerSetup;
 import se.sics.ktoolbox.gradient.GradientSerializerSetup;
@@ -128,7 +126,8 @@ public class StunServerHostLauncher extends ComponentDefinition {
     private void setOMngr() {
         LOG.info("{}setting up overlay mngr", logPrefix);
         OverlayMngrComp.ExtPort oMngrExtPorts = new OverlayMngrComp.ExtPort(timerComp.getPositive(Timer.class),
-                netMngrComp.getPositive(Network.class), bootstrapClientComp.getPositive(CCHeartbeatPort.class));
+          netMngrComp.getPositive(Network.class));
+//                netMngrComp.getPositive(Network.class), bootstrapClientComp.getPositive(CCHeartbeatPort.class));
         oMngrComp = create(OverlayMngrComp.class, new OverlayMngrComp.Init(systemAdr, oMngrExtPorts));
     }
 
@@ -152,7 +151,7 @@ public class StunServerHostLauncher extends ComponentDefinition {
     private static void serializerSetup() {
         //serializers setup
         int serializerId = 128;
-        MessageRegistrator.register();
+//        MessageRegistrator.register();
         serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
         serializerId = CroupierSerializerSetup.registerSerializers(serializerId);
         serializerId = GradientSerializerSetup.registerSerializers(serializerId);
