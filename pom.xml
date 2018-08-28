@@ -29,7 +29,7 @@
         
     <logger.version>1.7.5</logger.version>
     <tuples.version>1.2</tuples.version>
-    <guava.version>[18.0,24.0-jre]</guava.version>
+    <guava.version>20.0</guava.version>
     <cli.version>1.3.1</cli.version>
   </properties>
   
