@@ -41,6 +41,7 @@ import se.sics.ktoolbox.netmngr.event.NetMngrPort;
 import se.sics.ktoolbox.netmngr.event.NetMngrReady;
 import se.sics.ktoolbox.omngr.bootstrap.BootstrapClientComp;
 import se.sics.ktoolbox.omngr.OMngrSerializerSetup;
+import se.sics.ktoolbox.omngr.bootstrap.BootstrapClientPort;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrComp;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
@@ -116,9 +117,7 @@ public class StunServerHostLauncher extends ComponentDefinition {
             };
 
     private void setBootstrapClient() {
-        LOG.info("{}setting up caracal client", logPrefix);
-        StunServerLauncherKCWrapper config = new StunServerLauncherKCWrapper(config());
-        bootstrapClientComp = create(BootstrapClientComp.class, new BootstrapClientComp.Init(systemAdr, config.bootstrapServer));
+        bootstrapClientComp = create(BootstrapClientComp.class, new BootstrapClientComp.Init(systemAdr));
         connect(bootstrapClientComp.getNegative(Timer.class), timerComp.getPositive(Timer.class), Channel.TWO_WAY);
         connect(bootstrapClientComp.getNegative(Network.class), netMngrComp.getPositive(Network.class), Channel.TWO_WAY);
     }
@@ -126,8 +125,7 @@ public class StunServerHostLauncher extends ComponentDefinition {
     private void setOMngr() {
         LOG.info("{}setting up overlay mngr", logPrefix);
         OverlayMngrComp.ExtPort oMngrExtPorts = new OverlayMngrComp.ExtPort(timerComp.getPositive(Timer.class),
-          netMngrComp.getPositive(Network.class));
-//                netMngrComp.getPositive(Network.class), bootstrapClientComp.getPositive(CCHeartbeatPort.class));
+                netMngrComp.getPositive(Network.class), bootstrapClientComp.getPositive(BootstrapClientPort.class));
         oMngrComp = create(OverlayMngrComp.class, new OverlayMngrComp.Init(systemAdr, oMngrExtPorts));
     }
 
