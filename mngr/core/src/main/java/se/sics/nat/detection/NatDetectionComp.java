@@ -39,6 +39,9 @@ import se.sics.ktoolbox.netmngr.nxnet.NxNetBind;
 import se.sics.ktoolbox.netmngr.nxnet.NxNetPort;
 import se.sics.ktoolbox.netmngr.nxnet.NxNetUnbind;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistryV2;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
@@ -87,8 +90,10 @@ public class NatDetectionComp extends ComponentDefinition {
     logPrefix = "<nid:" + systemConfig.id + "> ";
     LOG.debug("{}initiating...", logPrefix);
 
+    SystemKCWrapper systemConfig = new SystemKCWrapper(config());
     stunClientConfig = new StunClientKCWrapper(config());
-    natDetectionConfig = new NatDetectionKCWrapper(config());
+    IdentifierFactory nodeIdFactory = IdentifierRegistryV2.instance(BasicIdentifiers.Values.NODE, java.util.Optional.of(systemConfig.seed));
+    natDetectionConfig = new NatDetectionKCWrapper(config(), nodeIdFactory);
     extPorts = init.extPorts;
     privateIp = init.privateIp;
 
@@ -182,10 +187,10 @@ public class NatDetectionComp extends ComponentDefinition {
     public void handle(NxNetBind.Response resp) {
       LOG.trace("{}received:{}", logPrefix, resp);
       NatAwareAddress adr;
-      if(stunClientConfig.stunClientOpenPorts.isPresent() && stunClientConfig.stunClientOpenPorts.get()) {
-        adr = NatAwareAddressImpl.natPortForwarding((BasicAddress)resp.req.adr);
+      if (stunClientConfig.stunClientOpenPorts.isPresent() && stunClientConfig.stunClientOpenPorts.get()) {
+        adr = NatAwareAddressImpl.natPortForwarding((BasicAddress) resp.req.adr);
       } else {
-        adr = NatAwareAddressImpl.unknown((BasicAddress)resp.req.adr);
+        adr = NatAwareAddressImpl.unknown((BasicAddress) resp.req.adr);
       }
       if (resp.getId().equals(stun1BindReq.getId())) {
         stunAdr = stunAdr.setAt0(adr);

@@ -18,11 +18,15 @@
  */
 package se.sics.nat.detection;
 
+import com.google.common.base.Function;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
 import se.sics.nat.detection.util.StunViewOption;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatDetectionKConfig {
-     public static final StunViewOption stunView = new StunViewOption("nat.detection.stunView");
+
+  public static final Function<IdentifierFactory, StunViewOption> stunViewGen 
+    = (IdentifierFactory nodeIdFactory) -> new StunViewOption("nat.detection.stunView", nodeIdFactory);
 }

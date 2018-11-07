@@ -29,9 +29,7 @@ import se.sics.ktoolbox.util.config.KConfigOption;
 import se.sics.ktoolbox.util.config.KConfigOption.Basic;
 import se.sics.ktoolbox.util.config.options.InetAddressOption;
 import se.sics.ktoolbox.util.identifiable.BasicBuilders;
-import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
-import se.sics.ktoolbox.util.identifiable.IdentifierRegistry;
 import se.sics.ktoolbox.util.network.basic.BasicAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddressImpl;
@@ -41,57 +39,59 @@ import se.sics.nat.stun.util.StunView;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunViewOption extends KConfigOption.Base<StunView> {
-    private static final Logger LOG = LoggerFactory.getLogger("KConfig");
-    
-    public StunViewOption(String optName) {
-        super(optName, StunView.class);
-    }
 
-    @Override
-    public Optional<StunView> readValue(Config config) {
-        Optional<Pair<NatAwareAddress, NatAwareAddress>> serverAdr = getAdr(config, name+".server");
-        if(!serverAdr.isPresent()){
-            LOG.debug("missing:{}", name+".server");
-            return Optional.absent();
-        }
-        Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr = getAdr(config, name+".partner");
-        if(!partnerAdr.isPresent()){
-            LOG.debug("missing:{}", name+".partner");
-            return Optional.absent();
-        }
-        return Optional.of(new StunView(serverAdr.get(), partnerAdr));
+  private static final Logger LOG = LoggerFactory.getLogger("KConfig");
+  private final IdentifierFactory nodeIdFactory;
+
+  public StunViewOption(String optName, IdentifierFactory nodeIdFactory) {
+    super(optName, StunView.class);
+    this.nodeIdFactory = nodeIdFactory;
+  }
+
+  @Override
+  public Optional<StunView> readValue(Config config) {
+    Optional<Pair<NatAwareAddress, NatAwareAddress>> serverAdr = getAdr(config, name + ".server");
+    if (!serverAdr.isPresent()) {
+      LOG.debug("missing:{}", name + ".server");
+      return Optional.absent();
     }
-    
-    private Optional<Pair<NatAwareAddress, NatAwareAddress>> getAdr(Config config, String name) {
-        InetAddressOption ipOpt = new InetAddressOption(name + ".ip");
-        Optional<InetAddress> ip = ipOpt.readValue(config);
-        if (!ip.isPresent()) {
-            LOG.debug("missing:{}", ipOpt.name);
-            return Optional.absent();
-        }
-        Basic<Integer> port1Opt = new Basic(name + ".port1", Integer.class);
-        Optional<Integer> port1 = port1Opt.readValue(config);
-        if (!port1.isPresent()) {
-            LOG.debug("missing:{}", port1Opt.name);
-            return Optional.absent();
-        }
-        Basic<Integer> port2Opt = new Basic(name + ".port2", Integer.class);
-        Optional<Integer> port2 = port2Opt.readValue(config);
-        if (!port2.isPresent()) {
-            LOG.debug("missing:{}", port2Opt.name);
-            return Optional.absent();
-        }
-        Basic<Integer> idOpt = new Basic(name + ".id", Integer.class);
-        Optional<Integer> id = idOpt.readValue(config);
-        if (!id.isPresent()) {
-            LOG.debug("missing:{}", idOpt.name);
-            return Optional.absent();
-        }
-        IdentifierFactory nodeIdFactory = IdentifierRegistry.lookup(BasicIdentifiers.Values.NODE.toString());
-        Identifier nodeId = nodeIdFactory.id(new BasicBuilders.IntBuilder(id.get()));
-        return Optional.of(Pair.with(
-                (NatAwareAddress)NatAwareAddressImpl.open(new BasicAddress(ip.get(), port1.get(), nodeId)),
-                (NatAwareAddress)NatAwareAddressImpl.open(new BasicAddress(ip.get(), port2.get(), nodeId))));
+    Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr = getAdr(config, name + ".partner");
+    if (!partnerAdr.isPresent()) {
+      LOG.debug("missing:{}", name + ".partner");
+      return Optional.absent();
     }
-    
+    return Optional.of(new StunView(serverAdr.get(), partnerAdr));
+  }
+
+  private Optional<Pair<NatAwareAddress, NatAwareAddress>> getAdr(Config config, String name) {
+    InetAddressOption ipOpt = new InetAddressOption(name + ".ip");
+    Optional<InetAddress> ip = ipOpt.readValue(config);
+    if (!ip.isPresent()) {
+      LOG.debug("missing:{}", ipOpt.name);
+      return Optional.absent();
+    }
+    Basic<Integer> port1Opt = new Basic(name + ".port1", Integer.class);
+    Optional<Integer> port1 = port1Opt.readValue(config);
+    if (!port1.isPresent()) {
+      LOG.debug("missing:{}", port1Opt.name);
+      return Optional.absent();
+    }
+    Basic<Integer> port2Opt = new Basic(name + ".port2", Integer.class);
+    Optional<Integer> port2 = port2Opt.readValue(config);
+    if (!port2.isPresent()) {
+      LOG.debug("missing:{}", port2Opt.name);
+      return Optional.absent();
+    }
+    Basic<Integer> idOpt = new Basic(name + ".id", Integer.class);
+    Optional<Integer> id = idOpt.readValue(config);
+    if (!id.isPresent()) {
+      LOG.debug("missing:{}", idOpt.name);
+      return Optional.absent();
+    }
+    Identifier nodeId = nodeIdFactory.id(new BasicBuilders.IntBuilder(id.get()));
+    return Optional.of(Pair.with(
+      (NatAwareAddress) NatAwareAddressImpl.open(new BasicAddress(ip.get(), port1.get(), nodeId)),
+      (NatAwareAddress) NatAwareAddressImpl.open(new BasicAddress(ip.get(), port2.get(), nodeId))));
+  }
+
 }

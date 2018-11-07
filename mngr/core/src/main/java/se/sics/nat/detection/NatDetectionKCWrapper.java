@@ -20,6 +20,7 @@ package se.sics.nat.detection;
 
 import se.sics.kompics.config.Config;
 import se.sics.ktoolbox.util.config.KConfigHelper;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
 import se.sics.nat.stun.util.StunView;
 
 /**
@@ -27,11 +28,12 @@ import se.sics.nat.stun.util.StunView;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatDetectionKCWrapper {
-    public final Config configCore;
-    public final StunView stunView;
-    
-    public NatDetectionKCWrapper(Config configCore) {
-        this.configCore = configCore;
-        stunView = KConfigHelper.read(configCore, NatDetectionKConfig.stunView);
-    }
+
+  public final Config configCore;
+  public final StunView stunView;
+
+  public NatDetectionKCWrapper(Config configCore, IdentifierFactory nodeIdFactory) {
+    this.configCore = configCore;
+    stunView = KConfigHelper.read(configCore, NatDetectionKConfig.stunViewGen.apply(nodeIdFactory));
+  }
 }
