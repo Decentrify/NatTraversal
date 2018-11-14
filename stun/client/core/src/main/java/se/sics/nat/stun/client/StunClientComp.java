@@ -37,6 +37,9 @@ import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistryV2;
 import se.sics.ktoolbox.util.network.KContentMsg;
 import se.sics.ktoolbox.util.network.KHeader;
 import se.sics.ktoolbox.util.network.basic.BasicContentMsg;
@@ -108,6 +111,7 @@ public class StunClientComp extends ComponentDefinition {
   //****************************STATE_INTERNAL********************************
   private StunSession session;
   private UUID echoTId;
+  private final IdentifierFactory eventIds;
 
   public StunClientComp(Init init) {
     SystemKCWrapper systemConfig = new SystemKCWrapper(config());
@@ -115,7 +119,10 @@ public class StunClientComp extends ComponentDefinition {
     this.logPrefix = "<nid:" + systemConfig.id + " > ";
     LOG.info("{}initiating:<{},{}>", new Object[]{logPrefix, init.selfAdr.getValue0(), init.selfAdr.getValue1()});
 
-    session = new StunSession(init.selfAdr, Pair.with(init.stunView.selfStunAdr, init.stunView.partnerStunAdr.get()));
+    this.eventIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.EVENT,
+      java.util.Optional.of(systemConfig.seed));
+    session = new StunSession(eventIds.randomId(), init.selfAdr, 
+      Pair.with(init.stunView.selfStunAdr, init.stunView.partnerStunAdr.get()));
 
     subscribe(handleStart, control);
     subscribe(handleEchoResponse, network);
@@ -161,7 +168,7 @@ public class StunClientComp extends ComponentDefinition {
       LOG.warn("{}result failed with:{}", logPrefix, sessionResult.failureDescription.get());
       //TODO Alex - act like udp blocked or unknown?
       Optional<InetAddress> missing = Optional.absent();
-      trigger(new StunNatDetected(NatType.udpBlocked(), missing), stunPort);
+      trigger(new StunNatDetected(eventIds.randomId(), NatType.udpBlocked(), missing), stunPort);
       return;
     } else {
       if (stunClientConfig.stunClientOpenPorts.isPresent() && stunClientConfig.stunClientOpenPorts.get()) {
@@ -169,7 +176,7 @@ public class StunClientComp extends ComponentDefinition {
           && Nat.FilteringPolicy.ENDPOINT_INDEPENDENT.equals(sessionResult.filterPolicy.get())
           && Nat.MappingPolicy.PORT_DEPENDENT.equals(sessionResult.mappingPolicy.get())
           && Nat.AllocationPolicy.PORT_PRESERVATION.equals(sessionResult.allocationPolicy.get())) {
-          trigger(new StunNatDetected(NatType.natPortForwarding(), sessionResult.publicIp), stunPort);
+          trigger(new StunNatDetected(eventIds.randomId(), NatType.natPortForwarding(), sessionResult.publicIp), stunPort);
           return;
         }
       }
@@ -177,13 +184,13 @@ public class StunClientComp extends ComponentDefinition {
       switch (sessionResult.natState.get()) {
         case UDP_BLOCKED:
           Optional<InetAddress> missing = Optional.absent();
-          trigger(new StunNatDetected(NatType.udpBlocked(), missing), stunPort);
+          trigger(new StunNatDetected(eventIds.randomId(), NatType.udpBlocked(), missing), stunPort);
           break;
         case OPEN:
-          trigger(new StunNatDetected(NatType.open(), sessionResult.publicIp), stunPort);
+          trigger(new StunNatDetected(eventIds.randomId(), NatType.open(), sessionResult.publicIp), stunPort);
           break;
         case FIREWALL:
-          trigger(new StunNatDetected(NatType.firewall(), sessionResult.publicIp), stunPort);
+          trigger(new StunNatDetected(eventIds.randomId(), NatType.firewall(), sessionResult.publicIp), stunPort);
           break;
         case NAT:
           LOG.info("{}result:NAT filter:{} mapping:{} allocation:{}",
@@ -198,7 +205,7 @@ public class StunClientComp extends ComponentDefinition {
             nat = NatType.nated(sessionResult.mappingPolicy.get(), sessionResult.allocationPolicy.get(),
               0, sessionResult.filterPolicy.get(), 10000);
           }
-          trigger(new StunNatDetected(nat, sessionResult.publicIp), stunPort);
+          trigger(new StunNatDetected(eventIds.randomId(), nat, sessionResult.publicIp), stunPort);
           break;
         default:
           LOG.error("{}unknown session result:{}", logPrefix, sessionResult.natState.get());
@@ -229,18 +236,18 @@ public class StunClientComp extends ComponentDefinition {
   ClassMatchedHandler handleEchoResponse
     = new ClassMatchedHandler<StunEcho.Response, KContentMsg<NatAwareAddress, ?, StunEcho.Response>>() {
 
-      @Override
-      public void handle(StunEcho.Response content, KContentMsg<NatAwareAddress, ?, StunEcho.Response> container) {
-        LOG.trace("{}received:{}", new Object[]{logPrefix, container});
-        cancelEchoTimeout();
-        session.receivedResponse(content, container.getHeader().getSource());
-        if (!session.finished()) {
-          processSession(session);
-        } else {
-          processResult(session);
-        }
+    @Override
+    public void handle(StunEcho.Response content, KContentMsg<NatAwareAddress, ?, StunEcho.Response> container) {
+      LOG.trace("{}received:{}", new Object[]{logPrefix, container});
+      cancelEchoTimeout();
+      session.receivedResponse(content, container.getHeader().getSource());
+      if (!session.finished()) {
+        processSession(session);
+      } else {
+        processResult(session);
       }
-    };
+    }
+  };
 
   public static class Init extends se.sics.kompics.Init<StunClientComp> {
 

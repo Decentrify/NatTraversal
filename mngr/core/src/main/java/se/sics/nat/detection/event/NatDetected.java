@@ -23,42 +23,34 @@ import java.net.InetAddress;
 import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.util.Identifiable;
 import se.sics.kompics.util.Identifier;
-import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.network.nat.NatType;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class NatDetected implements KompicsEvent, Identifiable<Identifier> {
-    public final Identifier eventId;
-    public NatType natType;
-    public Optional<InetAddress> publicIp;
-    
-    /**
-     * @param natType
-     * @param publicIp - optional - missing only if natType - udpBlocked
-     */
-    public NatDetected(Identifier eventId, NatType natType, Optional<InetAddress> publicIp) {
-        this.eventId = eventId;
-        this.natType = natType;
-        this.publicIp = publicIp;
-    }
-    
-    /**
-     * @param natType
-     * @param publicIp - optional - missing only if natType - udpBlocked
-     */
-    public NatDetected(NatType natType, Optional<InetAddress> publicIp) {
-        this(BasicIdentifiers.eventId(), natType, publicIp);
-    }
 
-    @Override
-    public Identifier getId() {
-        return eventId;
-    }
-    
-    @Override
-    public String toString() {
-        return "NatDetected<" + eventId + ">";
-    }
+  public final Identifier eventId;
+  public NatType natType;
+  public Optional<InetAddress> publicIp;
+
+  /**
+   * @param natType
+   * @param publicIp - optional - missing only if natType - udpBlocked
+   */
+  public NatDetected(Identifier eventId, NatType natType, Optional<InetAddress> publicIp) {
+    this.eventId = eventId;
+    this.natType = natType;
+    this.publicIp = publicIp;
+  }
+
+  @Override
+  public Identifier getId() {
+    return eventId;
+  }
+
+  @Override
+  public String toString() {
+    return "NatDetected<" + eventId + ">";
+  }
 }

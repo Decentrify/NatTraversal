@@ -21,7 +21,6 @@ package se.sics.nat.stun.upnp.event;
 import com.google.common.base.Optional;
 import java.net.InetAddress;
 import se.sics.kompics.util.Identifier;
-import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.nat.stun.event.StunEvent;
 
 /**
@@ -29,20 +28,16 @@ import se.sics.nat.stun.event.StunEvent;
  */
 public class UPnPReady implements StunEvent {
 
-    public final Identifier eventId;
-    public final Optional<InetAddress> externalIp;
+  public final Identifier eventId;
+  public final Optional<InetAddress> externalIp;
 
-    public UPnPReady(Identifier eventId, InetAddress externalIp) {
-        this.eventId = eventId;
-        this.externalIp = Optional.fromNullable(externalIp);
-    }
-    
-    public UPnPReady(InetAddress externalIp) {
-        this(BasicIdentifiers.eventId(), externalIp);
-    }
+  public UPnPReady(Identifier eventId, InetAddress externalIp) {
+    this.eventId = eventId;
+    this.externalIp = Optional.fromNullable(externalIp);
+  }
 
-    @Override
-    public Identifier getId() {
-        return eventId;
-    }
+  @Override
+  public Identifier getId() {
+    return eventId;
+  }
 }

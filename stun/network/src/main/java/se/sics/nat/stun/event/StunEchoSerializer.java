@@ -47,7 +47,7 @@ public class StunEchoSerializer {
         @Override
         public void toBinary(Object o, ByteBuf buf) {
             StunEcho.Request req = (StunEcho.Request) o;
-            Serializers.toBinary(req.eventId, buf);
+            Serializers.toBinary(req.msgId, buf);
             Serializers.toBinary(req.sessionId, buf);
             buf.writeByte((byte) req.type.ordinal());
             if (req.target == null) {
@@ -89,7 +89,7 @@ public class StunEchoSerializer {
         @Override
         public void toBinary(Object o, ByteBuf buf) {
             StunEcho.Response resp = (StunEcho.Response) o;
-            Serializers.toBinary(resp.eventId, buf);
+            Serializers.toBinary(resp.msgId, buf);
             Serializers.toBinary(resp.sessionId, buf);
             buf.writeByte((byte) resp.type.ordinal());
             if (!resp.observed.isPresent()) {
@@ -131,7 +131,7 @@ public class StunEchoSerializer {
         @Override
         public void toBinary(Object o, ByteBuf buf) {
             StunEcho.Reset resp = (StunEcho.Reset) o;
-            Serializers.toBinary(resp.eventId, buf);
+            Serializers.toBinary(resp.msgId, buf);
             Serializers.toBinary(resp.sessionId, buf);
             buf.writeByte((byte) resp.type.ordinal());
         }

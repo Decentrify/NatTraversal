@@ -18,6 +18,7 @@
  */
 package se.sics.nat.stun.server;
 
+import java.util.Optional;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,9 @@ import se.sics.ktoolbox.netmngr.event.NetMngrPort;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistryV2;
 import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdatePort;
@@ -46,7 +50,7 @@ import se.sics.nat.overlays.NatOverlayId;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class StunServerHostComp extends ComponentDefinition {
-
+  
   private static final Logger LOG = LoggerFactory.getLogger(StunServerHostComp.class);
   private String logPrefix = "";
 
@@ -65,35 +69,38 @@ public class StunServerHostComp extends ComponentDefinition {
   private Pair<NetMngrBind.Request, NetMngrBind.Request> bindReq;
   private Pair<NatAwareAddress, NatAwareAddress> stunServerAdr = Pair.with(null, null);
   private OMngrCroupier.ConnectRequest croupierReq;
-
+  private final IdentifierFactory eventIds;
+  
   public StunServerHostComp(Init init) {
     systemConfig = new SystemKCWrapper(config());
     stunServerHostConfig = new StunServerHostKCWrapper(config());
-
+    
     logPrefix = "<nid:" + systemConfig.id + "> ";
     LOG.info("{}initializing...", logPrefix);
-
+    this.eventIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.EVENT, Optional.of(systemConfig.seed));
     extPorts = init.extPorts;
-
+    
     subscribe(handleStart, control);
     subscribe(handleBindResp, netMngrPort);
     subscribe(handleCroupierConnected, oMngrPort);
   }
-
+  
   Handler handleStart = new Handler<Start>() {
     @Override
     public void handle(Start event) {
       LOG.info("{}starting...", logPrefix);
       StunServerKCWrapper stunServerConfig = new StunServerKCWrapper(config());
       LOG.info("{}binding stun ports", logPrefix);
-      NetMngrBind.Request bindReq1 = NetMngrBind.Request.useLocal(stunServerConfig.stunServerPorts.getValue0());
+      NetMngrBind.Request bindReq1 = NetMngrBind.Request.useLocal(eventIds.randomId(), 
+        stunServerConfig.stunServerPorts.getValue0());
       trigger(bindReq1, netMngrPort);
-      NetMngrBind.Request bindReq2 = NetMngrBind.Request.useLocal(stunServerConfig.stunServerPorts.getValue1());
+      NetMngrBind.Request bindReq2 = NetMngrBind.Request.useLocal(eventIds.randomId(), 
+        stunServerConfig.stunServerPorts.getValue1());
       trigger(bindReq2, netMngrPort);
       bindReq = Pair.with(bindReq1, bindReq2);
     }
   };
-
+  
   private boolean ready() {
     if (stunServerAdr.getValue0() == null || stunServerAdr.getValue1() == null) {
       LOG.warn("{}stun self address not ready yet", logPrefix);
@@ -101,7 +108,7 @@ public class StunServerHostComp extends ComponentDefinition {
     }
     return true;
   }
-
+  
   Handler handleBindResp = new Handler<NetMngrBind.Response>() {
     @Override
     public void handle(NetMngrBind.Response resp) {
@@ -116,12 +123,12 @@ public class StunServerHostComp extends ComponentDefinition {
         LOG.info("{}connecting stun server", logPrefix);
         connectStunServer(croupierId);
         LOG.info("{}connecting overlays");
-        croupierReq = new OMngrCroupier.ConnectRequest(croupierId, false);
+        croupierReq = new OMngrCroupier.ConnectRequest(eventIds.randomId(), croupierId, false);
         trigger(croupierReq, oMngrPort);
       }
     }
   };
-
+  
   private void connectStunServer(OverlayId croupierId) {
     stunServerComp = create(StunServerComp.class, new StunServerComp.Init(stunServerAdr, croupierId));
     connect(stunServerComp.getNegative(Timer.class), extPorts.timerPort, Channel.TWO_WAY);
@@ -129,7 +136,7 @@ public class StunServerHostComp extends ComponentDefinition {
     connect(stunServerComp.getNegative(CroupierPort.class), extPorts.croupierPort, Channel.TWO_WAY);
     connect(stunServerComp.getPositive(OverlayViewUpdatePort.class), extPorts.viewUpdatePort, Channel.TWO_WAY);
   }
-
+  
   Handler handleCroupierConnected = new Handler<OMngrCroupier.ConnectResponse>() {
     @Override
     public void handle(OMngrCroupier.ConnectResponse resp) {
@@ -140,30 +147,30 @@ public class StunServerHostComp extends ComponentDefinition {
       }
     }
   };
-
+  
   @Override
   public Fault.ResolveAction handleFault(Fault fault) {
     LOG.error("{}child component failure:{}", logPrefix, fault);
     System.exit(1);
     return Fault.ResolveAction.RESOLVED;
   }
-
+  
   public static class Init extends se.sics.kompics.Init<StunServerHostComp> {
-
+    
     public final ExtPort extPorts;
-
+    
     public Init(ExtPort extPorts) {
       this.extPorts = extPorts;
     }
   }
-
+  
   public static class ExtPort {
-
+    
     public final Positive<Timer> timerPort;
     public final Positive<Network> networkPort;
     public final Positive<CroupierPort> croupierPort;
     public final Negative<OverlayViewUpdatePort> viewUpdatePort;
-
+    
     public ExtPort(Positive<Timer> timerPort, Positive<Network> networkPort,
       Positive<CroupierPort> croupierPort, Negative<OverlayViewUpdatePort> viewUpdatePort) {
       this.timerPort = timerPort;

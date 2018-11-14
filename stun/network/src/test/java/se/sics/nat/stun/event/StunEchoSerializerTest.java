@@ -47,152 +47,158 @@ import se.sics.nat.stun.StunSerializerSetup;
  */
 public class StunEchoSerializerTest {
 
-    private static IdentifierFactory nodeIdFactory;
-    
-    @BeforeClass
-    public static void setup() {
-        systemSetup();
-        testSetup();
+  private static IdentifierFactory nodeIdFactory;
+  private static IdentifierFactory msgIds;
+  private static IdentifierFactory sessionIds;
+
+  @BeforeClass
+  public static void setup() {
+    systemSetup();
+    testSetup();
+  }
+
+  private static void systemSetup() {
+    IdentifierRegistryV2.registerBaseDefaults1(64);
+    OverlayRegistry.initiate(new OverlayId.BasicTypeFactory((byte) 0), new OverlayId.BasicTypeComparator());
+
+    int serializerId = 128;
+    serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
+    serializerId = StunSerializerSetup.registerSerializers(serializerId);
+  }
+
+  private static void testSetup() {
+    nodeIdFactory = IdentifierRegistryV2.instance(BasicIdentifiers.Values.NODE, java.util.Optional.of(1234l));
+    msgIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.MSG, java.util.Optional.of(1234l));
+    sessionIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.EVENT, java.util.Optional.of(1234l));
+  }
+
+  private void compareRequest(StunEcho.Request original, StunEcho.Request copy) {
+    Assert.assertEquals(original.msgId, copy.msgId);
+    Assert.assertEquals(original.sessionId, copy.sessionId);
+    Assert.assertEquals(original.type, copy.type);
+    FullAddressEquivalence fae = new FullAddressEquivalence();
+    Assert.assertTrue(fae.equivalent(
+      (NatAwareAddressImpl) original.target,
+      (NatAwareAddressImpl) copy.target));
+  }
+
+  @Test
+  public void testReqWithTarget() throws UnknownHostException {
+    Serializer serializer = Serializers.lookupSerializer(StunEcho.Request.class);
+    StunEcho.Request original, copy;
+    ByteBuf serializedOriginal, serializedCopy;
+
+    NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.
+      id(new BasicBuilders.IntBuilder(1))));
+    original = new StunEcho.Request(msgIds.randomId(), sessionIds.randomId(), StunEcho.Type.DIP_DP, adr1);
+
+    serializedOriginal = Unpooled.buffer();
+    serializer.toBinary(original, serializedOriginal);
+
+    serializedCopy = Unpooled.buffer();
+    serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
+    copy = (StunEcho.Request) serializer.fromBinary(serializedCopy, Optional.absent());
+
+    Assert.assertEquals(0, serializedCopy.readableBytes());
+    compareRequest(original, copy);
+  }
+
+  @Test
+  public void testReqNoTarget() throws UnknownHostException {
+    Serializer serializer = Serializers.lookupSerializer(StunEcho.Request.class);
+    StunEcho.Request original, copy;
+    ByteBuf serializedOriginal, serializedCopy;
+
+    original = new StunEcho.Request(msgIds.randomId(), sessionIds.randomId(), StunEcho.Type.SIP_DP, null);
+
+    serializedOriginal = Unpooled.buffer();
+    serializer.toBinary(original, serializedOriginal);
+
+    serializedCopy = Unpooled.buffer();
+    serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
+    copy = (StunEcho.Request) serializer.fromBinary(serializedCopy, Optional.absent());
+
+    Assert.assertEquals(0, serializedCopy.readableBytes());
+    compareRequest(original, copy);
+  }
+
+  private void compareResponse(StunEcho.Response original, StunEcho.Response copy) {
+    Assert.assertEquals(original.msgId, copy.msgId);
+    Assert.assertEquals(original.sessionId, copy.sessionId);
+    Assert.assertEquals(original.type, copy.type);
+    Assert.assertEquals(original.observed.isPresent(), copy.observed.isPresent());
+    if (original.observed.isPresent()) {
+      FullAddressEquivalence fae = new FullAddressEquivalence();
+      Assert.assertTrue(fae.equivalent(
+        (NatAwareAddressImpl) original.observed.get(),
+        (NatAwareAddressImpl) copy.observed.get()));
     }
+  }
 
-    private static void systemSetup() {
-        IdentifierRegistryV2.registerBaseDefaults1(64);
-        OverlayRegistry.initiate(new OverlayId.BasicTypeFactory((byte) 0), new OverlayId.BasicTypeComparator());
+  @Test
+  public void testResp() throws UnknownHostException {
+    Serializer serializer = Serializers.lookupSerializer(StunEcho.Response.class);
+    StunEcho.Response original, copy;
+    ByteBuf serializedOriginal, serializedCopy;
 
-        int serializerId = 128;
-        serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
-        serializerId = StunSerializerSetup.registerSerializers(serializerId);
-    }
+    NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.
+      id(new BasicBuilders.IntBuilder(1))));
+    original = new StunEcho.Response(msgIds.randomId(), sessionIds.randomId(),
+      StunEcho.Type.SIP_DP, Optional.of(adr1));
 
-    private static void testSetup() {
-        nodeIdFactory = IdentifierRegistryV2.instance(BasicIdentifiers.Values.NODE, java.util.Optional.of(1234l));
-    }
-    
-    private void compareRequest(StunEcho.Request original, StunEcho.Request copy) {
-        Assert.assertEquals(original.eventId, copy.eventId);
-        Assert.assertEquals(original.sessionId, copy.sessionId);
-        Assert.assertEquals(original.type, copy.type);
-        FullAddressEquivalence fae = new FullAddressEquivalence();
-        Assert.assertTrue(fae.equivalent(
-                (NatAwareAddressImpl) original.target,
-                (NatAwareAddressImpl) copy.target));
-    }
+    serializedOriginal = Unpooled.buffer();
+    serializer.toBinary(original, serializedOriginal);
 
-    @Test
-    public void testReqWithTarget() throws UnknownHostException {
-        Serializer serializer = Serializers.lookupSerializer(StunEcho.Request.class);
-        StunEcho.Request original, copy;
-        ByteBuf serializedOriginal, serializedCopy;
+    serializedCopy = Unpooled.buffer();
+    serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
+    copy = (StunEcho.Response) serializer.fromBinary(serializedCopy, Optional.absent());
 
-        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
-        original = new StunEcho.Request(BasicIdentifiers.eventId(), StunEcho.Type.DIP_DP, adr1);
+    Assert.assertEquals(0, serializedCopy.readableBytes());
+    compareResponse(original, copy);
+  }
 
-        serializedOriginal = Unpooled.buffer();
-        serializer.toBinary(original, serializedOriginal);
+  @Test
+  public void testRespNoObserved() throws UnknownHostException {
+    Serializer serializer = Serializers.lookupSerializer(StunEcho.Response.class);
+    StunEcho.Response original, copy;
+    ByteBuf serializedOriginal, serializedCopy;
 
-        serializedCopy = Unpooled.buffer();
-        serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
-        copy = (StunEcho.Request) serializer.fromBinary(serializedCopy, Optional.absent());
+    original = new StunEcho.Response(msgIds.randomId(), sessionIds.randomId(),
+      StunEcho.Type.SIP_DP, Optional.absent());
 
-        Assert.assertEquals(0, serializedCopy.readableBytes());
-        compareRequest(original, copy);
-    }
+    serializedOriginal = Unpooled.buffer();
+    serializer.toBinary(original, serializedOriginal);
 
-    @Test
-    public void testReqNoTarget() throws UnknownHostException {
-        Serializer serializer = Serializers.lookupSerializer(StunEcho.Request.class);
-        StunEcho.Request original, copy;
-        ByteBuf serializedOriginal, serializedCopy;
+    serializedCopy = Unpooled.buffer();
+    serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
+    copy = (StunEcho.Response) serializer.fromBinary(serializedCopy, Optional.absent());
 
-        original = new StunEcho.Request(BasicIdentifiers.eventId(), StunEcho.Type.SIP_DP, null);
+    Assert.assertEquals(0, serializedCopy.readableBytes());
+    compareResponse(original, copy);
+  }
 
-        serializedOriginal = Unpooled.buffer();
-        serializer.toBinary(original, serializedOriginal);
+  private void compareReset(StunEcho.Reset original, StunEcho.Reset copy) {
+    Assert.assertEquals(original.msgId, copy.msgId);
+    Assert.assertEquals(original.sessionId, copy.sessionId);
+    Assert.assertEquals(original.type, copy.type);
+  }
 
-        serializedCopy = Unpooled.buffer();
-        serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
-        copy = (StunEcho.Request) serializer.fromBinary(serializedCopy, Optional.absent());
+  @Test
+  public void testReset() throws UnknownHostException {
+    Serializer serializer = Serializers.lookupSerializer(StunEcho.Reset.class);
+    StunEcho.Reset original, copy;
+    ByteBuf serializedOriginal, serializedCopy;
 
-        Assert.assertEquals(0, serializedCopy.readableBytes());
-        compareRequest(original, copy);
-    }
+    original = new StunEcho.Reset(msgIds.randomId(), sessionIds.randomId(), StunEcho.Type.SIP_DP);
 
-    private void compareResponse(StunEcho.Response original, StunEcho.Response copy) {
-        Assert.assertEquals(original.eventId, copy.eventId);
-        Assert.assertEquals(original.sessionId, copy.sessionId);
-        Assert.assertEquals(original.type, copy.type);
-        Assert.assertEquals(original.observed.isPresent(), copy.observed.isPresent());
-        if (original.observed.isPresent()) {
-            FullAddressEquivalence fae = new FullAddressEquivalence();
-            Assert.assertTrue(fae.equivalent(
-                    (NatAwareAddressImpl) original.observed.get(),
-                    (NatAwareAddressImpl) copy.observed.get()));
-        }
-    }
+    serializedOriginal = Unpooled.buffer();
+    serializer.toBinary(original, serializedOriginal);
 
-    @Test
-    public void testResp() throws UnknownHostException {
-        Serializer serializer = Serializers.lookupSerializer(StunEcho.Response.class);
-        StunEcho.Response original, copy;
-        ByteBuf serializedOriginal, serializedCopy;
+    serializedCopy = Unpooled.buffer();
+    serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
+    copy = (StunEcho.Reset) serializer.fromBinary(serializedCopy, Optional.absent());
 
-        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
-        original = new StunEcho.Response(BasicIdentifiers.eventId(), BasicIdentifiers.eventId(),
-                StunEcho.Type.SIP_DP, Optional.of(adr1));
-
-        serializedOriginal = Unpooled.buffer();
-        serializer.toBinary(original, serializedOriginal);
-
-        serializedCopy = Unpooled.buffer();
-        serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
-        copy = (StunEcho.Response) serializer.fromBinary(serializedCopy, Optional.absent());
-
-        Assert.assertEquals(0, serializedCopy.readableBytes());
-        compareResponse(original, copy);
-    }
-
-    @Test
-    public void testRespNoObserved() throws UnknownHostException {
-        Serializer serializer = Serializers.lookupSerializer(StunEcho.Response.class);
-        StunEcho.Response original, copy;
-        ByteBuf serializedOriginal, serializedCopy;
-
-        original = new StunEcho.Response(BasicIdentifiers.eventId(), BasicIdentifiers.eventId(),
-                StunEcho.Type.SIP_DP, Optional.absent());
-
-        serializedOriginal = Unpooled.buffer();
-        serializer.toBinary(original, serializedOriginal);
-
-        serializedCopy = Unpooled.buffer();
-        serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
-        copy = (StunEcho.Response) serializer.fromBinary(serializedCopy, Optional.absent());
-
-        Assert.assertEquals(0, serializedCopy.readableBytes());
-        compareResponse(original, copy);
-    }
-    
-    private void compareReset(StunEcho.Reset original, StunEcho.Reset copy) {
-        Assert.assertEquals(original.eventId, copy.eventId);
-        Assert.assertEquals(original.sessionId, copy.sessionId);
-        Assert.assertEquals(original.type, copy.type);
-    }
-    
-    @Test
-    public void testReset() throws UnknownHostException {
-        Serializer serializer = Serializers.lookupSerializer(StunEcho.Reset.class);
-        StunEcho.Reset original, copy;
-        ByteBuf serializedOriginal, serializedCopy;
-
-        original = new StunEcho.Reset(BasicIdentifiers.eventId(), BasicIdentifiers.eventId(), StunEcho.Type.SIP_DP);
-
-        serializedOriginal = Unpooled.buffer();
-        serializer.toBinary(original, serializedOriginal);
-
-        serializedCopy = Unpooled.buffer();
-        serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
-        copy = (StunEcho.Reset) serializer.fromBinary(serializedCopy, Optional.absent());
-
-        Assert.assertEquals(0, serializedCopy.readableBytes());
-        compareReset(original, copy);
-    }
+    Assert.assertEquals(0, serializedCopy.readableBytes());
+    compareReset(original, copy);
+  }
 }

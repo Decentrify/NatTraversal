@@ -48,7 +48,7 @@ public class StunPartnerSerializer {
         @Override
         public void toBinary(Object o, ByteBuf buf) {
             StunPartner.Request req = (StunPartner.Request) o;
-            Serializers.toBinary(req.eventId, buf);
+            Serializers.toBinary(req.msgId, buf);
             Serializers.lookupSerializer(NatAwareAddressImpl.class).toBinary(req.partnerAdr.getValue0(), buf);
             buf.writeInt(req.partnerAdr.getValue1().getPort());
         }
@@ -79,7 +79,7 @@ public class StunPartnerSerializer {
         @Override
         public void toBinary(Object o, ByteBuf buf) {
             StunPartner.Response resp = (StunPartner.Response) o;
-            Serializers.toBinary(resp.eventId, buf);
+            Serializers.toBinary(resp.msgId, buf);
             buf.writeBoolean(resp.accept);
             if (resp.accept) {
                 Serializers.lookupSerializer(NatAwareAddressImpl.class).toBinary(resp.partnerAdr.get().getValue0(), buf);

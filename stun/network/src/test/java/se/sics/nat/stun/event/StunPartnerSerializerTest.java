@@ -48,112 +48,118 @@ import se.sics.nat.stun.StunSerializerSetup;
  */
 public class StunPartnerSerializerTest {
 
-    private static IdentifierFactory nodeIdFactory;
-    
-    @BeforeClass
-    public static void setup() {
-        systemSetup();
-        testSetup();
+  private static IdentifierFactory nodeIdFactory;
+  private static IdentifierFactory msgIds;
+
+  @BeforeClass
+  public static void setup() {
+    systemSetup();
+    testSetup();
+  }
+
+  private static void systemSetup() {
+    IdentifierRegistryV2.registerBaseDefaults1(64);
+    OverlayRegistry.initiate(new OverlayId.BasicTypeFactory((byte) 0), new OverlayId.BasicTypeComparator());
+
+    int serializerId = 128;
+    serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
+    serializerId = StunSerializerSetup.registerSerializers(serializerId);
+  }
+
+  private static void testSetup() {
+    nodeIdFactory = IdentifierRegistryV2.instance(BasicIdentifiers.Values.NODE, java.util.Optional.of(1234l));
+    msgIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.MSG, java.util.Optional.of(1234l));
+  }
+
+  private void compareRequest(StunPartner.Request original, StunPartner.Request copy) {
+    Assert.assertEquals(original.msgId, copy.msgId);
+    FullAddressEquivalence fae = new FullAddressEquivalence();
+    Assert.assertTrue(fae.equivalent(
+      (NatAwareAddressImpl) original.partnerAdr.getValue0(),
+      (NatAwareAddressImpl) copy.partnerAdr.getValue0()));
+    Assert.assertTrue(fae.equivalent(
+      (NatAwareAddressImpl) original.partnerAdr.getValue1(),
+      (NatAwareAddressImpl) copy.partnerAdr.getValue1()));
+  }
+
+  @Test
+  public void testReq() throws UnknownHostException {
+    Serializer serializer = Serializers.lookupSerializer(StunPartner.Request.class);
+    StunPartner.Request original, copy;
+    ByteBuf serializedOriginal, serializedCopy;
+
+    NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.
+      id(new BasicBuilders.IntBuilder(1))));
+    NatAwareAddress adr2 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30001, nodeIdFactory.
+      id(new BasicBuilders.IntBuilder(1))));
+    original = new StunPartner.Request(msgIds.randomId(), Pair.with(adr1, adr2));
+
+    serializedOriginal = Unpooled.buffer();
+    serializer.toBinary(original, serializedOriginal);
+
+    serializedCopy = Unpooled.buffer();
+    serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
+    copy = (StunPartner.Request) serializer.fromBinary(serializedCopy, Optional.absent());
+
+    Assert.assertEquals(0, serializedCopy.readableBytes());
+    compareRequest(original, copy);
+  }
+
+  private void compareResponse(StunPartner.Response original, StunPartner.Response copy) {
+    Assert.assertEquals(original.msgId, copy.msgId);
+    Assert.assertEquals(original.accept, copy.accept);
+    Assert.assertEquals(original.partnerAdr.isPresent(), copy.partnerAdr.isPresent());
+    if (original.partnerAdr.isPresent()) {
+      FullAddressEquivalence fae = new FullAddressEquivalence();
+      Assert.assertTrue(fae.equivalent(
+        (NatAwareAddressImpl) original.partnerAdr.get().getValue0(),
+        (NatAwareAddressImpl) copy.partnerAdr.get().getValue0()));
+      Assert.assertTrue(fae.equivalent(
+        (NatAwareAddressImpl) original.partnerAdr.get().getValue1(),
+        (NatAwareAddressImpl) copy.partnerAdr.get().getValue1()));
     }
+  }
 
-    private static void systemSetup() {
-        IdentifierRegistryV2.registerBaseDefaults1(64);
-        OverlayRegistry.initiate(new OverlayId.BasicTypeFactory((byte) 0), new OverlayId.BasicTypeComparator());
+  @Test
+  public void testRespWithPartner() throws UnknownHostException {
+    Serializer serializer = Serializers.lookupSerializer(StunPartner.Response.class);
+    StunPartner.Response original, copy;
+    ByteBuf serializedOriginal, serializedCopy;
 
-        int serializerId = 128;
-        serializerId = BasicSerializerSetup.registerBasicSerializers(serializerId);
-        serializerId = StunSerializerSetup.registerSerializers(serializerId);
-    }
+    NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.
+      id(new BasicBuilders.IntBuilder(1))));
+    NatAwareAddress adr2 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30001, nodeIdFactory.
+      id(new BasicBuilders.IntBuilder(1))));
+    original = new StunPartner.Response(msgIds.randomId(), true, Optional.of(Pair.with(adr1, adr2)));
 
-    private static void testSetup() {
-        nodeIdFactory = IdentifierRegistryV2.instance(BasicIdentifiers.Values.NODE, java.util.Optional.of(1234l));
-    }
+    serializedOriginal = Unpooled.buffer();
+    serializer.toBinary(original, serializedOriginal);
 
-    private void compareRequest(StunPartner.Request original, StunPartner.Request copy) {
-        Assert.assertEquals(original.eventId, copy.eventId);
-        FullAddressEquivalence fae = new FullAddressEquivalence();
-        Assert.assertTrue(fae.equivalent(
-                (NatAwareAddressImpl) original.partnerAdr.getValue0(),
-                (NatAwareAddressImpl) copy.partnerAdr.getValue0()));
-        Assert.assertTrue(fae.equivalent(
-                (NatAwareAddressImpl) original.partnerAdr.getValue1(),
-                (NatAwareAddressImpl) copy.partnerAdr.getValue1()));
-    }
+    serializedCopy = Unpooled.buffer();
+    serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
+    copy = (StunPartner.Response) serializer.fromBinary(serializedCopy, Optional.absent());
 
-    @Test
-    public void testReq() throws UnknownHostException {
-        Serializer serializer = Serializers.lookupSerializer(StunPartner.Request.class);
-        StunPartner.Request original, copy;
-        ByteBuf serializedOriginal, serializedCopy;
+    Assert.assertEquals(0, serializedCopy.readableBytes());
+    compareResponse(original, copy);
+  }
 
-        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
-        NatAwareAddress adr2 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30001, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
-        original = new StunPartner.Request(Pair.with(adr1, adr2));
+  @Test
+  public void testRespNoPartner() throws UnknownHostException {
+    Serializer serializer = Serializers.lookupSerializer(StunPartner.Response.class);
+    StunPartner.Response original, copy;
+    ByteBuf serializedOriginal, serializedCopy;
 
-        serializedOriginal = Unpooled.buffer();
-        serializer.toBinary(original, serializedOriginal);
+    Optional<Pair<NatAwareAddress, NatAwareAddress>> partner = Optional.absent();
+    original = new StunPartner.Response(msgIds.randomId(), false, partner);
 
-        serializedCopy = Unpooled.buffer();
-        serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
-        copy = (StunPartner.Request) serializer.fromBinary(serializedCopy, Optional.absent());
+    serializedOriginal = Unpooled.buffer();
+    serializer.toBinary(original, serializedOriginal);
 
-        Assert.assertEquals(0, serializedCopy.readableBytes());
-        compareRequest(original, copy);
-    }
+    serializedCopy = Unpooled.buffer();
+    serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
+    copy = (StunPartner.Response) serializer.fromBinary(serializedCopy, Optional.absent());
 
-    private void compareResponse(StunPartner.Response original, StunPartner.Response copy) {
-        Assert.assertEquals(original.eventId, copy.eventId);
-        Assert.assertEquals(original.accept, copy.accept);
-        Assert.assertEquals(original.partnerAdr.isPresent(), copy.partnerAdr.isPresent());
-        if (original.partnerAdr.isPresent()) {
-            FullAddressEquivalence fae = new FullAddressEquivalence();
-            Assert.assertTrue(fae.equivalent(
-                    (NatAwareAddressImpl) original.partnerAdr.get().getValue0(),
-                    (NatAwareAddressImpl) copy.partnerAdr.get().getValue0()));
-            Assert.assertTrue(fae.equivalent(
-                    (NatAwareAddressImpl) original.partnerAdr.get().getValue1(),
-                    (NatAwareAddressImpl) copy.partnerAdr.get().getValue1()));
-        }
-    }
-
-    @Test
-    public void testRespWithPartner() throws UnknownHostException {
-        Serializer serializer = Serializers.lookupSerializer(StunPartner.Response.class);
-        StunPartner.Response original, copy;
-        ByteBuf serializedOriginal, serializedCopy;
-
-        NatAwareAddress adr1 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30000, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
-        NatAwareAddress adr2 = NatAwareAddressImpl.open(new BasicAddress(InetAddress.getLocalHost(), 30001, nodeIdFactory.id(new BasicBuilders.IntBuilder(1))));
-        original = new StunPartner.Response(BasicIdentifiers.eventId(), true, Optional.of(Pair.with(adr1, adr2)));
-
-        serializedOriginal = Unpooled.buffer();
-        serializer.toBinary(original, serializedOriginal);
-
-        serializedCopy = Unpooled.buffer();
-        serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
-        copy = (StunPartner.Response) serializer.fromBinary(serializedCopy, Optional.absent());
-
-        Assert.assertEquals(0, serializedCopy.readableBytes());
-        compareResponse(original, copy);
-    }
-    
-    @Test
-    public void testRespNoPartner() throws UnknownHostException {
-        Serializer serializer = Serializers.lookupSerializer(StunPartner.Response.class);
-        StunPartner.Response original, copy;
-        ByteBuf serializedOriginal, serializedCopy;
-
-        Optional<Pair<NatAwareAddress, NatAwareAddress>> partner = Optional.absent();
-        original = new StunPartner.Response(BasicIdentifiers.eventId(), false, partner);
-
-        serializedOriginal = Unpooled.buffer();
-        serializer.toBinary(original, serializedOriginal);
-
-        serializedCopy = Unpooled.buffer();
-        serializedOriginal.getBytes(0, serializedCopy, serializedOriginal.readableBytes());
-        copy = (StunPartner.Response) serializer.fromBinary(serializedCopy, Optional.absent());
-
-        Assert.assertEquals(0, serializedCopy.readableBytes());
-        compareResponse(original, copy);
-    }
+    Assert.assertEquals(0, serializedCopy.readableBytes());
+    compareResponse(original, copy);
+  }
 }

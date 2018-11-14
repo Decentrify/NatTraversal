@@ -21,7 +21,6 @@ package se.sics.nat.stun.event;
 import com.google.common.base.Optional;
 import org.javatuples.Pair;
 import se.sics.kompics.util.Identifier;
-import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 
 /**
@@ -29,59 +28,56 @@ import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
  */
 public class StunPartner {
 
-    public static class Request implements StunEvent {
+  public static class Request implements StunEvent {
 
-        public final Identifier eventId;
-        public final Pair<NatAwareAddress, NatAwareAddress> partnerAdr;
+    public final Identifier msgId;
+    public final Pair<NatAwareAddress, NatAwareAddress> partnerAdr;
 
-        public Request(Identifier id, Pair<NatAwareAddress, NatAwareAddress> partnerAdr) {
-            this.eventId = id;
-            this.partnerAdr = partnerAdr;
-        }
-        
-        public Request(Pair<NatAwareAddress, NatAwareAddress> partnerAdr) {
-            this(BasicIdentifiers.eventId(), partnerAdr);
-        }
-
-        public Response accept(Pair<NatAwareAddress, NatAwareAddress> partnerAdr) {
-            return new Response(eventId, true, Optional.of(partnerAdr));
-        }
-
-        public Response deny() {
-            Optional<Pair<NatAwareAddress, NatAwareAddress>> noPartner = Optional.absent();
-            return new Response(eventId, false, noPartner);
-        }
-
-        @Override
-        public Identifier getId() {
-            return eventId;
-        }
-        
-        @Override
-        public String toString() {
-            return "StunPartnerRequest<" + eventId + ">";
-        }
+    public Request(Identifier msgId, Pair<NatAwareAddress, NatAwareAddress> partnerAdr) {
+      this.msgId = msgId;
+      this.partnerAdr = partnerAdr;
     }
 
-    public static class Response implements StunEvent {
-        public final Identifier eventId;
-        public final boolean accept;
-        public final Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr;
-
-        Response(Identifier id, boolean accept, Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr) {
-            this.eventId = id;
-            this.accept = accept;
-            this.partnerAdr = partnerAdr;
-        }
-
-        @Override
-        public Identifier getId() {
-            return eventId;
-        }
-        
-        @Override
-        public String toString() {
-            return "StunPartnerResponse<" + eventId + ">";
-        }
+    public Response accept(Pair<NatAwareAddress, NatAwareAddress> partnerAdr) {
+      return new Response(msgId, true, Optional.of(partnerAdr));
     }
+
+    public Response deny() {
+      Optional<Pair<NatAwareAddress, NatAwareAddress>> noPartner = Optional.absent();
+      return new Response(msgId, false, noPartner);
+    }
+
+    @Override
+    public Identifier getId() {
+      return msgId;
+    }
+
+    @Override
+    public String toString() {
+      return "StunPartnerRequest<" + msgId + ">";
+    }
+  }
+
+  public static class Response implements StunEvent {
+
+    public final Identifier msgId;
+    public final boolean accept;
+    public final Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr;
+
+    Response(Identifier msgId, boolean accept, Optional<Pair<NatAwareAddress, NatAwareAddress>> partnerAdr) {
+      this.msgId = msgId;
+      this.accept = accept;
+      this.partnerAdr = partnerAdr;
+    }
+
+    @Override
+    public Identifier getId() {
+      return msgId;
+    }
+
+    @Override
+    public String toString() {
+      return "StunPartnerResponse<" + msgId + ">";
+    }
+  }
 }

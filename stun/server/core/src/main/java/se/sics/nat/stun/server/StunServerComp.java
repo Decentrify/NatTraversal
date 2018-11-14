@@ -18,6 +18,7 @@
  */
 package se.sics.nat.stun.server;
 
+import java.util.Optional;
 import java.util.UUID;
 import org.javatuples.Pair;
 import se.sics.kompics.ClassMatchedHandler;
@@ -34,6 +35,9 @@ import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.ktoolbox.croupier.event.CroupierSample;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistryV2;
 import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
 import se.sics.ktoolbox.util.network.KAddress;
 import se.sics.ktoolbox.util.network.KContentMsg;
@@ -73,6 +77,9 @@ public class StunServerComp extends ComponentDefinition {
   private final EchoMngr echoMngr;
   private final PartnerMngr partnerMngr;
 
+  private final IdentifierFactory eventIds;
+  private final IdentifierFactory msgIds;
+
   public StunServerComp(Init init) {
     stunServerConfig = new StunServerKCWrapper(config());
     selfAdr = init.selfAdr;
@@ -82,6 +89,8 @@ public class StunServerComp extends ComponentDefinition {
     echoMngr = new EchoMngr();
     partnerMngr = new PartnerMngr();
 
+    this.eventIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.EVENT, Optional.of(1234l));
+    this.msgIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.MSG, Optional.of(1234l));
     subscribe(handleStart, control);
     subscribe(handleViewRequest, croupierViewPort);
 
@@ -170,7 +179,7 @@ public class StunServerComp extends ComponentDefinition {
 
     void start() {
       logger.info("looking for partner");
-      trigger(new OverlayViewUpdate.Indication(croupierId, false, StunView.empty(selfAdr)), croupierViewPort);
+      trigger(new OverlayViewUpdate.Indication(eventIds.randomId(), croupierId, false, StunView.empty(selfAdr)), croupierViewPort);
     }
 
     NatAwareAddress getPartner() {
@@ -196,7 +205,7 @@ public class StunServerComp extends ComponentDefinition {
           }
           NatAwareAddress partnerAdr = (NatAwareAddress) source.getSource();
           pendingPartner = Pair.with(scheduleMsgTimeout(), partnerAdr);
-          send(new StunPartner.Request(selfAdr), selfAdr.getValue0(), partnerAdr);
+          send(new StunPartner.Request(msgIds.randomId(), selfAdr), selfAdr.getValue0(), partnerAdr);
           break;
         }
       }
@@ -266,7 +275,7 @@ public class StunServerComp extends ComponentDefinition {
       //TODO Alex - fix epfd and add
       //trigger(new EPFDFollow(partner.getValue0(), stunServerConfig.stunService,
       //                StunServerComp.this.getComponentCore().id()), fdPort);
-      trigger(new OverlayViewUpdate.Indication(croupierId, false, StunView.partner(selfAdr, partner)), croupierViewPort);
+      trigger(new OverlayViewUpdate.Indication(eventIds.randomId(), croupierId, false, StunView.partner(selfAdr, partner)), croupierViewPort);
 
     }
 

@@ -20,6 +20,7 @@ package se.sics.nat.stun.upnp.system;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.javatuples.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,9 @@ import se.sics.kompics.Fault;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Kompics;
 import se.sics.kompics.Start;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistryV2;
 import se.sics.nat.stun.upnp.UPnPPort;
 import se.sics.nat.stun.upnp.UpnpComp;
 import se.sics.nat.stun.upnp.event.UPnPMap;
@@ -40,75 +44,76 @@ import se.sics.nat.stun.upnp.util.Protocol;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class Launcher extends ComponentDefinition {
-
-    private static final Logger LOG = LoggerFactory.getLogger(Launcher.class);
-
-    private Component upnpComp;
-
-    public Launcher() {
-        LOG.info("initiating...");
-
-        subscribe(handleStart, control);
+  
+  private static final Logger LOG = LoggerFactory.getLogger(Launcher.class);
+  
+  private Component upnpComp;
+  private IdentifierFactory eventIds;
+  
+  public Launcher() {
+    LOG.info("initiating...");
+    this.eventIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.EVENT, Optional.of(1234l));
+    subscribe(handleStart, control);
+  }
+  
+  public Handler<Start> handleStart = new Handler<Start>() {
+    
+    @Override
+    public void handle(Start event) {
+      LOG.info("starting...");
+      upnpComp = create(UpnpComp.class, new UpnpComp.Init(1234, "example"));
+      trigger(Start.event, upnpComp.control());
+      subscribe(handleUpnpReady, upnpComp.getPositive(UPnPPort.class));
+      subscribe(handleMapPorts, upnpComp.getPositive(UPnPPort.class));
+      subscribe(handleUnmapPorts, upnpComp.getPositive(UPnPPort.class));
     }
-
-    public Handler<Start> handleStart = new Handler<Start>() {
-
-        @Override
-        public void handle(Start event) {
-            LOG.info("starting...");
-            upnpComp = create(UpnpComp.class, new UpnpComp.Init(1234, "example"));
-            trigger(Start.event, upnpComp.control());
-            subscribe(handleUpnpReady, upnpComp.getPositive(UPnPPort.class));
-            subscribe(handleMapPorts, upnpComp.getPositive(UPnPPort.class));
-            subscribe(handleUnmapPorts, upnpComp.getPositive(UPnPPort.class));
-        }
-    };
-
-    public Fault.ResolveAction handleFault(Fault fault) {
-        LOG.error("error in one of the childre:{}", fault.getCause().getMessage());
-        System.exit(1);
-        return Fault.ResolveAction.RESOLVED;
+  };
+  
+  public Fault.ResolveAction handleFault(Fault fault) {
+    LOG.error("error in one of the childre:{}", fault.getCause().getMessage());
+    System.exit(1);
+    return Fault.ResolveAction.RESOLVED;
+  }
+  
+  Handler handleUpnpReady = new Handler<UPnPReady>() {
+    @Override
+    public void handle(UPnPReady ready) {
+      if (ready.externalIp.isPresent()) {
+        LOG.info("upnp present:{}", ready.externalIp.get());
+        Map<Integer, Pair<Protocol, Integer>> portMapping = new HashMap<Integer, Pair<Protocol, Integer>>();
+        portMapping.put(54345, Pair.with(Protocol.UDP, 54345));
+        portMapping.put(54344, Pair.with(Protocol.TCP, 54344));
+        trigger(new UPnPMap.Request(eventIds.randomId(), portMapping), upnpComp.getPositive(UPnPPort.class));
+      } else {
+        LOG.info("no upnp");
+      }
     }
-
-    Handler handleUpnpReady = new Handler<UPnPReady>() {
-        @Override
-        public void handle(UPnPReady ready) {
-            if (ready.externalIp.isPresent()) {
-                LOG.info("upnp present:{}", ready.externalIp.get());
-                Map<Integer, Pair<Protocol, Integer>> portMapping = new HashMap<Integer, Pair<Protocol, Integer>>();
-                portMapping.put(54345, Pair.with(Protocol.UDP, 54345));
-                portMapping.put(54344, Pair.with(Protocol.TCP, 54344));
-                trigger(new UPnPMap.Request(portMapping), upnpComp.getPositive(UPnPPort.class));
-            } else {
-                LOG.info("no upnp");
-            }
-        }
-    };
-
-    Handler handleMapPorts = new Handler<UPnPMap.Response>() {
-        @Override
-        public void handle(UPnPMap.Response resp) {
-            LOG.info("received map:{}", resp.ports);
-            trigger(new UPnPUnmap.Request(resp.ports), upnpComp.getPositive(UPnPPort.class));
-        }
-    };
-
-    Handler handleUnmapPorts = new Handler<UPnPUnmap.Response>() {
-        @Override
-        public void handle(UPnPUnmap.Response resp) {
-            LOG.info("received unmap:{}", resp.ports);
-        }
-    };
-
-    public static void main(String[] args) {
-        if (Kompics.isOn()) {
-            Kompics.shutdown();
-        }
-        Kompics.createAndStart(Launcher.class, Runtime.getRuntime().availableProcessors(), 20); // Yes 20 is totally arbitrary
-        try {
-            Kompics.waitForTermination();
-        } catch (InterruptedException ex) {
-            throw new RuntimeException(ex.getMessage());
-        }
+  };
+  
+  Handler handleMapPorts = new Handler<UPnPMap.Response>() {
+    @Override
+    public void handle(UPnPMap.Response resp) {
+      LOG.info("received map:{}", resp.ports);
+      trigger(new UPnPUnmap.Request(eventIds.randomId(), resp.ports), upnpComp.getPositive(UPnPPort.class));
     }
+  };
+  
+  Handler handleUnmapPorts = new Handler<UPnPUnmap.Response>() {
+    @Override
+    public void handle(UPnPUnmap.Response resp) {
+      LOG.info("received unmap:{}", resp.ports);
+    }
+  };
+  
+  public static void main(String[] args) {
+    if (Kompics.isOn()) {
+      Kompics.shutdown();
+    }
+    Kompics.createAndStart(Launcher.class, Runtime.getRuntime().availableProcessors(), 20); // Yes 20 is totally arbitrary
+    try {
+      Kompics.waitForTermination();
+    } catch (InterruptedException ex) {
+      throw new RuntimeException(ex.getMessage());
+    }
+  }
 }

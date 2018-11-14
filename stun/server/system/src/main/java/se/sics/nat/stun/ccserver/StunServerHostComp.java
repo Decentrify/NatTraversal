@@ -38,6 +38,9 @@ import se.sics.ktoolbox.netmngr.event.NetMngrPort;
 import se.sics.ktoolbox.overlaymngr.OverlayMngrPort;
 import se.sics.ktoolbox.overlaymngr.events.OMngrCroupier;
 import se.sics.ktoolbox.util.config.impl.SystemKCWrapper;
+import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistryV2;
 import se.sics.ktoolbox.util.identifiable.overlay.OverlayId;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.ktoolbox.util.overlays.view.OverlayViewUpdatePort;
@@ -68,6 +71,7 @@ public class StunServerHostComp extends ComponentDefinition {
   private Pair<NetMngrBind.Request, NetMngrBind.Request> bindReq;
   private Pair<NatAwareAddress, NatAwareAddress> stunServerAdr = Pair.with(null, null);
   private OMngrCroupier.ConnectRequest croupierReq;
+  private final IdentifierFactory eventIds;
 
   public StunServerHostComp(Init init) {
     systemConfig = new SystemKCWrapper(config());
@@ -76,7 +80,7 @@ public class StunServerHostComp extends ComponentDefinition {
     LOG.info("{}initializing...", logPrefix);
 
     extPorts = init.extPorts;
-
+    this.eventIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.EVENT, Optional.of(systemConfig.seed));
     subscribe(handleStart, control);
     subscribe(handleBindResp, netMngrPort);
     subscribe(handleCroupierConnected, oMngrPort);
@@ -88,9 +92,11 @@ public class StunServerHostComp extends ComponentDefinition {
       LOG.info("{}starting...", logPrefix);
       StunServerKCWrapper stunServerConfig = new StunServerKCWrapper(config());
       LOG.info("{}binding stun ports", logPrefix);
-      NetMngrBind.Request bindReq1 = NetMngrBind.Request.useLocal(stunServerConfig.stunServerPorts.getValue0());
+      NetMngrBind.Request bindReq1 = NetMngrBind.Request.useLocal(eventIds.randomId(), 
+        stunServerConfig.stunServerPorts.getValue0());
       trigger(bindReq1, netMngrPort);
-      NetMngrBind.Request bindReq2 = NetMngrBind.Request.useLocal(stunServerConfig.stunServerPorts.getValue1());
+      NetMngrBind.Request bindReq2 = NetMngrBind.Request.useLocal(eventIds.randomId(), 
+        stunServerConfig.stunServerPorts.getValue1());
       trigger(bindReq2, netMngrPort);
       bindReq = Pair.with(bindReq1, bindReq2);
     }
@@ -118,7 +124,7 @@ public class StunServerHostComp extends ComponentDefinition {
         LOG.info("{}connecting stun server", logPrefix);
         connectStunServer(croupierId);
         LOG.info("{}connecting overlays");
-        croupierReq = new OMngrCroupier.ConnectRequest(croupierId, false);
+        croupierReq = new OMngrCroupier.ConnectRequest(eventIds.randomId(), croupierId, false);
         trigger(croupierReq, oMngrPort);
       }
     }

@@ -16,14 +16,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
 package se.sics.nat.stun.upnp.event;
 
 import java.util.Map;
 import org.javatuples.Pair;
 import se.sics.kompics.Direct;
 import se.sics.kompics.util.Identifier;
-import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.nat.stun.event.StunEvent;
 import se.sics.nat.stun.upnp.util.Protocol;
 
@@ -31,51 +29,50 @@ import se.sics.nat.stun.upnp.util.Protocol;
  * @author Alex Ormenisan <aaor@kth.se>
  */
 public class UPnPUnmap {
-    public static class Request extends Direct.Request<Response> implements StunEvent {
-        public final Identifier eventId;
-        public final Map<Integer, Pair<Protocol, Integer>> ports; //<privatePort, <protocol, externalPort>>
-        
-        public Request(Identifier eventId, Map<Integer, Pair<Protocol, Integer>> ports) {
-            this.eventId = eventId;
-            this.ports = ports;
-        }
-        
-        public Request(Map<Integer, Pair<Protocol, Integer>> ports) {
-            this(BasicIdentifiers.eventId(), ports);
-        }
-        
-        public Response answer(Map<Integer, Pair<Protocol, Integer>> ports) {
-            return new Response(eventId, ports);
-        }
 
-        @Override
-        public Identifier getId() {
-            return eventId;
-        }
-        
-        @Override
-        public String toString() {
-            return "UPnPUnmap_Req<" + eventId + ">";
-        }
-    }
-    
-    public static class Response implements Direct.Response, StunEvent {
-        public final Identifier eventId;
-        public final Map<Integer, Pair<Protocol, Integer>> ports;
-        
-        Response(Identifier eventId, Map<Integer, Pair<Protocol, Integer>> ports) {
-            this.eventId = eventId;
-            this.ports = ports;
-        }
+  public static class Request extends Direct.Request<Response> implements StunEvent {
 
-        @Override
-        public Identifier getId() {
-            return eventId;
-        }
-        
-        @Override
-        public String toString() {
-            return "UPnPUnmap_Resp<" + eventId + ">";
-        }
+    public final Identifier eventId;
+    public final Map<Integer, Pair<Protocol, Integer>> ports; //<privatePort, <protocol, externalPort>>
+
+    public Request(Identifier eventId, Map<Integer, Pair<Protocol, Integer>> ports) {
+      this.eventId = eventId;
+      this.ports = ports;
     }
+
+    public Response answer(Map<Integer, Pair<Protocol, Integer>> ports) {
+      return new Response(eventId, ports);
+    }
+
+    @Override
+    public Identifier getId() {
+      return eventId;
+    }
+
+    @Override
+    public String toString() {
+      return "UPnPUnmap_Req<" + eventId + ">";
+    }
+  }
+
+  public static class Response implements Direct.Response, StunEvent {
+
+    public final Identifier eventId;
+    public final Map<Integer, Pair<Protocol, Integer>> ports;
+
+    Response(Identifier eventId, Map<Integer, Pair<Protocol, Integer>> ports) {
+      this.eventId = eventId;
+      this.ports = ports;
+    }
+
+    @Override
+    public Identifier getId() {
+      return eventId;
+    }
+
+    @Override
+    public String toString() {
+      return "UPnPUnmap_Resp<" + eventId + ">";
+    }
+  }
 }

@@ -26,6 +26,8 @@ import java.util.List;
 import org.javatuples.Pair;
 import se.sics.kompics.util.Identifier;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
+import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
+import se.sics.ktoolbox.util.identifiable.IdentifierRegistryV2;
 import se.sics.ktoolbox.util.network.nat.Nat;
 import se.sics.ktoolbox.util.network.nat.NatAwareAddress;
 import se.sics.nat.stun.event.StunEcho;
@@ -47,6 +49,7 @@ public class StunSession {
   private final Pair<NatAwareAddress, NatAwareAddress>[] maTargets = new Pair[8];
   private final NatAwareAddress[] echoResps;
   private final Result sessionResult;
+  private final IdentifierFactory msgIds;
 
   public StunSession(Identifier sessionId, Pair<NatAwareAddress, NatAwareAddress> self,
     Pair<Pair<NatAwareAddress, NatAwareAddress>, Pair<NatAwareAddress, NatAwareAddress>> stunServers) {
@@ -57,11 +60,8 @@ public class StunSession {
     this.echoResps = new NatAwareAddress[8];
     this.sessionResult = new Result();
     setHandlers();
-  }
+    this.msgIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.MSG, java.util.Optional.of(1234l));
 
-  public StunSession(Pair<NatAwareAddress, NatAwareAddress> self,
-    Pair<Pair<NatAwareAddress, NatAwareAddress>, Pair<NatAwareAddress, NatAwareAddress>> stunServers) {
-    this(BasicIdentifiers.eventId(), self, stunServers);
   }
 
   private void setHandlers() {
@@ -127,7 +127,7 @@ public class StunSession {
   }
 
   private void determineAllocationPolicy() {
-        //TODO Alex - alternate allocation policy?
+    //TODO Alex - alternate allocation policy?
 
     // first check for the PP coz alternative policy is difficult to determine
     // not always possible if mapping is EI
@@ -212,7 +212,7 @@ public class StunSession {
     @Override
     public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
       Pair<NatAwareAddress, NatAwareAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-      return Pair.with(new StunEcho.Request(sessionId, StunEcho.Type.SIP_SP, null), routing);
+      return Pair.with(new StunEcho.Request(msgIds.randomId(), sessionId, StunEcho.Type.SIP_SP, null), routing);
     }
 
     @Override
@@ -236,7 +236,7 @@ public class StunSession {
     public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
       assert echoResps[0] != null;
       Pair<NatAwareAddress, NatAwareAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-      return Pair.with(new StunEcho.Request(sessionId, StunEcho.Type.DIP_DP, echoResps[0]), routing);
+      return Pair.with(new StunEcho.Request(msgIds.randomId(), sessionId, StunEcho.Type.DIP_DP, echoResps[0]), routing);
     }
 
     @Override
@@ -269,7 +269,7 @@ public class StunSession {
     @Override
     public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
       Pair<NatAwareAddress, NatAwareAddress> routing = Pair.with(self.getValue0(), stunServers.getValue0().getValue0());
-      return Pair.with(new StunEcho.Request(sessionId, StunEcho.Type.SIP_DP, echoResps[0]), routing);
+      return Pair.with(new StunEcho.Request(msgIds.randomId(), sessionId, StunEcho.Type.SIP_DP, echoResps[0]), routing);
     }
 
     @Override
@@ -292,7 +292,7 @@ public class StunSession {
 
     @Override
     public Pair<StunEcho.Request, Pair<NatAwareAddress, NatAwareAddress>> next() {
-      return Pair.with(new StunEcho.Request(sessionId, StunEcho.Type.SIP_SP, null), maTargets[phase.subPhase]);
+      return Pair.with(new StunEcho.Request(msgIds.randomId(), sessionId, StunEcho.Type.SIP_SP, null), maTargets[phase.subPhase]);
     }
 
     @Override

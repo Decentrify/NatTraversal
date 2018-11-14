@@ -84,6 +84,7 @@ public class NatDetectionComp extends ComponentDefinition {
   private NxNetBind.Request stun2BindReq;
   private NxNetUnbind.Request stun1UnbindReq;
   private NxNetUnbind.Request stun2UnbindReq;
+  private final IdentifierFactory eventIds;
 
   public NatDetectionComp(Init init) {
     systemConfig = new SystemKCWrapper(config());
@@ -92,11 +93,14 @@ public class NatDetectionComp extends ComponentDefinition {
 
     SystemKCWrapper systemConfig = new SystemKCWrapper(config());
     stunClientConfig = new StunClientKCWrapper(config());
-    IdentifierFactory nodeIdFactory = IdentifierRegistryV2.instance(BasicIdentifiers.Values.NODE, java.util.Optional.of(systemConfig.seed));
+    IdentifierFactory nodeIdFactory = IdentifierRegistryV2.instance(BasicIdentifiers.Values.NODE,
+      java.util.Optional.of(systemConfig.seed));
+    this.eventIds = IdentifierRegistryV2.instance(BasicIdentifiers.Values.EVENT,
+      java.util.Optional.of(systemConfig.seed));
+
     natDetectionConfig = new NatDetectionKCWrapper(config(), nodeIdFactory);
     extPorts = init.extPorts;
     privateIp = init.privateIp;
-
     subscribe(handleStart, control);
     subscribe(handleBindResp, nxNetPort);
     subscribe(handleStunResp, stunPort);
@@ -126,13 +130,13 @@ public class NatDetectionComp extends ComponentDefinition {
       InetAddress stunClientIp = stunClientConfig.stunClientIp.get();
       BasicAddress stunAdr1 = new BasicAddress(stunClientIp, stunClientPort1, systemConfig.id);
       BasicAddress stunAdr2 = new BasicAddress(stunClientIp, stunClientPort2, systemConfig.id);
-      stun1BindReq = NxNetBind.Request.providedAdr(stunAdr1, privateIp);
-      stun2BindReq = NxNetBind.Request.providedAdr(stunAdr2, privateIp);
+      stun1BindReq = NxNetBind.Request.providedAdr(eventIds.randomId(), stunAdr1, privateIp);
+      stun2BindReq = NxNetBind.Request.providedAdr(eventIds.randomId(), stunAdr2, privateIp);
     } else {
       BasicAddress stunAdr1 = new BasicAddress(privateIp, stunClientPort1, systemConfig.id);
       BasicAddress stunAdr2 = new BasicAddress(privateIp, stunClientPort2, systemConfig.id);
-      stun1BindReq = NxNetBind.Request.localAdr(stunAdr1);
-      stun2BindReq = NxNetBind.Request.localAdr(stunAdr2);
+      stun1BindReq = NxNetBind.Request.localAdr(eventIds.randomId(), stunAdr1);
+      stun2BindReq = NxNetBind.Request.localAdr(eventIds.randomId(), stunAdr2);
     }
     trigger(stun1BindReq, nxNetPort);
     trigger(stun2BindReq, nxNetPort);
@@ -168,9 +172,9 @@ public class NatDetectionComp extends ComponentDefinition {
 
     stunClient = null;
 
-    stun1UnbindReq = new NxNetUnbind.Request(stunAdr.getValue0().getPort());
+    stun1UnbindReq = new NxNetUnbind.Request(eventIds.randomId(), stunAdr.getValue0().getPort());
     trigger(stun1UnbindReq, nxNetPort);
-    stun2UnbindReq = new NxNetUnbind.Request(stunAdr.getValue1().getPort());
+    stun2UnbindReq = new NxNetUnbind.Request(eventIds.randomId(), stunAdr.getValue1().getPort());
     trigger(stun2UnbindReq, nxNetPort);
   }
 
@@ -178,7 +182,7 @@ public class NatDetectionComp extends ComponentDefinition {
     if (stunAdr.getValue0() != null || stunAdr.getValue1() != null) {
       return;
     }
-    trigger(new NatDetected(natType, publicIp), natDetectionPort);
+    trigger(new NatDetected(eventIds.randomId(), natType, publicIp), natDetectionPort);
   }
 
   //**************************************************************************
