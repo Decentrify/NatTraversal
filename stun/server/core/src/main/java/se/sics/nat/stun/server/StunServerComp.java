@@ -265,7 +265,7 @@ public class StunServerComp extends ComponentDefinition {
         }
         //success
         partner = content.partnerAdr.get();
-        logger.info("{}partnered with:{}", new Object[]{partner.getValue0().getId()});
+        logger.info("partnered with:{}", new Object[]{partner.getValue0().getId()});
         foundPartner();
       }
     };
