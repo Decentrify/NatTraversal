@@ -20,6 +20,7 @@ package se.sics.nat.stun.server;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.javatuples.Pair;
 import se.sics.kompics.ClassMatchedHandler;
 import se.sics.kompics.ComponentDefinition;
@@ -29,12 +30,11 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.Transport;
-import se.sics.kompics.timer.CancelTimeout;
-import se.sics.kompics.timer.ScheduleTimeout;
-import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.ktoolbox.croupier.CroupierPort;
 import se.sics.ktoolbox.croupier.event.CroupierSample;
+import se.sics.ktoolbox.nutil.timer.TimerProxy;
+import se.sics.ktoolbox.nutil.timer.TimerProxyImpl;
 import se.sics.ktoolbox.util.identifiable.BasicIdentifiers;
 import se.sics.ktoolbox.util.identifiable.IdentifierFactory;
 import se.sics.ktoolbox.util.identifiable.IdentifierRegistryV2;
@@ -69,6 +69,7 @@ public class StunServerComp extends ComponentDefinition {
 //    private final Positive<EPFDPort> fdPort = requires(EPFDPort.class);
   private final Positive<CroupierPort> croupierPort = requires(CroupierPort.class);
   private final Negative<OverlayViewUpdatePort> croupierViewPort = provides(OverlayViewUpdatePort.class);
+  private final TimerProxy timerProxy;
   //****************************CONFIGURATION*********************************
   private final StunServerKCWrapper stunServerConfig;
   private Pair<NatAwareAddress, NatAwareAddress> selfAdr;
@@ -84,7 +85,7 @@ public class StunServerComp extends ComponentDefinition {
     stunServerConfig = new StunServerKCWrapper(config());
     selfAdr = init.selfAdr;
     loggingCtxPutAlways("nid", selfAdr.getValue0().getId().toString());
-
+    timerProxy = new TimerProxyImpl();
     croupierId = init.croupierId;
     echoMngr = new EchoMngr();
     partnerMngr = new PartnerMngr();
@@ -97,18 +98,22 @@ public class StunServerComp extends ComponentDefinition {
     subscribe(partnerMngr.handleSamples, croupierPort);
     subscribe(partnerMngr.handlePartnerRequest, networkPort);
     subscribe(partnerMngr.handlePartnerResponse, networkPort);
-    subscribe(partnerMngr.handleMsgTimeout, timerPort);
 //        subscribe(partnerMngr.handleSuspectPartner, fdPort);
-
   }
 
   //******************************CONTROL*************************************
   Handler handleStart = new Handler<Start>() {
     @Override
     public void handle(Start event) {
+      timerProxy.setup(proxy);
       partnerMngr.start();
     }
   };
+
+  @Override
+  public void tearDown() {
+    timerProxy.cancel();
+  }
 
   Handler handleViewRequest = new Handler<OverlayViewUpdate.Request>() {
     @Override
@@ -179,7 +184,8 @@ public class StunServerComp extends ComponentDefinition {
 
     void start() {
       logger.info("looking for partner");
-      trigger(new OverlayViewUpdate.Indication(eventIds.randomId(), croupierId, false, StunView.empty(selfAdr)), croupierViewPort);
+      trigger(new OverlayViewUpdate.Indication(eventIds.randomId(), croupierId, false, StunView.empty(selfAdr)),
+        croupierViewPort);
     }
 
     NatAwareAddress getPartner() {
@@ -204,12 +210,24 @@ public class StunServerComp extends ComponentDefinition {
             continue;
           }
           NatAwareAddress partnerAdr = (NatAwareAddress) source.getSource();
-          pendingPartner = Pair.with(scheduleMsgTimeout(), partnerAdr);
+          pendingPartner = Pair.with(msgTimeout(), partnerAdr);
           send(new StunPartner.Request(msgIds.randomId(), selfAdr), selfAdr.getValue0(), partnerAdr);
           break;
         }
       }
     };
+
+    private UUID msgTimeout() {
+      long msgDelay = stunServerConfig.rtt;
+      return timerProxy.scheduleTimer(msgDelay, msgTimer());
+    }
+
+    private Consumer<Boolean> msgTimer() {
+      return (_ignore) -> {
+        logger.warn("{}timeout - partner:{}", new Object[]{pendingPartner.getValue1()});
+        pendingPartner = null;
+      };
+    }
 
     ClassMatchedHandler handlePartnerRequest
       = new ClassMatchedHandler<StunPartner.Request, KContentMsg<NatAwareAddress, KHeader<NatAwareAddress>, StunPartner.Request>>() {
@@ -258,13 +276,16 @@ public class StunServerComp extends ComponentDefinition {
           return;
         }
         //clean session
-        cancelMsgTimeout(pendingPartner.getValue0());
-        pendingPartner = null;
+        if (pendingPartner != null) {
+          timerProxy.cancelTimer(pendingPartner.getValue0());
+          pendingPartner = null;
+        }
         if (!content.accept) {
           return;
         }
         //success
         partner = content.partnerAdr.get();
+
         logger.info("partnered with:{}", new Object[]{partner.getValue0().getId()});
         foundPartner();
       }
@@ -275,21 +296,10 @@ public class StunServerComp extends ComponentDefinition {
       //TODO Alex - fix epfd and add
       //trigger(new EPFDFollow(partner.getValue0(), stunServerConfig.stunService,
       //                StunServerComp.this.getComponentCore().id()), fdPort);
-      trigger(new OverlayViewUpdate.Indication(eventIds.randomId(), croupierId, false, StunView.partner(selfAdr, partner)), croupierViewPort);
+      trigger(new OverlayViewUpdate.Indication(eventIds.randomId(), croupierId, false, StunView.
+        partner(selfAdr, partner)), croupierViewPort);
 
     }
-
-    Handler handleMsgTimeout = new Handler<MsgTimeout>() {
-      @Override
-      public void handle(MsgTimeout timeout) {
-        if (pendingPartner == null || !pendingPartner.getValue0().equals(timeout.getTimeoutId())) {
-          logger.trace("late timeout");
-          return;
-        }
-        logger.debug("{}timeout - partner:{}", new Object[]{pendingPartner.getValue1()});
-        pendingPartner = null;
-      }
-    };
 
 //        Handler handleSuspectPartner = new Handler<EPFDSuspect>() {
 //            @Override
@@ -318,28 +328,4 @@ public class StunServerComp extends ComponentDefinition {
     }
   }
 
-  private UUID scheduleMsgTimeout() {
-    ScheduleTimeout spt = new ScheduleTimeout(stunServerConfig.rtt);
-    MsgTimeout sc = new MsgTimeout(spt);
-    spt.setTimeoutEvent(sc);
-    trigger(spt, timerPort);
-    return sc.getTimeoutId();
-  }
-
-  private void cancelMsgTimeout(UUID tid) {
-    CancelTimeout cpt = new CancelTimeout(tid);
-    trigger(cpt, timerPort);
-  }
-
-  public class MsgTimeout extends Timeout {
-
-    public MsgTimeout(ScheduleTimeout request) {
-      super(request);
-    }
-
-    @Override
-    public String toString() {
-      return "StunPartnerTimeout<" + getTimeoutId() + ">";
-    }
-  }
 }
