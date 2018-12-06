@@ -98,14 +98,13 @@ public class StunServerComp extends ComponentDefinition {
     subscribe(partnerMngr.handleSamples, croupierPort);
     subscribe(partnerMngr.handlePartnerRequest, networkPort);
     subscribe(partnerMngr.handlePartnerResponse, networkPort);
-//        subscribe(partnerMngr.handleSuspectPartner, fdPort);
   }
 
   //******************************CONTROL*************************************
   Handler handleStart = new Handler<Start>() {
     @Override
     public void handle(Start event) {
-      timerProxy.setup(proxy);
+      timerProxy.setup(proxy, logger);
       partnerMngr.start();
     }
   };
@@ -301,20 +300,6 @@ public class StunServerComp extends ComponentDefinition {
 
     }
 
-//        Handler handleSuspectPartner = new Handler<EPFDSuspect>() {
-//            @Override
-//            public void handle(EPFDSuspect suspect) {
-//                if (partner == null || !partner.getValue0().getBase().equals(suspect.req.target.getBase())) {
-//                    LOG.warn("{}possible old partner suspected");
-//                    trigger(new EPFDUnfollow(suspect.req), fdPort);
-//                    return;
-//                }
-//                LOG.info("{}partner:{} suspected - resetting", new Object[]{logPrefix, partner.getValue0().getBase()});
-//                partner = null;
-//                trigger(new EPFDUnfollow(suspect.req), fdPort);
-//                trigger(CroupierUpdate.update(StunView.empty(selfAdr)), croupierView);
-//            }
-//        };
   }
 
   public static class Init extends se.sics.kompics.Init<StunServerComp> {

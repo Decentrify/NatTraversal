@@ -18,12 +18,29 @@
  */
 package se.sics.nat.stun.server;
 
-import se.sics.ktoolbox.util.config.options.BasicAddressOption;
+import com.google.common.base.Optional;
+import se.sics.kompics.config.Config;
+import se.sics.ktoolbox.util.trysf.Try;
 
 /**
- *
  * @author Alex Ormenisan <aaor@kth.se>
  */
-public class StunServerLauncherKConfig {
-    public final static BasicAddressOption bootstrapServer = new BasicAddressOption("overlays.bootstrap.server");
+public class StunServerHostConfig {
+  public static final String NAT_OVERLAY_PREFIX = "overlayOwners.nat";
+  public final byte natOverlayPrefix;
+
+  public StunServerHostConfig(byte natOverlayPrefix) {
+    this.natOverlayPrefix = natOverlayPrefix;
+  }
+  
+  public static Try<StunServerHostConfig> instance(Config config) {
+    Optional<Integer> intPrefix = config.readValue(NAT_OVERLAY_PREFIX, Integer.class);
+    if(!intPrefix.isPresent()) {
+      return new Try.Failure(new IllegalStateException("missing:" + NAT_OVERLAY_PREFIX));
+    }
+    if (intPrefix.get() > 255) {
+      return new Try.Failure(new IllegalStateException("expected byte(<255):" + NAT_OVERLAY_PREFIX));
+    }
+    return new Try.Success(new StunServerHostConfig((byte)(int)intPrefix.get()));
+  }
 }

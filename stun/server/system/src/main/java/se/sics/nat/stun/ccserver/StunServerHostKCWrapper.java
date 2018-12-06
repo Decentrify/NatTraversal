@@ -20,7 +20,7 @@ package se.sics.nat.stun.ccserver;
 
 import se.sics.kompics.config.Config;
 import se.sics.ktoolbox.util.config.KConfigHelper;
-import se.sics.ktoolbox.util.identifiable.overlay.OverlayRegistry;
+import se.sics.ktoolbox.util.identifiable.overlay.OverlayRegistryV2;
 
 /**
  * @author Alex Ormenisan <aaor@kth.se>
@@ -37,6 +37,6 @@ public class StunServerHostKCWrapper {
             throw new RuntimeException("Only allow 255 owners");
         }
         natOverlayPrefix = (byte)intPrefix;
-        OverlayRegistry.registerPrefix("nat", natOverlayPrefix);
+        OverlayRegistryV2.registerPrefix("nat", natOverlayPrefix);
     }
 }
